@@ -1,4 +1,5 @@
 -- This SQL query creates a Kafka source "wiki_source" for live Wikipedia data, extracting specified columns in JSON format from the 'live_wikipedia_data' Kafka topic.
+
 CREATE SOURCE wiki_source (
   contributor VARCHAR,
   title VARCHAR,
