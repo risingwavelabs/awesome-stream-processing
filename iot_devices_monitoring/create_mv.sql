@@ -8,13 +8,16 @@ SELECT
     ts 
 FROM iot_source;
 
--- 
+-- This creates a materialized view named "avg_temperature_mv", calculating the average temperature for the "sensor1" within 1-minute tumbling windows based on the timestamp "ts". 
+
 CREATE MATERIALIZED VIEW avg_temperature_mv AS
 SELECT deviceId, AVG(temperature) AS avg_temperature
 window_start, window_end
 FROM TUMBLE (iot_mv, ts, INTERVAL '1 MINUTES')
 WHERE deviceId ='sensor1'
 GROUP BY deviceId,window_start, window_end;
+
+-- This creates a materialized view named "avg_humidity_mv," calculating the average humidity for "sensor2" within 1-minute tumbling windows based on the timestamp "ts".
 
 CREATE MATERIALIZED VIEW avg_humidity_mv AS
 SELECT deviceId, AVG(humidity) AS avg_humidity
