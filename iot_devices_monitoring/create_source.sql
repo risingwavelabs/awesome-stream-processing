@@ -1,13 +1,14 @@
+-- This creates a source named "iot_source" to capture data from IoT devices.
 
 CREATE SOURCE iot_source(
   deviceId VARCHAR,
-  temperature VARCHAR,
-  humidity VARCHAR,
+  temperature INTEGER,
+  humidity INTEGER,
   ts TIMESTAMPTZ
 )
 WITH (
   connector = 'kafka',
   topic = 'iot_devices', 
   properties.bootstrap.server = 'message_queue:29092',
-  can.startup.mode = 'earliest'
+  scan.startup.mode = 'earliest'
 ) FORMAT PLAIN ENCODE JSON;
