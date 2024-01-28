@@ -1,6 +1,16 @@
 
 # :school: Stream Processing Demo Library :school:
 
+<div>
+  <a
+    href="https://risingwave.com/slack"
+    target="_blank"
+  >
+    <img alt="Slack" src="https://badgen.net/badge/Slack/Join%20RisingWave/0abd59?icon=slack" />
+  </a>
+</div>
+
+
 The term "stream processing" might sound intimidating to many people. We often hear statements like:
 
 - "Stream processing is too difficult to learn and use!" 😱
@@ -26,7 +36,9 @@ We categorize the use cases into four groups:
 4. **Solution demonstrations ✅**
 	* A collection of demos showcasing how stream processing is used in real-world applications
 
-We use [RisingWave](https://github.com/risingwavelabs/risingwave) as the default stream processing system for running these demos. _**All you need is a laptop**_ 💻 - _**no cluster is required.**_
+We use [RisingWave](https://github.com/risingwavelabs/risingwave) as the default stream processing system for running these demos.
+
+_**All you need is a laptop**_ 💻 - _**no cluster is required.**_
 
 Any comments are welcome. Happy streaming!
 
