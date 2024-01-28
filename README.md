@@ -28,9 +28,9 @@ We categorize the use cases into four groups:
 
 1. **Querying and processing event streaming data ✅**
 	* Directly query data stored in event streaming systems (e.g., Kafka, Redpanda, etc)
-	* Continuously ingest and analyze data from event streaming systems (e.g., Kafka, Redpanda, etc)
+	* Continuously ingest and analyze data from event streaming systems
 2. **Bringing analytics closer to operational databases ✅**
-	* Offload event-driven workloads like materialized views and triggers) from operational databases
+	* Offload event-driven workloads （e.g., materialized views and triggers) from operational databases (e.g., PostgreSQL, MongoDB, etc)
 3. **Real-time ETL (Extract, Transform, Load) ✅**
 	* Perform ETL continuously and incrementally
 4. **Solution demonstrations ✅**
