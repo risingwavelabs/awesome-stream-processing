@@ -26,17 +26,19 @@ In this repository, we provide a series of executable demos demonstrating how st
 
 We categorize the use cases into four groups:
 
-1. **Querying and processing event streaming data ✅**
-	* Directly query data stored in event streaming systems (e.g., Kafka, Redpanda, etc)
+1. [**Querying and processing event streaming data ✅**](query-process-streaming-data/)
+	* Directly query data stored in event streaming systems (e.g., Kafka, Redpanda)
 	* Continuously ingest and analyze data from event streaming systems
-2. **Bringing analytics closer to operational databases ✅**
-	* Offload event-driven workloads （e.g., materialized views and triggers) from operational databases (e.g., PostgreSQL, MongoDB, etc)
-3. **Real-time ETL (Extract, Transform, Load) ✅**
+2. [**Bringing analytics closer to operational databases ✅**](bring-analytics-closer-to-odb/)
+	* Offload event-driven queries (e.g., materialized views and triggers) from operational databases (e.g., MySQL, PostgreSQL)
+3. [**Real-time ETL (Extract, Transform, Load) ✅**](real-time-etl)
 	* Perform ETL continuously and incrementally
-4. **Solution demonstrations ✅**
+4. [**Solution demonstrations ✅**](solution-demos)
 	* A collection of demos showcasing how stream processing is used in real-world applications
 
-We use [RisingWave](https://github.com/risingwavelabs/risingwave) as the default stream processing system for running these demos.
+We use [RisingWave](https://github.com/risingwavelabs/risingwave) as the default stream processing system to run these demos. We also assume that you have [Kafka](https://kafka.apache.org/) and/or [PostgreSQL](https://www.postgresql.org/) installed and possess basic knowledge of how to use these systems.
+
+If you do not have experiences with RisingWave, Kafka, PostgreSQL, or if you have not installed these systems, you may want to refer to the Quick Start section.
 
 _**All you need is a laptop**_ 💻 - _**no cluster is required.**_
 
