@@ -1,3 +1,4 @@
+
 # :school: Stream Processing Demo Library :school:
 
 The term "stream processing" might sound intimidating to many people. We often hear statements like:
@@ -15,11 +16,18 @@ In this repository, we provide a series of executable demos demonstrating how st
 
 We categorize the use cases into four groups:
 
-1. Querying and processing event streaming data ✅
-2. Bringing analytics closer to operational databases ✅
-3. Real-time ETL (Extract, Transform, Load) ✅
-4. Solution demonstrations ✅
+1. **Querying and processing event streaming data ✅**
+	* Directly query data stored in event streaming systems (e.g., Kafka, Redpanda, etc)
+	* Continuously ingest and analyze data from event streaming systems (e.g., Kafka, Redpanda, etc)
+2. **Bringing analytics closer to operational databases ✅**
+	* Offload event-driven workloads like materialized views and triggers) from operational databases
+3. **Real-time ETL (Extract, Transform, Load) ✅**
+	* Perform ETL continuously and incrementally
+4. **Solution demonstrations ✅**
+	* A collection of demos showcasing how stream processing is used in real-world applications
 
-We use RisingWave as the default system for running these demos. _**All you need is a laptop**_ 💻 - _**no cluster is required.**_
+We use [RisingWave](https://github.com/risingwavelabs/risingwave) as the default stream processing system for running these demos. _**All you need is a laptop**_ 💻 - _**no cluster is required.**_
 
 Any comments are welcome. Happy streaming!
+
+Join out [Slack community](https://www.risingwave.com/slack) to engage in discussions with thousands of stream processing enthusiasts!
