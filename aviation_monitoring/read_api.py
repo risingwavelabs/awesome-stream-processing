@@ -4,13 +4,8 @@ import json
 # Kafka topic to produce messages to
 topic = 'test'
 
-# Kafka configuration, use localhost:29092 if running on your local device separately
-kafka_config = {
-    'bootstrap_servers': ['localhost:29092']
-}
-
 # Kafka producer
-producer = KafkaProducer(**kafka_config)
+producer = KafkaProducer(api_version=(0, 10, 1),bootstrap_servers= ['kafka:9092'])
 
 # Produce messages to the Kafka topic
 for i in range(3):

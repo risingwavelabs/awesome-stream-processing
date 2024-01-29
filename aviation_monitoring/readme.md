@@ -1,6 +1,6 @@
 # Flight tracking demo
 
-README will be adjusted once demo is finalized and running properly.
+README will be adjusted once demo is finalized.
 
 Under the Zookeeper and Metabase containers, based on your device, adjust the specified platforms as needed.
 
