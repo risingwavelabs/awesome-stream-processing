@@ -31,14 +31,14 @@ We categorize the use cases into four groups:
 	* Continuously ingest and analyze data from event streaming systems
 2. [**Bringing analytics closer to operational databases ✅**](bring-analytics-closer-to-odb/)
 	* Offload event-driven queries (e.g., materialized views and triggers) from operational databases (e.g., MySQL, PostgreSQL)
-3. [**Real-time ETL (Extract, Transform, Load) ✅**](real-time-etl)
+3. [**Real-time ETL (Extract, Transform, Load) ✅**](real-time-etl/)
 	* Perform ETL continuously and incrementally
-4. [**Solution demonstrations ✅**](solution-demos)
+4. [**Solution demonstrations ✅**](solution-demos/)
 	* A collection of demos showcasing how stream processing is used in real-world applications
 
 We use [RisingWave](https://github.com/risingwavelabs/risingwave) as the default stream processing system to run these demos. We also assume that you have [Kafka](https://kafka.apache.org/) and/or [PostgreSQL](https://www.postgresql.org/) installed and possess basic knowledge of how to use these systems.
 
-If you do not have experiences with RisingWave, Kafka, PostgreSQL, or if you have not installed these systems, you may want to refer to the Quick Start section.
+If you do not have experiences with RisingWave, Kafka, PostgreSQL, or if you have not installed these systems, you may want to refer to the [**Get Started**](get-started/) section.
 
 _**All you need is a laptop**_ 💻 - _**no cluster is required.**_
 
