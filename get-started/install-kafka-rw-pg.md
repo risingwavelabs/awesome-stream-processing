@@ -14,23 +14,21 @@ You should have learned how to install Kafka, start the environment, and create 
 
 PostgreSQL is a relational database management system, allowing you to store and manage your data.
 
-To use RisingWave, you will need to install a PostgreSQL client, not the whole server. 
-
-To learn how to install only the client, see the [Install psql without PostgreSQL](https://docs.risingwave.com/docs/current/install-psql-without-postgresql/) guide.
+To use RisingWave and ingest CDC data from PostgreSQL databases, you will need to install the PostgreSQL server. To learn about the different packages and installers for various platforms, see [PostgreSQL Downloads](https://www.postgresql.org/download/).
 
 ## Install RisingWave
 
 RisingWave is an open-source distributed SQL streaming database licensed under the Apache 2.0 license. It utilizes a PostgreSQL-compatible interface, allowing users to perform distributed stream processing in the same way as operating a PostgreSQL database.
 
-You can install and run RisingWave using Homebrew and four lines of code. For other methods of installing RisingWave, see the [Quick start](https://docs.risingwave.com/docs/current/get-started/) guide. 
+You can install and run RisingWave using Docker. Ensure that you have [Docker Desktop](https://docs.docker.com/get-docker/) installed and running first. If you would like to explore other ways of installing RisingWave, see the [Quick start](https://docs.risingwave.com/docs/current/get-started/) guide.
+
+Run the following line of code to start RisingWave.
 
 ```terminal
-brew tap risingwavelabs/risingwave
-brew install risingwave
-risingwave playground
+docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:latest playground
 ```
 
-In a new command line window, run the following line of code to run RisingWave.
+In a new command line window, run the following line of code to connect to RisingWave.
 
 ```terminal
 psql -h localhost -p 4566 -d dev -U root
