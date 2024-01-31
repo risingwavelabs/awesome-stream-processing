@@ -20,19 +20,37 @@ To use RisingWave and ingest CDC data from PostgreSQL databases, you will need t
 
 RisingWave is an open-source distributed SQL streaming database licensed under the Apache 2.0 license. It utilizes a PostgreSQL-compatible interface, allowing users to perform distributed stream processing in the same way as operating a PostgreSQL database.
 
-You can install and run RisingWave using Docker. Ensure that you have [Docker Desktop](https://docs.docker.com/get-docker/) installed and running first. If you would like to explore other ways of installing RisingWave, see the [Quick start](https://docs.risingwave.com/docs/current/get-started/) guide.
+You can install and run RisingWave using Docker. Ensure that you have [Docker Desktop](https://docs.docker.com/get-docker/) installed and running first. 
 
-Run the following line of code to start RisingWave.
+First, clone the [risingwave](https://github.com/risingwavelabs/risingwave) repository.
 
 ```terminal
-docker run -it --pull=always -p 4566:4566 -p 5691:5691 risingwavelabs/risingwave:latest playground
+git clone https://github.com/risingwavelabs/risingwave.git
 ```
 
-In a new command line window, run the following line of code to connect to RisingWave.
+Open the repository in a terminal and navigate to the docker directory by using the following command.
+
+```terminal
+cd docker
+```
+
+Run the following code to start a RisingWave cluster.
+
+```terminal
+docker compose up -d
+```
+
+In a new command line window, run the following code to connect to RisingWave.
 
 ```terminal
 psql -h localhost -p 4566 -d dev -U root
 ```
 
 You can now start writing SQL queries to process streaming data. 
+
+If you would like to explore other ways of installing RisingWave, see the [Quick start](https://docs.risingwave.com/docs/current/get-started/) guide.
+
+For more information on deploying RisingWave with Docker Compose, see [Start RisingWave using Docker Compose](https://docs.risingwave.com/docs/current/risingwave-docker-compose/#connect-to-risingwave).
+
+
 
