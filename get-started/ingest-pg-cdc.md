@@ -46,7 +46,7 @@ The following line of code creates a user `rw` with a password and the attribute
 CREATE USER rw WITH PASSWORD 'abc123' REPLICATION LOGIN CREATEDB;
 ```
 
-Next, grant the user with following privileges so we can access the PostgreSQL data from RisingWave. Fill in the database name accordingly based on where your data is located.
+Next, grant the user with following privileges so we can access the desired PostgreSQL data from RisingWave. Fill in the database name accordingly based on where your data is located.
 
 ```sql
 GRANT CONNECT ON DATABASE <database_name> TO <username>;   
