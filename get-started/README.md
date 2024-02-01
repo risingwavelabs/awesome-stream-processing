@@ -6,4 +6,4 @@ The demos in this directory are designed to assist users in setting up their loc
 
 **Ingest data from Kafka into RisingWave**: [link]()
 
-**Ingest CDC (Change Data Capture) from PostgreSQL into RisingWave**: [link]()
+**Ingest CDC (Change Data Capture) from PostgreSQL into RisingWave**: [link](/get-started/ingest-pg-cdc.md)
