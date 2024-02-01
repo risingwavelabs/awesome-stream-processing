@@ -9,7 +9,7 @@ SELECT
   gender,
   CAST(edit_count AS INT) AS edit_count
 FROM wiki_source
-WHERE timestamp IS NOT NULL
+WHERE edit_timestamp IS NOT NULL
   AND registration IS NOT NULL
   AND edit_count IS NOT NULL;
 
