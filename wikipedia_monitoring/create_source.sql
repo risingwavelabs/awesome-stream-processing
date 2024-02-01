@@ -10,6 +10,6 @@ CREATE SOURCE wiki_source (
 ) WITH (
     connector = 'kafka',
     topic = 'live_wikipedia_data',
-    properties.bootstrap.server = 'message_queue:29092',
+    properties.bootstrap.server = 'kafka:9092',
     scan.startup.mode = 'earliest'
 ) FORMAT PLAIN ENCODE JSON;

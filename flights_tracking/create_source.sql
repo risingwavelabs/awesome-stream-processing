@@ -49,6 +49,6 @@ CREATE SOURCE aviation_source (
 WITH(
   connector = 'kafka',
   topic = 'flights_tracking', 
-  properties.bootstrap.server = 'message_queue:29092',
-  can.startup.mode = 'earliest'
+  properties.bootstrap.server = 'kafka:9092',
+  scan.startup.mode = 'earliest'
 ) FORMAT PLAIN ENCODE JSON;

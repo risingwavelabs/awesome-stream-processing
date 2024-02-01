@@ -35,7 +35,7 @@ GROUP BY window_start, window_end;
 
 -- It creates "count_mv" that counts contributions based on the edit count of contributors from the "wiki_mv" materialized view and uses a 1-minute tumbling window on edit timestamps.
 
-  CREATE MATERIALIZED VIEW count_mv AS
+CREATE MATERIALIZED VIEW count_mv AS
 SELECT 
     COUNT(*) AS total_contributions,
     COUNT(CASE WHEN edit_count < 1000 THEN 1 END) AS contributions_less_than_1000,
