@@ -92,7 +92,7 @@ CREATE TABLE pg_users (
     PRIMARY KEY (id)
 ) WITH (
     connector = 'postgres-cdc',
-    hostname = 'host.docker.internal',
+    hostname = 'localhost',
     port = '5432',
     username = 'postgres',
     password = '2369',
