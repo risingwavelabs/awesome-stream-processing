@@ -1,5 +1,5 @@
 
-# :school: Stream Processing Demo Library :school:
+# :school: Awesome Stream Processing :school:
 
 <div>
   <a
