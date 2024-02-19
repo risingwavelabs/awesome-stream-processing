@@ -2,8 +2,8 @@
 
 The demos in this directory are designed to assist users in setting up their local environment and installing RisingWave, Kafka, and PostgreSQL. These are the three fundamental systems we will be using.
 
-**Install RisingWave, Kafka, and PostgreSQL**: [link](/get-started/install-kafka-rw-pg.md)
+1. **Install RisingWave, Kafka, and PostgreSQL**: [link](00-install-rw-kafka-pg.md)
 
-**Ingest data from Kafka into RisingWave**: [link](/get-started/ingest-kafka-data.md)
+2. **Ingest data from Kafka into RisingWave**: [link](01-ingest-kafka-data.md)
 
-**Ingest CDC (Change Data Capture) from PostgreSQL into RisingWave**: [link](/get-started/ingest-pg-cdc.md)
+3. **Ingest CDC (Change Data Capture) from PostgreSQL into RisingWave**: [link](02-ingest-pg-cdc.md)
