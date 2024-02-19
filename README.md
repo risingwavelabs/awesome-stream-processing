@@ -22,10 +22,10 @@ _**However, we believe this isn't true.**_ ❌
 
 Streaming data is everywhere, generated from operational databases, messaging queues, IoT devices, and many other sources. People can leverage modern stream processing technology to easily address classic real-world problems, using SQL as the programming language.
 
-In this repository, we provide a series of executable demos demonstrating how stream processing can be applied in practical scenarios.
+In this repository, we provide a series of executable demos demonstrating how stream processing can be applied in practical scenarios:
 
-We categorize the use cases into four groups:
-
+0. [**Getting started ✅**](get-started/)
+	* Install and run Kafka, PostgreSQL, and PostgreSQL
 1. [**Querying and processing event streaming data ✅**](query-process-streaming-data/)
 	* Directly query data stored in event streaming systems (e.g., Kafka, Redpanda)
 	* Continuously ingest and analyze data from event streaming systems
@@ -38,7 +38,7 @@ We categorize the use cases into four groups:
 
 We use [RisingWave](https://github.com/risingwavelabs/risingwave) as the default stream processing system to run these demos. We also assume that you have [Kafka](https://kafka.apache.org/) and/or [PostgreSQL](https://www.postgresql.org/) installed and possess basic knowledge of how to use these systems.
 
-If you do not have experiences with RisingWave, Kafka, PostgreSQL, or if you have not installed these systems, you may want to refer to the [**Get Started**](get-started/) section.
+
 
 _**All you need is a laptop**_ 💻 - _**no cluster is required.**_
 
