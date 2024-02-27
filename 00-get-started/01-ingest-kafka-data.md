@@ -8,7 +8,7 @@ If you need help setting these systems up, refer to [Install Kafka, RisingWave, 
 
 First, ensure you have downloaded and started the Kafka environment. Please refer to Step 2 of the official [Apache Kafka quickstart](https://kafka.apache.org/quickstart) tutorial.
 
-Then, you will need to create a topic to store your streaming events. The following line of code creates a topic named "test".
+Then, you will need to create a topic to store your streaming events. The following line of code creates a topic named `test`.
 
 ```terminal
 bin/kafka-topics.sh --create --topic test --bootstrap-server localhost:9092
