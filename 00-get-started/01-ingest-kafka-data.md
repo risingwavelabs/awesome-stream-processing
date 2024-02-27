@@ -106,3 +106,5 @@ The results will look like the following. Note that the rows do not necessarily 
  page2   |            2 |               2 | 2023-06-13 10:08:00+00:00
  page3   |            1 |               1 | 2023-06-13 10:09:00+00:00
 ```
+
+For more information, check [Ingest data from Kafka](https://docs.risingwave.com/docs/current/ingest-from-kafka/) from the official documentation.
