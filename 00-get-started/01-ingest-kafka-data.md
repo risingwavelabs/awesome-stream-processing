@@ -2,19 +2,19 @@
 
 Now that you have the necessary systems installed for stream processing, let us use RisingWave to consume and analyze data from Kafka. 
 
-If you need help setting these systems up, refer to [Install Kafka, RisingWave, and PostgreSQL](/get-started/install-kafka-rw-pg.md).
+If you need help setting these systems up, refer to [Install Kafka, RisingWave, and PostgreSQL](00-install-rw-kafka-pg.md).
 
 ## Use Kafka to produce messages
 
-First, ensure you have downloaded and started the Kafka environment. 
+First, ensure you have downloaded and started the Kafka environment. Please refer to Step 2 of the official [Apache Kafka quickstart](https://kafka.apache.org/quickstart) tutorial.
 
-Then, you will need to create a topic to store your streaming events. The following line of code creates a topic named test. 
+Then, you will need to create a topic to store your streaming events. The following line of code creates a topic named "test".
 
 ```terminal
 bin/kafka-topics.sh --create --topic test --bootstrap-server localhost:9092
 ```
 
-Next, start the producer program so we can send messages to the topic. If you named your topic something different, be sure to adjust it accordingly. 
+Next, start the producer program in another terminal so that we can send messages to the topic. If you named your topic something different, be sure to adjust it accordingly. 
 
 ```terminal
 bin/kafka-console-producer.sh --topic test --bootstrap-server localhost:9092
@@ -30,7 +30,7 @@ Once the ‘>’ symbol appears, we can enter the message. To facilitate data co
 {"timestamp": "2023-06-13T10:09:00Z", "user_id": "user5", "page_id": "page3", "action": "view"}
 ```
 
-You can also start a consumer to view the messages.
+You may also start a consumer program in another terminal to view the messages for verification.
 
 ```terminal
 bin/kafka-console-consumer.sh --topic test --from-beginning --bootstrap-server localhost:9092
@@ -40,15 +40,25 @@ bin/kafka-console-consumer.sh --topic test --from-beginning --bootstrap-server l
 
 Ensure that you have RisingWave up and running.
 
+```terminal
+./risingwave
+```
+
+In another terminal, connect to your RisingWave.
+
+```terminal
+psql -h localhost -p 4566 -d dev -U root
+```
+
 ### Create a source
 
-To connect to the data stream we just created in Kafka, we need to create a source using the `CREATE SOURCE` or `CREATE TABLE` command. Once this connection is established, RisingWave will be able to read any new messages from Kafka in real time. 
+To connect to the data stream we just created in Kafka, we need to create a source using the `CREATE SOURCE` or `CREATE TABLE` command. Once the connection is established, RisingWave will be able to read any new messages from Kafka in real time. 
 
-The following SQL query creates a source `website_visits_stream`. We also define a schema to map fields from the JSON data to the streaming data. 
+The following SQL query creates a source named `website_visits_stream`. We also define a schema here to map fields from the JSON data to the streaming data. 
 
 ```sql
 CREATE source IF NOT EXISTS website_visits_stream (
- timestamp TIMESTAMP,
+ timestamp timestamptz,
  user_id VARCHAR,
  page_id VARCHAR,
  action VARCHAR
@@ -61,15 +71,15 @@ WITH (
 ) FORMAT PLAIN ENCODE JSON;
 ```
 
-To learn more about the `CREATE SOURCE` command, see [`CREATE SOURCE`](https://docs.risingwave.com/docs/current/sql-create-source/) from the documentation.
+To learn more about the `CREATE SOURCE` command, check [`CREATE SOURCE`](https://docs.risingwave.com/docs/current/sql-create-source/) from the offical RisingWave documentation.
 
-To learn more about consuming data from Kafka, see [Ingest data from Kafka](https://docs.risingwave.com/docs/current/ingest-from-kafka/).
+To learn more about consuming data from Kafka, check [Ingest data from Kafka](https://docs.risingwave.com/docs/current/ingest-from-kafka/).
 
 ### Analyze the data
 
-By creating a source, RisingWave is connected to the data stream but in order to ingest and process the data from Kafka, we need to create materialized views. Materialized views contain the results of a query. Once new data comes in, the results are updated instantly.
+By creating a source, RisingWave has been connected to the data stream. However, in order to ingest and process the data from Kafka, we need to create some materialized views. Each of these materialized views contains the results of a query, which are updated as soon as new data comes in.
 
-The following SQL query creates a materialized view `visits_stream_mv` based on the source `website_visits_stream`. For each `page_id`, it finds the number of total visits, the number of unique visitors, and when the page was most recently visited.
+The following SQL query creates a materialized view named `visits_stream_mv` based on the source `website_visits_stream`. For each `page_id`, it calculates the number of total visits, the number of unique visitors, and the timestamp when the page was most recently visited.
 
 ```sql
 CREATE MATERIALIZED VIEW visits_stream_mv AS
@@ -87,17 +97,12 @@ We can query from the materialized view to see the results.
 SELECT * FROM visits_stream_mv;
 ```
 
-The results will look like the following.
+The results will look like the following. Note that the rows do not necessarily follow this order.
 
 ```terminal
- page_id | total_visits | unique_visitors |   last_visit_time
-
----------+--------------+-----------------+---------------------
-
- page1   |            1 |               1 | 2023-06-13 10:07:00
-
- page2   |            3 |               2 | 2023-06-13 10:08:00
-
- page3   |            1 |               1 | 2023-06-13 10:09:00
+ page_id | total_visits | unique_visitors |      last_visit_time
+---------+--------------+-----------------+---------------------------
+ page1   |            2 |               2 | 2023-06-13 10:07:00+00:00
+ page2   |            2 |               2 | 2023-06-13 10:08:00+00:00
+ page3   |            1 |               1 | 2023-06-13 10:09:00+00:00
 ```
-
