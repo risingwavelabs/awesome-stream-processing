@@ -12,7 +12,7 @@ Once you have the PostgreSQL server installed, connect to a database. By default
 psql -h localhost -p 5432 -d postgres -U postgres
 ```
 
-> NOTE: Specifically for Ubuntu users, if you are prompted for a password when running the `psql` command above, but you have not yet specified any password after installing PostgreSQL, check in the `pg_hba.conf` file (normally located as `/etc/postgresql/16/main/pg_hba.conf`) whether the default authentication method for the local connections is `trust`:
+> NOTE: If you are prompted for a password when running the `psql` command above, but you have not yet specified any password after installing PostgreSQL, check in the `pg_hba.conf` file (normally located as `/etc/postgresql/16/main/pg_hba.conf`) whether the default authentication method for the local connections is `trust`:
 ```
 # TYPE  DATABASE        USER            ADDRESS                 METHOD
 ...
@@ -27,8 +27,6 @@ If not, modify the `METHOD` to `trust` and restart the postgres server by runnin
 Now you should be able to connect to the database without specifying any password. You may assign a password to the default user, or [create a new user](#optional-create-a-database-user) with your specified password.
 
 After configuring a password for the user, recover the authentication method to the original value. Now you can run the aforementioned `psql` command again with the configured password.
-
-Similar operations also apply to users using other OS platforms.
 
 ### Configure the environment
 
