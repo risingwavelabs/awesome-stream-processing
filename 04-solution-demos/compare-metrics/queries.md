@@ -1,3 +1,8 @@
+# Use the following queries to create sources and materialized views
+
+## Create sources that connects to the message producers
+
+```sql
 create source constant (
   order_id varchar,
   customer_id varchar,
@@ -9,9 +14,9 @@ create source constant (
   topic = 'purchase_constant',
   properties.bootstrap.server = 'message_queue:29092'
 ) FORMAT PLAIN ENCODE JSON;
+```
 
-create materialized view c_mv as select * from constant;
-
+```sql
 create source varying (
   order_id varchar,
   customer_id varchar,
@@ -23,5 +28,11 @@ create source varying (
   topic = 'purchase_varying',
   properties.bootstrap.server = 'message_queue:29092'
 ) FORMAT PLAIN ENCODE JSON;
+```
 
-create materialized view v_mv as select * from varying;
+## Create materialized views
+
+create materialized view joined_sources as
+  select *
+  from constant
+  inner join varying on customer_id;

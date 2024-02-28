@@ -39,13 +39,15 @@ def generate_product_id():
 def generate_purchase_event():
     order_id = generate_order_id()
     customer_id = generate_customer_id()
-    products = {"product_id": generate_product_id(), "quantity": random.randint(1, 5)}
+    product = generate_product_id()
+    quantity = random.randint(1,5)
     timestamp = datetime.datetime.now().isoformat()
-    total_amount = round(sum([random.uniform(10, 100) for _ in range(len(products))]), 2)  # Random total amount
+    total_amount = round(random.uniform(10, 100) * quantity, 2)  # Random total amount
     return {
         "order_id": order_id,
         "customer_id": customer_id,
-        "products": products,
+        "product": product,
+        "quantity": quantity,
         "timestamp": timestamp,
         "total_amount": total_amount
     }
