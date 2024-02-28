@@ -12,12 +12,14 @@ Once you have the PostgreSQL server installed, connect to a database. By default
 psql -h localhost -p 5432 -d postgres -U postgres
 ```
 
-> NOTE: Specifically for Ubuntu users, if you are prompted for a password when running the `psql` command above, but you have not yet specified any password after installing PostgreSQL, check in the `pg_hba.conf` file (normally located as `/etc/postgresql/16/main/pg_hba.conf`) whether the default authentication method for the IPv4 local connections is `trust`:
+> NOTE: Specifically for Ubuntu users, if you are prompted for a password when running the `psql` command above, but you have not yet specified any password after installing PostgreSQL, check in the `pg_hba.conf` file (normally located as `/etc/postgresql/16/main/pg_hba.conf`) whether the default authentication method for the local connections is `trust`:
 ```
 # TYPE  DATABASE        USER            ADDRESS                 METHOD
 ...
 # IPv4 local connections:
 host    all             all             127.0.0.1/32            trust
+# IPv6 local connections:
+host    all             all             ::1/128                 trust
 ```
 
 If not, modify the `METHOD` to `trust` and restart the postgres server by running `sudo service postgresql restart`.
