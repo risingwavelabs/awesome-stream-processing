@@ -1,4 +1,3 @@
-#from faker import Faker
 import random
 import json
 import datetime
