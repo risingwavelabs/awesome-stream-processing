@@ -66,24 +66,24 @@ def generate_purchase_event():
 # Kafka topic to produce messages to
 topic = 'purchase_varying'
 
-# Produce messages to the Kafka topic
-while is_broker_available():
+if __name__ == "__main__":
 
-    if 0 <= datetime.datetime.now().second < 15 or 30 <= datetime.datetime.now().second < 45:
+    # Produce messages to the Kafka topic
+    while is_broker_available():
 
-        message = generate_purchase_event()
-        message_str = json.dumps(message).encode('utf-8')
-        # Produce the message to the topic asynchronously
-        producer.send(topic, message_str)
-        time.sleep(1/rate_per_second)
+        if 0 <= datetime.datetime.now().second < 15 or 30 <= datetime.datetime.now().second < 45:
 
-    else:
-        wait_until()
+            message = generate_purchase_event()
+            message_str = json.dumps(message).encode('utf-8')
+            # Produce the message to the topic asynchronously
+            producer.send(topic, message_str)
+            time.sleep(1/rate_per_second)
 
-print('Producer closed')
+        else:
+            wait_until()
 
-# Wait for any outstanding messages to be delivered and delivery reports received
-producer.flush() 
-producer.close()
+    print('Producer closed')
 
-print(datetime.datetime.now().second)
+    # Wait for any outstanding messages to be delivered and delivery reports received
+    producer.flush() 
+    producer.close()

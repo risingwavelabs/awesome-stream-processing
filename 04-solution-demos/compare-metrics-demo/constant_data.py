@@ -53,18 +53,20 @@ def generate_purchase_event():
 # Kafka topic to produce messages to
 topic = 'purchase_constant'
 
-# Produce messages to the Kafka topic
-while is_broker_available():
+if __name__ == "__main__":
 
-    message = generate_purchase_event()
-    message_str = json.dumps(message).encode('utf-8')
+    # Produce messages to the Kafka topic
+    while is_broker_available():
 
-    producer.send(topic, message_str)
+        message = generate_purchase_event()
+        message_str = json.dumps(message).encode('utf-8')
 
-    time.sleep(1/rate_per_second)
+        producer.send(topic, message_str)
 
-print('Producer closed')
+        time.sleep(1/rate_per_second)
 
-# Wait for any outstanding messages to be delivered and delivery reports received
-producer.flush() 
-producer.close()
+    print('Producer closed')
+
+    # Wait for any outstanding messages to be delivered and delivery reports received
+    producer.flush() 
+    producer.close()
