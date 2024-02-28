@@ -44,7 +44,7 @@ If it is already `logical`, skip to the next section. To change the value of the
 ALTER SYSTEM SET wal_level = logical;
 ```
 
-To save this change, close the terminal window with `\q` and restart the PostgreSQL instance. For Mac users, run the following line of code to restart PostgreSQL. 
+To save this change, close the terminal window with `\q` and restart the PostgreSQL instance. Then, run the following line of code to restart PostgreSQL. 
 
 ```terminal
 sudo service postgresql restart
