@@ -1,10 +1,12 @@
 import random
 import json
 import datetime
+import time
 import string
 from kafka import KafkaProducer
 
-# Kafka configuration, use localhost:29092 if running on your local device separately
+rate_per_second = 20
+
 kafka_config = {
     'bootstrap_servers': ['localhost:9092']
 }
@@ -12,6 +14,7 @@ kafka_config = {
 # Kafka producer
 producer = KafkaProducer(**kafka_config)
 
+# Check if broker is available
 def is_broker_available():
     global producer
     try:
@@ -20,18 +23,19 @@ def is_broker_available():
         print(f"Broker not available: {e}")
         return False
 
-# Function to generate a random order ID
+# Generate a random order ID
 def generate_order_id():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
 
-# Function to generate a random customer ID
+# Generate a random customer ID
 def generate_customer_id():
     return ''.join(random.choices(string.digits, k=5))
 
-# Function to generate a random product ID
+# Generate a random product ID
 def generate_product_id():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
 
+# Generate random purchase event
 def generate_purchase_event():
     order_id = generate_order_id()
     customer_id = generate_customer_id()
@@ -47,17 +51,17 @@ def generate_purchase_event():
     }
 
 # Kafka topic to produce messages to
-topic = 'purchase'
+topic = 'purchase_constant'
 
 # Produce messages to the Kafka topic
 while is_broker_available():
 
-#for i in range(10):
-
     message = generate_purchase_event()
     message_str = json.dumps(message).encode('utf-8')
-    # Produce the message to the topic asynchronously
+
     producer.send(topic, message_str)
+
+    time.sleep(1/rate_per_second)
 
 print('Producer closed')
 
