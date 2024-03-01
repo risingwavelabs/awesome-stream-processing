@@ -36,9 +36,7 @@ In this repository, we provide a series of executable demos demonstrating how st
 4. [**Solution demonstrations ✅**](solution-demos/)
 	* A collection of demos showcasing how stream processing is used in real-world applications
 
-We use [RisingWave](https://github.com/risingwavelabs/risingwave) as the default stream processing system to run these demos. We also assume that you have [Kafka](https://kafka.apache.org/) and/or [PostgreSQL](https://www.postgresql.org/) installed and possess basic knowledge of how to use these systems.
-
-
+We use [RisingWave](https://github.com/risingwavelabs/risingwave) as the default stream processing system to run these demos. We also assume that you have [Kafka](https://kafka.apache.org/) and/or [PostgreSQL](https://www.postgresql.org/) installed and possess basic knowledge of how to use these systems. **These demos have been verified on Ubuntu.**
 
 _**All you need is a laptop**_ 💻 - _**no cluster is required.**_
 
