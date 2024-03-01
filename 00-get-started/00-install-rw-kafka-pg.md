@@ -2,6 +2,19 @@
 
 If you do not have experience with or have not installed RisingWave, Kafka, or PostgreSQL, follow along to learn how to set up these systems.
 
+## Prerequisite: Set Up Java
+
+As a kind reminder, both RisingWave and Kafka require Java in the environment, so make sure you have set up Java in advance. As an example, in Ubuntu you can install by running the following line of code.
+```terminal
+sudo apt-get install default-jre
+```
+
+You can verify the installation using the following line of code.
+```terminal
+java -version
+```
+The expected output will be the detailed version of the JRE and JVM.
+
 ## Install PostgreSQL
 
 PostgreSQL is a relational database management system, allowing you to store and manage your data.
@@ -38,6 +51,6 @@ If you would like to explore other ways of installing RisingWave, see the [Quick
 
 Apache Kafka is an open-distributed event streaming platform for building event-driven architectures, enabling you to retrieve and process data in real time. 
 
-To install and run the self-hosted version of Kafka, follow steps 1 ~ 3 outlined in this [Apache Kafka quickstart](https://kafka.apache.org/quickstart). As a kind reminder, Java is a necessity to start Kafka with Zookeeper.
+To install and run the self-hosted version of Kafka, follow steps 1 ~ 3 outlined in this [Apache Kafka quickstart](https://kafka.apache.org/quickstart).
 
 You should now have a good handle on how to install Kafka, start the environment, and create a topic. 
