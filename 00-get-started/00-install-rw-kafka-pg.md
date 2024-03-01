@@ -51,6 +51,4 @@ If you would like to explore other ways of installing RisingWave, see the [Quick
 
 Apache Kafka is an open-distributed event streaming platform for building event-driven architectures, enabling you to retrieve and process data in real time. 
 
-To install and run the self-hosted version of Kafka, follow steps 1 ~ 3 outlined in this [Apache Kafka quickstart](https://kafka.apache.org/quickstart).
-
-You should now have a good handle on how to install Kafka, start the environment, and create a topic. 
+To install and run the self-hosted version of Kafka, follow steps 1 ~ 5 outlined in this [Apache Kafka quickstart](https://kafka.apache.org/quickstart). You will have a good handle on how to install Kafka, start the environment, and create a topic where you can write/read events to/from.

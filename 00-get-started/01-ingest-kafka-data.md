@@ -6,7 +6,7 @@ If you need help setting these systems up, refer to [Install Kafka, RisingWave, 
 
 ## Use Kafka to produce messages
 
-First, ensure you have downloaded and started the Kafka environment. Please refer to Step 2 of the official [Apache Kafka quickstart](https://kafka.apache.org/quickstart) tutorial.
+First, ensure you have downloaded and started the Kafka environment. For more information, check the [installation guide of Kafka](00-install-rw-kafka-pg.md#install-kafka) in our "Get Started" chapter.
 
 Then, you will need to create a topic to store your streaming events. The following line of code creates a topic named `test`.
 
@@ -20,7 +20,7 @@ Next, start the producer program in another terminal so that we can send message
 bin/kafka-console-producer.sh --topic test --bootstrap-server localhost:9092
 ```
 
-Once the ‘>’ symbol appears, we can enter the message. To facilitate data consumption in RisingWave, we input data in JSON format.
+Once the `>` symbol appears, we can enter the message. To facilitate data consumption in RisingWave, we input data in JSON format.
 
 ```terminal
 {"timestamp": "2023-06-13T10:05:00Z", "user_id": "user1", "page_id": "page1", "action": "click"}
@@ -38,17 +38,7 @@ bin/kafka-console-consumer.sh --topic test --from-beginning --bootstrap-server l
 
 ## Use RisingWave to process the data
 
-Ensure that you have RisingWave up and running.
-
-```terminal
-./risingwave
-```
-
-In another terminal, connect to your RisingWave.
-
-```terminal
-psql -h localhost -p 4566 -d dev -U root
-```
+Ensure that you have RisingWave up and running. For more information, check the [installation guide of RisingWave](00-install-rw-kafka-pg.md#install-risingwave) in our "Get Started" chapter.
 
 ### Create a source
 
@@ -72,8 +62,6 @@ WITH (
 ```
 
 To learn more about the `CREATE SOURCE` command, check [`CREATE SOURCE`](https://docs.risingwave.com/docs/current/sql-create-source/) from the offical RisingWave documentation.
-
-To learn more about consuming data from Kafka, check [Ingest data from Kafka](https://docs.risingwave.com/docs/current/ingest-from-kafka/).
 
 ### Analyze the data
 
@@ -107,4 +95,4 @@ The results will look like the following. Note that the rows do not necessarily 
  page3   |            1 |               1 | 2023-06-13 10:09:00+00:00
 ```
 
-For more information, check [Ingest data from Kafka](https://docs.risingwave.com/docs/current/ingest-from-kafka/) from the official documentation.
+For more information on consuming data from Kafka, check [Ingest data from Kafka](https://docs.risingwave.com/docs/current/ingest-from-kafka/) from the official documentation.
