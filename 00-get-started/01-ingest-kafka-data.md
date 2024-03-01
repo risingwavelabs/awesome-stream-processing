@@ -1,8 +1,6 @@
 # Ingest data from Kafka into RisingWave
 
-Now that you have the necessary systems installed for stream processing, let us use RisingWave to consume and analyze data from Kafka. 
-
-If you need help setting these systems up, refer to [Install Kafka, RisingWave, and PostgreSQL](00-install-rw-kafka-pg.md).
+Now that you have the necessary systems installed for stream processing, let us use RisingWave to consume and analyze data from Kafka. If you need help setting these systems up, refer to [Install Kafka, RisingWave, and PostgreSQL](00-install-rw-kafka-pg.md).
 
 ## Use Kafka to produce messages
 
@@ -95,4 +93,4 @@ The results will look like the following. Note that the rows do not necessarily 
  page3   |            1 |               1 | 2023-06-13 10:09:00+00:00
 ```
 
-For more information on consuming data from Kafka, check [Ingest data from Kafka](https://docs.risingwave.com/docs/current/ingest-from-kafka/) from the official documentation.
+To learn more about how to consume data from Kafka, check [Ingest data from Kafka](https://docs.risingwave.com/docs/current/ingest-from-kafka/) from the official documentation.
