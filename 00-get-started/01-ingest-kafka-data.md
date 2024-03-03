@@ -36,7 +36,7 @@ bin/kafka-console-consumer.sh --topic test --from-beginning --bootstrap-server l
 
 ## Use RisingWave to process the data
 
-Ensure that you have RisingWave up and running. For more information, check the [installation guide of RisingWave](00-install-kafka-pg-rw.md#install-risingwave).
+Ensure that you have RisingWave up and running. For more information, check the [installation guide for RisingWave](00-install-kafka-pg-rw.md#install-risingwave).
 
 ### Create a source
 
