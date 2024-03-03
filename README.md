@@ -24,16 +24,16 @@ Streaming data is everywhere, generated from operational databases, messaging qu
 
 In this repository, we provide a series of executable demos demonstrating how stream processing can be applied in practical scenarios:
 
-0. [**Getting started ✅**](get-started/)
+0. [**Getting started ✅**](00-get-started/)
 	* Install RisingWave, Kafka, and PostgreSQL, and run minimal toy examples
-1. [**Querying and processing event streaming data ✅**](query-process-streaming-data/)
+1. [**Querying and processing event streaming data ✅**](01-query-process-streaming-data/)
 	* Directly query data stored in event streaming systems (e.g., Kafka, Redpanda)
 	* Continuously ingest and analyze data from event streaming systems
-2. [**Bringing analytics closer to operational databases ✅**](bring-analytics-closer-to-odb/)
+2. [**Bringing analytics closer to operational databases ✅**](02-bring-analytics-closer-to-odb/)
 	* Offload event-driven queries (e.g., materialized views and triggers) from operational databases (e.g., MySQL, PostgreSQL)
-3. [**Real-time ETL (Extract, Transform, Load) ✅**](real-time-etl/)
+3. [**Real-time ETL (Extract, Transform, Load) ✅**](03-real-time-etl/)
 	* Perform ETL continuously and incrementally
-4. [**Solution demonstrations ✅**](solution-demos/)
+4. [**Solution demonstrations ✅**](04-solution-demos/)
 	* A collection of demos showcasing how stream processing is used in real-world applications
 
 We use [RisingWave](https://github.com/risingwavelabs/risingwave) as the default stream processing system to run these demos. We also assume that you have [Kafka](https://kafka.apache.org/) and/or [PostgreSQL](https://www.postgresql.org/) installed and possess basic knowledge of how to use these systems. **These demos have been verified on Ubuntu.**
