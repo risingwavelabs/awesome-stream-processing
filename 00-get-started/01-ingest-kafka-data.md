@@ -1,10 +1,10 @@
 # Ingest data from Kafka into RisingWave
 
-Now that you have the necessary systems installed for stream processing, let us use RisingWave to consume and analyze data from Kafka. If you need help setting these systems up, refer to [Install Kafka, RisingWave, and PostgreSQL](00-install-rw-kafka-pg.md).
+Now that you have the necessary systems installed for stream processing, let us use RisingWave to consume and analyze data from Kafka. If you need help setting these systems up, refer to [Install Kafka, PostgreSQL and RisingWave](00-install-kafka-pg-rw.md).
 
 ## Use Kafka to produce messages
 
-First, ensure you have downloaded and started the Kafka environment. For more information, check the [installation guide of Kafka](00-install-rw-kafka-pg.md#install-kafka) in our "Get Started" chapter.
+First, ensure you have downloaded and started the Kafka environment. For more information, check the [installation guide for Kafka](00-install-kafka-pg-rw.md#install-kafka).
 
 Then, you will need to create a topic to store your streaming events. The following line of code creates a topic named `test`.
 
@@ -36,7 +36,7 @@ bin/kafka-console-consumer.sh --topic test --from-beginning --bootstrap-server l
 
 ## Use RisingWave to process the data
 
-Ensure that you have RisingWave up and running. For more information, check the [installation guide of RisingWave](00-install-rw-kafka-pg.md#install-risingwave) in our "Get Started" chapter.
+Ensure that you have RisingWave up and running. For more information, check the [installation guide of RisingWave](00-install-kafka-pg-rw.md#install-risingwave).
 
 ### Create a source
 
