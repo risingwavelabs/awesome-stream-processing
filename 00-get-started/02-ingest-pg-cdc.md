@@ -1,12 +1,12 @@
 # Ingest data from PostgreSQL CDC into RisingWave
 
-Now that you have the necessary systems installed for stream processing, let us use RisingWave to consume and analyze data from PostgreSQL. CDC (change data capture) refers to the process of identifying and capturing data changes in a database and delivering the changes to another service in real time. In this case, this means that any changes made in the PostgreSQL database will be reflected automatically in RisingWave.
+Now let us use RisingWave to consume and analyze data from PostgreSQL. CDC (change data capture) refers to the process of identifying and capturing data changes in a database and delivering the changes to another service in real time. In this case, this means that any changes made in the PostgreSQL database will be reflected automatically in RisingWave.
 
-If you need help installing these systems, refer to [Install Kafka, RisingWave, and PostgreSQL](00-install-rw-kafka-pg.md).
+If you need help installing these systems, refer to [Install Kafka, PostgreSQL, and RisingWave](00-install-kafka-pg-rw.md).
 
 ## Create a table in PostgreSQL
 
-First, ensure you have downloaded and started the PostgreSQL server. For more information, check the [installation guide of PostgreSQL](00-install-rw-kafka-pg.md#install-postgresql) in our "Get Started" chapter.
+First, ensure you have downloaded and started the PostgreSQL server. For more information, check the [installation guide for PostgreSQL](00-install-kafka-pg-rw.md#install-postgresql).
 
 Next, create a table and populate it with some data in PostgreSQL. The following creates a table `users` that has the columns `id`, `name`, and `age`.
 
@@ -29,7 +29,7 @@ INSERT INTO users (name, age) VALUES
 
 ## Use RisingWave to process the data
 
-Now that PostgreSQL is set up, we can move over to RisingWave to ingest CDC data from PostgreSQL. Ensure that you have RisingWave up and running. For more information, check the [installation guide of RisingWave](00-install-rw-kafka-pg.md#install-risingwave) in our "Get Started" chapter.
+Now that PostgreSQL is set up, we can move over to RisingWave to ingest CDC data from PostgreSQL. Ensure that you have RisingWave up and running. For more information, check the [installation guide for RisingWave](00-install-kafka-pg-rw.md#install-risingwave).
 
 To read CDC data from the table we just created, use the following SQL query. We create a table `pg_users` in RisingWave that reads data from the `users` table created in PostgreSQL. Remember to fill in the username and password accordingly. If you created your table in a different database and schema, remember to adjust the parameter values.
 
@@ -51,7 +51,7 @@ CREATE TABLE pg_users (
 );
 ```
 
-As an example, for the [newly created user](#optional-create-a-database-user) `rw` with password as `abc123`, run the following SQL.
+As an example, for the [newly created user](00-install-kafka-pg-rw.md#optional-create-a-database-user) `rw` with password as `abc123`, run the following SQL.
 ```sql
 CREATE TABLE pg_users (
     id integer,
