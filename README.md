@@ -25,7 +25,7 @@ Streaming data is everywhere, generated from operational databases, messaging qu
 In this repository, we provide a series of executable demos demonstrating how stream processing can be applied in practical scenarios:
 
 0. [**Getting started ✅**](00-get-started/)
-	* Install RisingWave, Kafka, and PostgreSQL, and run minimal toy examples
+	* Install Kafka, PostgreSQL, and RisingWave, and run minimal toy examples
 1. [**Querying and processing event streaming data ✅**](01-query-process-streaming-data/)
 	* Directly query data stored in event streaming systems (e.g., Kafka, Redpanda)
 	* Continuously ingest and analyze data from event streaming systems
