@@ -1,6 +1,6 @@
-# Install RisingWave, Kafka, and PostgreSQL
+# Install Kafka, PostgreSQL, and RisingWave
 
-If you do not have experience with or have not installed RisingWave, Kafka, or PostgreSQL, follow along to learn how to set up these systems.
+If you do not have experience with or have not installed Kafka, PostgreSQL, or RisingWave, follow along to learn how to set up these systems.
 
 ## Prerequisite: Install Java
 
@@ -14,6 +14,12 @@ You can verify the installation using the following line of code.
 java -version
 ```
 The expected output will be the detailed version of the JRE and JVM.
+
+## Install Kafka
+
+Apache Kafka is an open-source distributed event streaming platform for building event-driven architectures, enabling you to retrieve and process data in real time. 
+
+To install and run the self-hosted version of Kafka, follow steps outlined in this [Apache Kafka quickstart](https://kafka.apache.org/quickstart). You will have a good handle on how to install Kafka, start the environment, and create a topic where you can write/read events to/from.
 
 ## Install PostgreSQL
 
@@ -45,9 +51,9 @@ Now you should be able to connect to the database without specifying any passwor
 
 After configuring a password for the user, recover the authentication method to the original value. Now you should be able to run the aforementioned `psql` command again with the configured password.
 
-### Configure the environment
+### Configure PostgreSQL CDC
 
-Before RisingWave ingests data from PostgreSQL, we need to change the `wal_level` parameter to be `logical`.
+To allow stream processing systems like RisingWave to ingest data from PostgreSQL CDC (Change Data Capture), we need to change the `wal_level` parameter to be `logical`.
 
 To check the `wal_level`, use the following statement.
 
@@ -123,8 +129,3 @@ You can now start writing SQL queries to process streaming data.
 
 If you would like to explore other ways of installing RisingWave, see the [Quick start](https://docs.risingwave.com/docs/current/get-started/) guide.
 
-## Install Kafka
-
-Apache Kafka is an open-distributed event streaming platform for building event-driven architectures, enabling you to retrieve and process data in real time. 
-
-To install and run the self-hosted version of Kafka, follow steps 1 ~ 5 outlined in this [Apache Kafka quickstart](https://kafka.apache.org/quickstart). You will have a good handle on how to install Kafka, start the environment, and create a topic where you can write/read events to/from.
