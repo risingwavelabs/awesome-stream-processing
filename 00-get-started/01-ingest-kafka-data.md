@@ -38,6 +38,14 @@ bin/kafka-console-consumer.sh --topic test --from-beginning --bootstrap-server l
 
 Ensure that you have RisingWave up and running. For more information, check the [installation guide for RisingWave](00-install-kafka-pg-rw.md#install-risingwave).
 
+### Connect to RisingWave
+
+run the following code to connect to RisingWave.
+
+```terminal
+psql -h localhost -p 4566 -d dev -U root
+```
+
 ### Create a source
 
 To connect to the data stream we just created in Kafka, we need to create a source using the `CREATE SOURCE` or `CREATE TABLE` command. Once the connection is established, RisingWave will be able to read any new messages from Kafka in real time. 
