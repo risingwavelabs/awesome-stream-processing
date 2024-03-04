@@ -49,4 +49,21 @@ The results will look like the following. Note that the rows do not necessarily 
  page1   |            2 |               2 | 2023-06-13 10:07:00+00:00
  page2   |            2 |               2 | 2023-06-13 10:08:00+00:00
  page3   |            1 |               1 | 2023-06-13 10:09:00+00:00
+(3 rows)
+```
+
+Additionally, if you add one more data to the Kafka topic as described in [Section 00-01](../00-get-started/01-ingest-kafka-data.md#create-a-source), using the Kafka producer, you can also verify the updated version of this materialized view. The new data is as follow.
+```terminal
+{"timestamp": "2023-06-13T10:10:00Z", "user_id": "user6", "page_id": "page4", "action": "click"}
+```
+
+Now run `SELECT * FROM visits_stream_mv;` again, and you will see the following outputs.
+```terminal
+ page_id | total_visits | unique_visitors |      last_visit_time
+---------+--------------+-----------------+---------------------------
+ page1   |            2 |               2 | 2023-06-13 10:07:00+00:00
+ page2   |            2 |               2 | 2023-06-13 10:08:00+00:00
+ page3   |            1 |               1 | 2023-06-13 10:09:00+00:00
+ page4   |            1 |               1 | 2023-06-13 10:10:00+00:00
+(4 rows)
 ```
