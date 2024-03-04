@@ -40,7 +40,7 @@ Ensure that you have RisingWave up and running. For more information, check the 
 
 ### Connect to RisingWave
 
-run the following code to connect to RisingWave.
+Run the following code to connect to RisingWave.
 
 ```terminal
 psql -h localhost -p 4566 -d dev -U root
@@ -48,12 +48,12 @@ psql -h localhost -p 4566 -d dev -U root
 
 ### Create a source
 
-To connect to the data stream we just created in Kafka, we need to create a source using the `CREATE SOURCE` or `CREATE TABLE` command. Once the connection is established, RisingWave will be able to read any new messages from Kafka in real time. 
+To connect to the data stream we just created in Kafka, we need to create a source using the `CREATE SOURCE` command. Once the connection is established, RisingWave will be able to read any new messages from Kafka in real time. 
 
 The following SQL query creates a source named `website_visits_stream`. We also define a schema here to map fields from the JSON data to the streaming data. 
 
 ```sql
-CREATE source IF NOT EXISTS website_visits_stream (
+CREATE SOURCE IF NOT EXISTS website_visits_stream (
  timestamp timestamptz,
  user_id VARCHAR,
  page_id VARCHAR,
@@ -67,38 +67,68 @@ WITH (
 ) FORMAT PLAIN ENCODE JSON;
 ```
 
+By creating a source, RisingWave has been connected to the Kafka. However, to ingest the data from Kafka, we need to create some materialized views. Using the following SQL, you can create a materialized view to grab all existing data from the source and continuously capture newly inserted events from the kafka. 
+```sql
+CREATE MATERIALIZED VIEW IF NOT EXISTS verify_website_visits AS
+  SELECT * FROM website_visits_stream;
+```
+
+By running `SELECT * FROM verify_website_visits;`, you should see the outputs as follows.
+```terminal
+         timestamp         | user_id | page_id | action
+---------------------------+---------+---------+--------
+ 2023-06-13 10:05:00+00:00 | user1   | page1   | click
+ 2023-06-13 10:06:00+00:00 | user2   | page2   | scroll
+ 2023-06-13 10:07:00+00:00 | user3   | page1   | view
+ 2023-06-13 10:08:00+00:00 | user4   | page2   | view
+ 2023-06-13 10:09:00+00:00 | user5   | page3   | view
+(5 rows)
+```
+
+Additionally, we can go to the Kafka producer terminal and add one more data to the Kafka topic:
+```terminal
+{"timestamp": "2023-06-13T10:10:00Z", "user_id": "user6", "page_id": "page4", "action": "click"}
+```
+
+Then, in the RisingWave terminal, run `SELECT * FROM verify_website_visits;` again. You can check from the following outputs that the materialized view we created has been updated to include this new row.
+```terminal
+         timestamp         | user_id | page_id | action
+---------------------------+---------+---------+--------
+ 2023-06-13 10:05:00+00:00 | user1   | page1   | click
+ 2023-06-13 10:06:00+00:00 | user2   | page2   | scroll
+ 2023-06-13 10:07:00+00:00 | user3   | page1   | view
+ 2023-06-13 10:08:00+00:00 | user4   | page2   | view
+ 2023-06-13 10:09:00+00:00 | user5   | page3   | view
+ 2023-06-13 10:10:00+00:00 | user6   | page4   | click
+(6 rows)
+```
+
 To learn more about the `CREATE SOURCE` command, check [`CREATE SOURCE`](https://docs.risingwave.com/docs/current/sql-create-source/) from the offical RisingWave documentation.
 
-### Analyze the data
+To further perform some basic analysis on the data from the created source, check [Section 00-01](../01-query-process-streaming-data/001-ingest-analyze-kafka.md#analyze-the-data).
 
-By creating a source, RisingWave has been connected to the data stream. However, in order to ingest and process the data from Kafka, we need to create some materialized views. Each of these materialized views contains the results of a query, which are updated as soon as new data comes in.
+### Create a table
 
-The following SQL query creates a materialized view named `visits_stream_mv` based on the source `website_visits_stream`. For each `page_id`, it calculates the number of total visits, the number of unique visitors, and the timestamp when the page was most recently visited.
+You can also create a table to connect to the Kafka topic. Compared to creating a source, a table persists the data from the stream by default. In this way, you can still query the table data even after the Kafka environment has been shut down.
 
+The following SQL query creates a table named `website_visits_table`, using the `CREATE TABLE` command.
 ```sql
-CREATE MATERIALIZED VIEW visits_stream_mv AS
- SELECT page_id,
- COUNT(*) AS total_visits,
- COUNT(DISTINCT user_id) AS unique_visitors,
- MAX(timestamp) AS last_visit_time
- FROM website_visits_stream
- GROUP BY page_id;
+CREATE TABLE IF NOT EXISTS website_visits_table (
+ timestamp timestamptz,
+ user_id VARCHAR,
+ page_id VARCHAR,
+ action VARCHAR
+ )
+WITH (
+ connector='kafka',
+ topic='test',
+ properties.bootstrap.server='localhost:9092',
+ scan.startup.mode='earliest'
+) FORMAT PLAIN ENCODE JSON;
 ```
 
-We can query from the materialized view to see the results.
+For verification, run `SELECT * FROM website_visits_table;` and you should see the same outputs with selecting from the materialized view created above.
 
-```sql
-SELECT * FROM visits_stream_mv;
-```
-
-The results will look like the following. Note that the rows do not necessarily follow this order.
-
-```terminal
- page_id | total_visits | unique_visitors |      last_visit_time
----------+--------------+-----------------+---------------------------
- page1   |            2 |               2 | 2023-06-13 10:07:00+00:00
- page2   |            2 |               2 | 2023-06-13 10:08:00+00:00
- page3   |            1 |               1 | 2023-06-13 10:09:00+00:00
-```
+To learn more about the `CREATE TABLE` command, check [`CREATE TABLE`](https://docs.risingwave.com/docs/current/sql-create-table/) from the offical RisingWave documentation.
 
 To learn more about how to consume data from Kafka, check [Ingest data from Kafka](https://docs.risingwave.com/docs/current/ingest-from-kafka/) from the official documentation.
