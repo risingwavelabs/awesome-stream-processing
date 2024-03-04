@@ -48,7 +48,7 @@ psql -h localhost -p 4566 -d dev -U root
 
 ### Create a source
 
-To connect to the data stream we just created in Kafka, we need to create a source using the `CREATE SOURCE` or `CREATE TABLE` command. Once the connection is established, RisingWave will be able to read any new messages from Kafka in real time. 
+To connect to the data stream we just created in Kafka, we need to create a source using the `CREATE SOURCE` command. Once the connection is established, RisingWave will be able to read any new messages from Kafka in real time. 
 
 The following SQL query creates a source named `website_visits_stream`. We also define a schema here to map fields from the JSON data to the streaming data. 
 
@@ -73,7 +73,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS verify_website_visits AS
   SELECT * FROM website_visits_stream;
 ```
 
-By running `SELECT * FROM verify_website_visits;`, you will see outputs similar to the follows.
+By running `SELECT * FROM verify_website_visits;`, you should see the outputs as follows.
 ```terminal
          timestamp         | user_id | page_id | action
 ---------------------------+---------+---------+--------
@@ -88,5 +88,29 @@ By running `SELECT * FROM verify_website_visits;`, you will see outputs similar 
 To learn more about the `CREATE SOURCE` command, check [`CREATE SOURCE`](https://docs.risingwave.com/docs/current/sql-create-source/) from the offical RisingWave documentation.
 
 To further perform some basic analysis on the data from the created source, check [Section 00-01](../01-query-process-streaming-data/001-ingest-analyze-kafka.md#analyze-the-data).
+
+### Create a table
+
+You can also create a table to connect to the Kafka topic. Compared to creating a source, a table persists the data from the stream by default. In this way, you can still query the table data even after the Kafka environment has been shut down.
+
+The following SQL query creates a table named `website_visits_table`, using the `CREATE TABLE` command.
+```sql
+CREATE TABLE IF NOT EXISTS website_visits_table (
+ timestamp timestamptz,
+ user_id VARCHAR,
+ page_id VARCHAR,
+ action VARCHAR
+ )
+WITH (
+ connector='kafka',
+ topic='test',
+ properties.bootstrap.server='localhost:9092',
+ scan.startup.mode='earliest'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+For verification, run `SELECT * FROM website_visits_table;` and you should see the same outputs in the [`Create a source` part](#create-a-source).
+
+To learn more about the `CREATE TABLE` command, check [`CREATE TABLE`](https://docs.risingwave.com/docs/current/sql-create-table/) from the offical RisingWave documentation.
 
 To learn more about how to consume data from Kafka, check [Ingest data from Kafka](https://docs.risingwave.com/docs/current/ingest-from-kafka/) from the official documentation.
