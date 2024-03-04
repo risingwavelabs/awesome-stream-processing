@@ -67,7 +67,7 @@ WITH (
 ) FORMAT PLAIN ENCODE JSON;
 ```
 
-Optionally, for verification, you can create a materialized view to grab all existing data from the source, using the following SQL.
+By creating a source, RisingWave has been connected to the Kafka. However, to ingest the data from Kafka, we need to create some materialized views. Using the following SQL, you can create a materialized view to grab all existing data from the source and continuously capture newly inserted events from the kafka. 
 ```sql
 CREATE MATERIALIZED VIEW IF NOT EXISTS verify_website_visits AS
   SELECT * FROM website_visits_stream;
@@ -109,7 +109,7 @@ WITH (
 ) FORMAT PLAIN ENCODE JSON;
 ```
 
-For verification, run `SELECT * FROM website_visits_table;` and you should see the same outputs in the [`Create a source` part](#create-a-source).
+For verification, run `SELECT * FROM website_visits_table;` and you should see the same outputs with selecting from the materialized view created above.
 
 To learn more about the `CREATE TABLE` command, check [`CREATE TABLE`](https://docs.risingwave.com/docs/current/sql-create-table/) from the offical RisingWave documentation.
 
