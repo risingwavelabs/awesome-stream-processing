@@ -40,7 +40,7 @@ Ensure that you have RisingWave up and running. For more information, check the 
 
 ### Connect to RisingWave
 
-run the following code to connect to RisingWave.
+Run the following code to connect to RisingWave.
 
 ```terminal
 psql -h localhost -p 4566 -d dev -U root
@@ -53,7 +53,7 @@ To connect to the data stream we just created in Kafka, we need to create a sour
 The following SQL query creates a source named `website_visits_stream`. We also define a schema here to map fields from the JSON data to the streaming data. 
 
 ```sql
-CREATE source IF NOT EXISTS website_visits_stream (
+CREATE SOURCE IF NOT EXISTS website_visits_stream (
  timestamp timestamptz,
  user_id VARCHAR,
  page_id VARCHAR,
@@ -67,6 +67,26 @@ WITH (
 ) FORMAT PLAIN ENCODE JSON;
 ```
 
+Optionally, for verification, you can create a materialized view to grab all existing data from the source, using the following SQL.
+```sql
+CREATE MATERIALIZED VIEW IF NOT EXISTS verify_website_visits AS
+  SELECT * FROM website_visits_stream;
+```
+
+By running `SELECT * FROM verify_website_visits;`, you will see outputs similar to the follows.
+```terminal
+         timestamp         | user_id | page_id | action
+---------------------------+---------+---------+--------
+ 2023-06-13 10:05:00+00:00 | user1   | page1   | click
+ 2023-06-13 10:06:00+00:00 | user2   | page2   | scroll
+ 2023-06-13 10:07:00+00:00 | user3   | page1   | view
+ 2023-06-13 10:08:00+00:00 | user4   | page2   | view
+ 2023-06-13 10:09:00+00:00 | user5   | page3   | view
+(5 rows)
+```
+
 To learn more about the `CREATE SOURCE` command, check [`CREATE SOURCE`](https://docs.risingwave.com/docs/current/sql-create-source/) from the offical RisingWave documentation.
+
+To further perform some basic analysis on the data from the created source, check [Section 00-01](../01-query-process-streaming-data/001-ingest-analyze-kafka.md#analyze-the-data).
 
 To learn more about how to consume data from Kafka, check [Ingest data from Kafka](https://docs.risingwave.com/docs/current/ingest-from-kafka/) from the official documentation.

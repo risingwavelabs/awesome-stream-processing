@@ -21,7 +21,7 @@ Refer to [Section 00-01](../00-get-started/01-ingest-kafka-data.md#create-a-sour
 
 ### Analyze the data
 
-By creating a source, RisingWave has been connected to the data stream. However, in order to ingest and process the data from Kafka, we need to create some materialized views. Each of these materialized views contains the results of a query, which are updated as soon as new data comes in.
+By creating a source, RisingWave has been connected to the data stream. However, in order to ingest and process the data from Kafka, we need to create some [materialized views](https://docs.risingwave.com/docs/dev/key-concepts/#materialized-views). Each of these materialized views contains the results of a query, which are updated as soon as new data comes in.
 
 The following SQL query creates a materialized view named `visits_stream_mv` based on the source `website_visits_stream`. For each `page_id`, it calculates the number of total visits, the number of unique visitors, and the timestamp when the page was most recently visited.
 
