@@ -85,6 +85,24 @@ By running `SELECT * FROM verify_website_visits;`, you should see the outputs as
 (5 rows)
 ```
 
+Additionally, we can go to the Kafka producer terminal and add one more data to the Kafka topic:
+```terminal
+{"timestamp": "2023-06-13T10:10:00Z", "user_id": "user6", "page_id": "page4", "action": "click"}
+```
+
+Then, in the RisingWave terminal, run `SELECT * FROM verify_website_visits;` again. You can check from the following outputs that the materialized view we created has been updated to include this new row.
+```terminal
+         timestamp         | user_id | page_id | action
+---------------------------+---------+---------+--------
+ 2023-06-13 10:05:00+00:00 | user1   | page1   | click
+ 2023-06-13 10:06:00+00:00 | user2   | page2   | scroll
+ 2023-06-13 10:07:00+00:00 | user3   | page1   | view
+ 2023-06-13 10:08:00+00:00 | user4   | page2   | view
+ 2023-06-13 10:09:00+00:00 | user5   | page3   | view
+ 2023-06-13 10:10:00+00:00 | user6   | page4   | click
+(6 rows)
+```
+
 To learn more about the `CREATE SOURCE` command, check [`CREATE SOURCE`](https://docs.risingwave.com/docs/current/sql-create-source/) from the offical RisingWave documentation.
 
 To further perform some basic analysis on the data from the created source, check [Section 00-01](../01-query-process-streaming-data/001-ingest-analyze-kafka.md#analyze-the-data).
