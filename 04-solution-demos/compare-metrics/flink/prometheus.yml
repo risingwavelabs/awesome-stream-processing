@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 1s  # How often Prometheus should scrape metrics from targets
+  evaluation_interval: 1s
+
+scrape_configs:
+  - job_name: 'flink-jobmanager'  # Job name for scraping Flink 
+    static_configs:
+      - targets: ['jobmanager:9249', 'taskmanager:9250'] 

@@ -5,7 +5,7 @@ import time
 import string
 from kafka import KafkaProducer
 
-rate_per_second = 20
+rate_per_second = 5
 
 kafka_config = {
     'bootstrap_servers': ['localhost:9092']
@@ -46,10 +46,10 @@ def generate_purchase_event():
     return {
         "order_id": order_id,
         "customer_id": customer_id,
-        "product": product,
-        "quantity": quantity,
-        "timestamp": timestamp,
-        "total_amount": total_amount
+        "prod": product,
+        "quant_in": quantity,
+        "ts": timestamp,
+        "tot_amnt_in": total_amount
     }
 
 # Kafka topic to produce messages to
@@ -57,18 +57,21 @@ topic = 'purchase_constant'
 
 if __name__ == "__main__":
 
+    try:
     # Produce messages to the Kafka topic
-    while is_broker_available():
+        while is_broker_available():
 
-        message = generate_purchase_event()
-        message_str = json.dumps(message).encode('utf-8')
+            message = generate_purchase_event()
+            message_str = json.dumps(message).encode('utf-8')
 
-        producer.send(topic, message_str)
+            producer.send(topic, message_str)
 
-        time.sleep(1/rate_per_second)
+            time.sleep(1/rate_per_second)
 
-    print('Producer closed')
+    finally:
 
-    # Wait for any outstanding messages to be delivered and delivery reports received
-    producer.flush() 
-    producer.close()
+        print('Producer closed')
+
+        # Wait for any outstanding messages to be delivered and delivery reports received
+        producer.flush() 
+        producer.close()

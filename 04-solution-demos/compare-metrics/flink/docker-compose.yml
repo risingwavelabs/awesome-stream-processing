@@ -1,0 +1,106 @@
+version: '3.8'
+services:
+
+  # zookeeper
+  zookeeper:
+    platform: linux/amd64
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    networks:
+      - kafka-net
+
+  # kafka
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    expose:
+      - "9092"
+      - "29092"
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: LISTENER_DOCKER_INTERNAL://kafka:29092, LISTENER_DOCKER_EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: LISTENER_DOCKER_INTERNAL:PLAINTEXT, LISTENER_DOCKER_EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: LISTENER_DOCKER_INTERNAL
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_AUTO_OFFSET_RESET: earliest 
+    volumes:
+     - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+     - kafka-net
+
+  jobmanager:
+    build: .
+    ports:
+      - "8081:8081"
+      - "9249:9249"
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        rest.flamegraph.enabled: true
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.factory.port: 9249
+        metrics.reporters: prom        
+    networks:
+     - kafka-net
+
+  taskmanager:
+    build: .
+    ports: 
+      - "9250:9249"
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.factory.port: 9249
+        metrics.reporters: prom     
+        taskmanager.numberOfTaskSlots: 10   
+    networks:
+     - kafka-net
+
+  sql-client:
+    build: .
+    command: bin/sql-client.sh
+    depends_on:
+      - jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        rest.address: jobmanager
+    networks:
+     - kafka-net
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"  # Prometheus port
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml  # Prometheus configuration
+    networks:
+      - kafka-net
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"  # Grafana port
+    networks:
+      - kafka-net
+
+networks:
+  kafka-net:
+    driver: bridge
+    name: kafka-net

@@ -5,7 +5,7 @@ import time
 import string
 from kafka import KafkaProducer
 
-rate_per_second = 20
+rate_per_second = 5
 
 kafka_config = {
     'bootstrap_servers': ['localhost:9092']
@@ -52,15 +52,17 @@ def generate_product_id():
 def generate_purchase_event():
     order_id = generate_order_id()
     customer_id = generate_customer_id()
-    products = {"product_id": generate_product_id(), "quantity": random.randint(1, 5)}
+    product = generate_product_id()
+    quantity = random.randint(1,5)
     timestamp = datetime.datetime.now().isoformat()
-    total_amount = round(sum([random.uniform(10, 100) for _ in range(len(products))]), 2)  # Random total amount
+    total_amount = round(random.uniform(10, 100) * quantity, 2)  # Random total amount
     return {
         "order_id": order_id,
         "customer_id": customer_id,
-        "products": products,
-        "timestamp": timestamp,
-        "total_amount": total_amount
+        "prod": product,
+        "quant_out": quantity,
+        "ts": timestamp,
+        "tot_amnt_out": total_amount
     }
 
 # Kafka topic to produce messages to
@@ -68,22 +70,24 @@ topic = 'purchase_varying'
 
 if __name__ == "__main__":
 
+    try:
     # Produce messages to the Kafka topic
-    while is_broker_available():
+        while is_broker_available():
 
-        if 0 <= datetime.datetime.now().second < 15 or 30 <= datetime.datetime.now().second < 45:
+            if 0 <= datetime.datetime.now().second < 15 or 30 <= datetime.datetime.now().second < 45:
 
-            message = generate_purchase_event()
-            message_str = json.dumps(message).encode('utf-8')
-            # Produce the message to the topic asynchronously
-            producer.send(topic, message_str)
-            time.sleep(1/rate_per_second)
+                message = generate_purchase_event()
+                message_str = json.dumps(message).encode('utf-8')
+                # Produce the message to the topic asynchronously
+                producer.send(topic, message_str)
+                time.sleep(1/rate_per_second)
 
-        else:
-            wait_until()
+            else:
+                wait_until()
 
-    print('Producer closed')
+    finally:
+        print('Producer closed')
 
-    # Wait for any outstanding messages to be delivered and delivery reports received
-    producer.flush() 
-    producer.close()
+        # Wait for any outstanding messages to be delivered and delivery reports received
+        producer.flush() 
+        producer.close()
