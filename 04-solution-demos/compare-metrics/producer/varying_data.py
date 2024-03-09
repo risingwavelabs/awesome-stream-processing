@@ -42,11 +42,11 @@ def generate_order_id():
 
 # Generate a random customer ID
 def generate_customer_id():
-    return ''.join(random.choices(string.digits, k=5))
+    return ''.join(random.choices(string.digits, k=3))
 
 # Generate a random product ID
 def generate_product_id():
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=2))
 
 # Generate random purchase event
 def generate_purchase_event():

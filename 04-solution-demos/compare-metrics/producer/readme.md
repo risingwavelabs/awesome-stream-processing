@@ -1,4 +1,4 @@
-# How to run
+# Run RisingWave
 
 Install the Kafka library for Python if it's not already installed on your device. 
 
@@ -16,7 +16,7 @@ Run the queries below to start consuming messages from the message queue.
 
 Open [Grafana](http://localhost:3001) and open the pre-build RisingWave dashboard. The main performance metrics are tracked. Change the timeframe to 5 minutes to get a better view of how the metrics change over time. 
 
-The varying data source starts and stops every 15 seconds. Both message producers approximately produce messages at a rate of 20 messages/second.
+The varying data source starts and stops every 15 seconds. Both message producers approximately produce messages at a rate of 5 messages/second.
 
 # Use the following queries to create sources and materialized views
 
@@ -52,29 +52,30 @@ create source varying (
 
 ## Create materialized views
 
-```sql
-create materialized view j2 as
-  select count(*)
-  from constant
-  inner join varying on constant.customer_id = varying.customer_id;
+A joined view
 
+```sql
 create materialized view j3 as
 SELECT  c.customer_id,
         sum(c.quant_in) - sum(v.quant_out) as quant_tot,
         sum(c.tot_amnt_in) - sum(v.tot_amnt_out) as amnt_tot
-FROM
-        (
-            select customer_id, quant_in, tot_amnt_in from constant
-        ) as c
-JOIN ( 
-  select customer_id, quant_out, tot_amnt_out from varying
-) as v on c.customer_id = v.customer_id
+FROM constant as c
+JOIN varying as v on c.customer_id = v.customer_id
 group by c.customer_id;
 
-create materialized view joined_sources as
-  select constant.customer_id, constant.prod, quant_in - quant_out as quant_tot, tot_amnt_in - tot_amnt_out as tot_price
-  from constant 
-  inner join varying on constant.customer_id = varying.customer_id and constant.prod = varying.prod;
+select * from j3 limit 30;
 ```
 
-select count(*) from constant;
+A tumble function view (not included in flink)
+
+```sql
+create materialized view v2 as select
+  order_id, customer_id, prod_out, quant_out, tot_amnt_out, ts::timestamptz
+from varying;
+
+create materialized view out_1min as 
+select window_end, sum(quant_out) as quant_out, sum(tot_amnt_out) as tot_amnt_out
+from tumble(v2, ts, interval '1' minute)
+group by window_end;
+```
+

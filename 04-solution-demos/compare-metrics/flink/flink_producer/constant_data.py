@@ -7,13 +7,6 @@ from kafka import KafkaProducer
 
 rate_per_second = 5
 
-kafka_config = {
-    'bootstrap_servers': ['localhost:9092']
-}
-
-# Kafka producer
-producer = KafkaProducer(**kafka_config)
-
 # Check if broker is available
 def is_broker_available():
     global producer
@@ -54,6 +47,13 @@ def generate_purchase_event():
 
 # Kafka topic to produce messages to
 topic = 'purchase_constant'
+
+kafka_config = {
+    'bootstrap_servers': ['kafka:29093']
+}
+time.sleep(3)
+# Kafka producer
+producer = KafkaProducer(**kafka_config)
 
 if __name__ == "__main__":
 

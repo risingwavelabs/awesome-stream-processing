@@ -3,11 +3,13 @@ services:
 
   # zookeeper
   zookeeper:
-    platform: linux/amd64
-    image: wurstmeister/zookeeper
+    #platform: linux/amd64
+    image: bitnami/zookeeper
     container_name: zookeeper
     ports:
       - "2181:2181"
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
     networks:
       - kafka-net
 
@@ -18,13 +20,13 @@ services:
     depends_on:
       - zookeeper
     ports:
-      - "9092:9092"
-      - "29092:29092"
+      - "9093:9093"
+      - "29093:29093"
     expose:
-      - "9092"
-      - "29092"
+      - "9093"
+      - "29093"
     environment:
-      KAFKA_ADVERTISED_LISTENERS: LISTENER_DOCKER_INTERNAL://kafka:29092, LISTENER_DOCKER_EXTERNAL://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: LISTENER_DOCKER_INTERNAL://kafka:29093, LISTENER_DOCKER_EXTERNAL://localhost:9093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: LISTENER_DOCKER_INTERNAL:PLAINTEXT, LISTENER_DOCKER_EXTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: LISTENER_DOCKER_INTERNAL
       KAFKA_BROKER_ID: 1
@@ -36,38 +38,56 @@ services:
     networks:
      - kafka-net
 
+  # kafka producer
+  kafka-producer:
+    build:
+      context: .
+      dockerfile: flink_producer/Dockerfile
+    depends_on:
+     - kafka
+     - zookeeper
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: LISTENER_DOCKER_INTERNAL://kafka:29093
+    restart: always
+    networks:
+     - kafka-net
+
   jobmanager:
     build: .
+    depends_on:
+      - kafka-producer
     ports:
-      - "8081:8081"
+      - "8082:8081"
       - "9249:9249"
     command: jobmanager
+    volumes:
+      - ./flink-conf.yml:/opt/flink/conf/flink-conf.yml
     environment:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
+        checkpointing.mode: exactly_once
+        execution.checkpointing.interval: 60s
         rest.flamegraph.enabled: true
         metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
-        metrics.reporter.prom.factory.port: 9249
-        metrics.reporters: prom        
+        metrics.reporter.prom.factory.port: 9249      
     networks:
      - kafka-net
 
   taskmanager:
     build: .
-    ports: 
-      - "9250:9249"
     depends_on:
       - jobmanager
     command: taskmanager
+    volumes:
+      - ./flink-conf.yml:/opt/flink/conf/flink-conf.yml
     environment:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
         metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
-        metrics.reporter.prom.factory.port: 9249
-        metrics.reporters: prom     
-        taskmanager.numberOfTaskSlots: 10   
+        metrics.reporter.prom.factory.port: 9249  
+        taskmanager.numberOfTaskSlots: 5   
     networks:
      - kafka-net
 
@@ -87,16 +107,23 @@ services:
   prometheus:
     image: prom/prometheus
     ports:
-      - "9090:9090"  # Prometheus port
+      - "9090:9090"  
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml  # Prometheus configuration
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml  
     networks:
       - kafka-net
 
   grafana:
     image: grafana/grafana
     ports:
-      - "3000:3000"  # Grafana port
+      - "3000:3000"  
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - "./grafana_configs/datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml"
+      - "./grafana_configs/dashboard.yaml:/etc/grafana/provisioning/dashboards/main.yaml"
+      - "./grafana_configs:/var/lib/grafana/dashboards"
     networks:
       - kafka-net
 
