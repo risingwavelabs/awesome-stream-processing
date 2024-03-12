@@ -52,6 +52,11 @@ The results will look like the following. Note that the rows do not necessarily 
 (3 rows)
 ```
 
+Compared to directly querying the data source, the created materialized view possesses the following benefits:
+
+1. it persists the processed data even after the Kafka topic is removed;
+2. it is far more efficient to query the materialized view rather than executing the inner SQL query, owing to the fact that the results in the materialized view are updated once new data is written to the Kafka topic.
+
 Additionally, if you add one more data to the Kafka topic as described in [Section 00-01](../00-get-started/01-ingest-kafka-data.md#create-a-source), using the Kafka producer, you can also verify the updated version of this materialized view. The new data is as follow.
 ```terminal
 {"timestamp": "2023-06-13T10:10:00Z", "user_id": 6, "page_id": 4, "action": "click"}
@@ -67,6 +72,8 @@ Now run `SELECT * FROM visits_stream_mv;` again, and you will see the following 
        4 |            1 |               1 | 2023-06-13 10:10:00+00:00
 (4 rows)
 ```
+
+> In the real-world scenario, one Kafka topic may contain a massive amount of history data, most of which is no longer needed. To avoid the overhead of querying these data, the built-in `_rw_kafka_timestamp` column is commonly utilized to filter the data by their insertion timestamps. More information can be found in the [official documentation](https://docs.risingwave.com/docs/current/ingest-from-kafka/#query-kafka-timestamp).
 
 ### Optional: Clean up resources
 To clean up the resources created in this section, go through the steps described in [Section 00-01](../00-get-started/01-ingest-kafka-data.md#optional-clean-up-resources). Note that these extra materialized views can also be deleted automatically upon deleting the source with the keyword `CASCADE`.
