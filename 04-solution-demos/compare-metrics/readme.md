@@ -10,4 +10,4 @@ Be sure to install the Kafka library for Python if it's not already installed on
 pip install kafka-python
 ```
 
-Note that the metrics between Flink and RisingWave aren't the same but they represent the same concepts. While the usage of Flink here to process streaming data may not be ideal, it is reflective of how a first-time user may approach this. It also allows for a clear side by side comparison of RisingWave and Flink. 
+Note that the metrics between Flink and RisingWave aren't the same but they represent the same concepts. While the usage of Flink here to process streaming data may not be ideal, it is reflective of how a first-time user may approach this. It also allows for a clear side-by-side comparison of RisingWave and Flink. 

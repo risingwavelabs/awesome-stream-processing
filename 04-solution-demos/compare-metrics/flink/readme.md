@@ -21,7 +21,7 @@ CREATE TABLE constant (
     'connector' = 'kafka',
     'topic' = 'purchase_constant',
     'properties.bootstrap.servers' = 'kafka:29093',
-    'scan.startup.mode' = 'latest-offset',
+    'scan.startup.mode' = 'earliest-offset',
     'format' = 'json'
 );
 
@@ -37,7 +37,7 @@ CREATE TABLE varies (
     'connector' = 'kafka',
     'topic' = 'purchase_varying',
     'properties.bootstrap.servers' = 'kafka:29093',
-    'scan.startup.mode' = 'latest-offset',
+    'scan.startup.mode' = 'earliest-offset',
     'format' = 'json'
 );
 
