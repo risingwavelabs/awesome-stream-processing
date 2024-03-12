@@ -26,7 +26,7 @@ By creating a source, RisingWave has been connected to the data stream. However,
 The following SQL query creates a materialized view named `visits_stream_mv` based on the source `website_visits_stream`. The inner SQL query is the same as the one demonstrated in [Section 01-000](000-query-kafka.md#analyze-the-data). For each `page_id`, it calculates the number of total visits, the number of unique visitors, and the timestamp when the page was most recently visited. 
 
 ```sql
-CREATE MATERIALIZED VIEW visits_stream_mv AS
+CREATE MATERIALIZED VIEW IF NOT EXISTS visits_stream_mv AS
  SELECT page_id,
   COUNT(*) AS total_visits,
   COUNT(DISTINCT user_id) AS unique_visitors,
@@ -35,7 +35,7 @@ CREATE MATERIALIZED VIEW visits_stream_mv AS
  GROUP BY page_id;
 ```
 
-We can query from the materialized view to see the results.
+Now, query the materialized view to see the results.
 
 ```sql
 SELECT * FROM visits_stream_mv;
