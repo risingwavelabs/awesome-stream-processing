@@ -132,3 +132,19 @@ For verification, run `SELECT * FROM website_visits_table;` and you should see t
 To learn more about the `CREATE TABLE` command, check [`CREATE TABLE`](https://docs.risingwave.com/docs/current/sql-create-table/) from the offical RisingWave documentation.
 
 To learn more about how to consume data from Kafka, check [Ingest data from Kafka](https://docs.risingwave.com/docs/current/ingest-from-kafka/) from the official documentation.
+
+## Optional: Clean up resources
+To clean the resources created in this section, go through the steps described in this part.
+
+First, delete the created source as well as the materialized views in RisingWave. It can be accomplished in one single SQL by deleting the source with the `CASCADE` keyword. Delete the created table as well, if any.
+
+```sql
+DROP SOURCE IF EXISTS website_visits_stream CASCADE;
+DROP TABLE IF EXISTS website_visits_table;
+```
+
+Next, stop the Kafka producer and delete the Kafka topic.
+
+```terminal
+bin/kafka-topics.sh --delete --topic test --bootstrap-server localhost:9092
+```
