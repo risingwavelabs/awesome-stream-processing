@@ -92,7 +92,7 @@ Any updates made to the `users` table in PostgreSQL will automatically be reflec
 To learn more about how to consume data from PostgreSQL, check [Ingest data from PostgreSQL CDC](https://docs.risingwave.com/docs/current/ingest-from-postgres-cdc/) from the official documentation.
 
 ## Optional: Clean up resources
-To clean the resources created in this section, go through the steps described in this part.
+To clean up the resources created in this section, go through the steps described in this part.
 
 First, delete the created table in RisingWave.
 

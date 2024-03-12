@@ -134,7 +134,7 @@ To learn more about the `CREATE TABLE` command, check [`CREATE TABLE`](https://d
 To learn more about how to consume data from Kafka, check [Ingest data from Kafka](https://docs.risingwave.com/docs/current/ingest-from-kafka/) from the official documentation.
 
 ## Optional: Clean up resources
-To clean the resources created in this section, go through the steps described in this part.
+To clean up the resources created in this section, go through the steps described in this part.
 
 First, delete the created source as well as the materialized views in RisingWave. It can be accomplished in one single SQL by deleting the source with the `CASCADE` keyword. Delete the created table as well, if any.
 
