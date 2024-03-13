@@ -60,8 +60,6 @@ services:
       - "8082:8081"
       - "9249:9249"
     command: jobmanager
-    volumes:
-      - ./flink-conf.yml:/opt/flink/conf/flink-conf.yml
     environment:
       - |
         FLINK_PROPERTIES=
@@ -77,8 +75,6 @@ services:
     depends_on:
       - jobmanager
     command: taskmanager
-    volumes:
-      - ./flink-conf.yml:/opt/flink/conf/flink-conf.yml
     environment:
       - |
         FLINK_PROPERTIES=
