@@ -68,9 +68,7 @@ services:
         jobmanager.rpc.address: jobmanager
         checkpointing.mode: exactly_once
         execution.checkpointing.interval: 60s
-        rest.flamegraph.enabled: true
-        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
-        metrics.reporter.prom.factory.port: 9249      
+        rest.flamegraph.enabled: true   
     networks:
      - kafka-net
 
@@ -85,8 +83,6 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
-        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
-        metrics.reporter.prom.factory.port: 9249  
         taskmanager.numberOfTaskSlots: 5   
     networks:
      - kafka-net
@@ -109,7 +105,7 @@ services:
     ports:
       - "9090:9090"  
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml  
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml  
     networks:
       - kafka-net
 
