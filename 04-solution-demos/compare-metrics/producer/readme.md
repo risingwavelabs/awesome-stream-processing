@@ -1,9 +1,9 @@
 # Run RisingWave
 
-Install the Kafka library for Python if it's not already installed on your device. 
+Install the Confluent library for Python if it's not already installed on your device. 
 
 ```terminal
-pip install kafka-python
+pip install confluent_kafka
 ```
 
 The message producers also use the Python libraries random, json, datetime, time, and string, which are likely already downloaded. 

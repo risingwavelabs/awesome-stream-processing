@@ -3,16 +3,16 @@ import json
 import datetime
 import time
 import string
-from kafka import KafkaProducer
+from confluent_kafka import Producer
 
 rate_per_second = 5
 
 kafka_config = {
-    'bootstrap_servers': ['localhost:9092']
+    'bootstrap.servers': 'localhost:9092'
 }
 
 # Kafka producer
-producer = KafkaProducer(**kafka_config)
+producer = Producer(kafka_config)
 
 # Check if broker is available
 def is_broker_available():
@@ -62,9 +62,9 @@ if __name__ == "__main__":
         while is_broker_available():
 
             message = generate_purchase_event()
-            message_str = json.dumps(message).encode('utf-8')
+            message_str = json.dumps(message)
 
-            producer.send(topic, message_str)
+            producer.produce(topic, message_str)
 
             time.sleep(1/rate_per_second)
 
