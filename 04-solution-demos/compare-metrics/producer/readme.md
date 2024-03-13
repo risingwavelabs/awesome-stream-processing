@@ -48,13 +48,7 @@ create source varying (
   topic = 'purchase_varying',
   properties.bootstrap.server = 'message_queue:29092'
 ) FORMAT PLAIN ENCODE JSON;
-```
 
-## Create materialized views
-
-A joined view
-
-```sql
 create materialized view j3 as
 SELECT  c.customer_id,
         sum(c.quant_in) - sum(v.quant_out) as quant_tot,

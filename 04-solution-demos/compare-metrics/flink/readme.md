@@ -53,6 +53,6 @@ JOIN
 GROUP BY 
     c.customer_id;
 
-SELECT * FROM j3 LIMIT 30;
+SELECT * FROM j3;
 ```
 
