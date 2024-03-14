@@ -11,7 +11,7 @@ First, ensure you have downloaded and started the PostgreSQL server. For more in
 Next, create a table and populate it with some data in PostgreSQL. The following creates a table `users` that has the columns `id`, `name`, and `age`.
 
 ```sql
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(50),
     age INT
@@ -34,7 +34,7 @@ Now that PostgreSQL is set up, we can move over to RisingWave to ingest CDC data
 To read CDC data from the table we just created, use the following SQL query. We create a table `pg_users` in RisingWave that reads data from the `users` table created in PostgreSQL. Remember to fill in the username and password accordingly. If you created your table in a different database and schema, remember to adjust the parameter values.
 
 ```sql
-CREATE TABLE pg_users (
+CREATE TABLE IF NOT EXISTS pg_users (
     id integer,
     age integer,
     name varchar,
@@ -53,7 +53,7 @@ CREATE TABLE pg_users (
 
 As an example, for the [newly created user](00-install-kafka-pg-rw.md#optional-create-a-database-user) `rw` with password as `abc123`, run the following SQL.
 ```sql
-CREATE TABLE pg_users (
+CREATE TABLE IF NOT EXISTS pg_users (
     id integer,
     age integer,
     name varchar,
@@ -76,10 +76,10 @@ Now you can query from the table to see the data, which should be the same as th
 SELECT * FROM pg_users;
 ```
 
-The results will look like the following.
+The results will look like the following. Note that the rows do not necessarily follow this order.
 
 ```terminal
- id | age |    name     
+ id | age |    name
 ----+-----+-------------
   1 |  25 | John Doe
   2 |  30 | Jane Smith
@@ -90,3 +90,18 @@ The results will look like the following.
 Any updates made to the `users` table in PostgreSQL will automatically be reflected in the `pg_users` table in RisingWave. You can test this by going to the PostgreSQL database, inserting some data, and querying from the `pg_users` table again in RisingWave.
 
 To learn more about how to consume data from PostgreSQL, check [Ingest data from PostgreSQL CDC](https://docs.risingwave.com/docs/current/ingest-from-postgres-cdc/) from the official documentation.
+
+## Optional: Clean up resources
+To clean up the resources created in this section, go through the steps described in this part.
+
+First, delete the created table in RisingWave.
+
+```sql
+DROP TABLE IF EXISTS pg_users;
+```
+
+Next, delete the table in PostgreSQL.
+
+```sql
+DROP TABLE IF EXISTS users;
+```

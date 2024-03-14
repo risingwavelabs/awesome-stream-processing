@@ -21,11 +21,11 @@ bin/kafka-console-producer.sh --topic test --bootstrap-server localhost:9092
 Once the `>` symbol appears, we can enter the message. To facilitate data consumption in RisingWave, we input data in JSON format.
 
 ```terminal
-{"timestamp": "2023-06-13T10:05:00Z", "user_id": "user1", "page_id": "page1", "action": "click"}
-{"timestamp": "2023-06-13T10:06:00Z", "user_id": "user2", "page_id": "page2", "action": "scroll"}
-{"timestamp": "2023-06-13T10:07:00Z", "user_id": "user3", "page_id": "page1", "action": "view"}
-{"timestamp": "2023-06-13T10:08:00Z", "user_id": "user4", "page_id": "page2", "action": "view"}
-{"timestamp": "2023-06-13T10:09:00Z", "user_id": "user5", "page_id": "page3", "action": "view"}
+{"timestamp": "2023-06-13T10:05:00Z", "user_id": 1, "page_id": 1, "action": "click"}
+{"timestamp": "2023-06-13T10:06:00Z", "user_id": 2, "page_id": 2, "action": "scroll"}
+{"timestamp": "2023-06-13T10:07:00Z", "user_id": 3, "page_id": 1, "action": "view"}
+{"timestamp": "2023-06-13T10:08:00Z", "user_id": 4, "page_id": 2, "action": "view"}
+{"timestamp": "2023-06-13T10:09:00Z", "user_id": 5, "page_id": 3, "action": "view"}
 ```
 
 You may also start a consumer program in another terminal to view the messages for verification.
@@ -55,9 +55,9 @@ The following SQL query creates a source named `website_visits_stream`. We also 
 ```sql
 CREATE SOURCE IF NOT EXISTS website_visits_stream (
  timestamp timestamptz,
- user_id VARCHAR,
- page_id VARCHAR,
- action VARCHAR
+ user_id integer,
+ page_id integer,
+ action varchar
  )
 WITH (
  connector='kafka',
@@ -77,29 +77,29 @@ By running `SELECT * FROM verify_website_visits;`, you should see the outputs as
 ```terminal
          timestamp         | user_id | page_id | action
 ---------------------------+---------+---------+--------
- 2023-06-13 10:05:00+00:00 | user1   | page1   | click
- 2023-06-13 10:06:00+00:00 | user2   | page2   | scroll
- 2023-06-13 10:07:00+00:00 | user3   | page1   | view
- 2023-06-13 10:08:00+00:00 | user4   | page2   | view
- 2023-06-13 10:09:00+00:00 | user5   | page3   | view
+ 2023-06-13 10:05:00+00:00 |       1 |       1 | click
+ 2023-06-13 10:06:00+00:00 |       2 |       2 | scroll
+ 2023-06-13 10:07:00+00:00 |       3 |       1 | view
+ 2023-06-13 10:08:00+00:00 |       4 |       2 | view
+ 2023-06-13 10:09:00+00:00 |       5 |       3 | view
 (5 rows)
 ```
 
 Additionally, we can go to the Kafka producer terminal and add one more data to the Kafka topic:
 ```terminal
-{"timestamp": "2023-06-13T10:10:00Z", "user_id": "user6", "page_id": "page4", "action": "click"}
+{"timestamp": "2023-06-13T10:10:00Z", "user_id": 6, "page_id": 4, "action": "click"}
 ```
 
 Then, in the RisingWave terminal, run `SELECT * FROM verify_website_visits;` again. You can check from the following outputs that the materialized view we created has been updated to include this new row.
 ```terminal
          timestamp         | user_id | page_id | action
 ---------------------------+---------+---------+--------
- 2023-06-13 10:05:00+00:00 | user1   | page1   | click
- 2023-06-13 10:06:00+00:00 | user2   | page2   | scroll
- 2023-06-13 10:07:00+00:00 | user3   | page1   | view
- 2023-06-13 10:08:00+00:00 | user4   | page2   | view
- 2023-06-13 10:09:00+00:00 | user5   | page3   | view
- 2023-06-13 10:10:00+00:00 | user6   | page4   | click
+ 2023-06-13 10:05:00+00:00 |       1 |       1 | click
+ 2023-06-13 10:06:00+00:00 |       2 |       2 | scroll
+ 2023-06-13 10:07:00+00:00 |       3 |       1 | view
+ 2023-06-13 10:08:00+00:00 |       4 |       2 | view
+ 2023-06-13 10:09:00+00:00 |       5 |       3 | view
+ 2023-06-13 10:10:00+00:00 |       6 |       4 | click
 (6 rows)
 ```
 
@@ -115,9 +115,9 @@ The following SQL query creates a table named `website_visits_table`, using the 
 ```sql
 CREATE TABLE IF NOT EXISTS website_visits_table (
  timestamp timestamptz,
- user_id VARCHAR,
- page_id VARCHAR,
- action VARCHAR
+ user_id integer,
+ page_id integer,
+ action varchar
  )
 WITH (
  connector='kafka',
@@ -132,3 +132,19 @@ For verification, run `SELECT * FROM website_visits_table;` and you should see t
 To learn more about the `CREATE TABLE` command, check [`CREATE TABLE`](https://docs.risingwave.com/docs/current/sql-create-table/) from the offical RisingWave documentation.
 
 To learn more about how to consume data from Kafka, check [Ingest data from Kafka](https://docs.risingwave.com/docs/current/ingest-from-kafka/) from the official documentation.
+
+## Optional: Clean up resources
+To clean up the resources created in this section, go through the steps described in this part.
+
+First, delete the created source as well as the materialized views in RisingWave. It can be accomplished in one single SQL by deleting the source with the `CASCADE` keyword. Delete the created table as well, if any.
+
+```sql
+DROP SOURCE IF EXISTS website_visits_stream CASCADE;
+DROP TABLE IF EXISTS website_visits_table;
+```
+
+Next, stop the Kafka producer and delete the Kafka topic.
+
+```terminal
+bin/kafka-topics.sh --delete --topic test --bootstrap-server localhost:9092
+```
