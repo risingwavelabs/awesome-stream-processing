@@ -3,6 +3,7 @@ import json
 import datetime
 import time
 import string
+from confluent_kafka.admin import AdminClient, NewTopic
 from confluent_kafka import Producer
 
 rate_per_second = 5
@@ -14,13 +15,25 @@ kafka_config = {
 # Kafka producer
 producer = Producer(kafka_config)
 
+admin_client = AdminClient(kafka_config)
+
+# Kafka topic to produce messages to
+topic = 'purchase_varying'
+partitions = 1
+replication_factor = 1
+
+# Create NewTopic object
+new_topic = NewTopic(topic, num_partitions=partitions, replication_factor=replication_factor)
+
+# Create topic
+admin_client.create_topics([new_topic])
+
 # Check if broker is available
 def is_broker_available():
     global producer
     try:
         return True
     except Exception as e:
-        print(f"Broker not available: {e}")
         return False
     
 # pause producer 
@@ -65,9 +78,6 @@ def generate_purchase_event():
         "tot_amnt_out": total_amount
     }
 
-# Kafka topic to produce messages to
-topic = 'purchase_varying'
-
 if __name__ == "__main__":
 
     try:
@@ -90,4 +100,3 @@ if __name__ == "__main__":
 
         # Wait for any outstanding messages to be delivered and delivery reports received
         producer.flush() 
-        producer.close()
