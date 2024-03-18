@@ -21,7 +21,7 @@ Refer to [Section 00-01](../00-get-started/01-ingest-kafka-data.md#create-a-sour
 
 ### Analyze the data
 
-The following SQL query calculates, for each `page_id`, the number of total visits, the number of unique visitors, and the timestamp when the page was most recently visited.
+The following SQL query directly scans data from the kafka topic and calculates, for each `page_id`, the number of total visits, the number of unique visitors, and the timestamp when the page was most recently visited.
 
 ```sql
 SELECT page_id,
@@ -42,6 +42,8 @@ The results will look like the following. Note that the rows do not necessarily 
        3 |            1 |               1 | 2023-06-13 10:09:00+00:00
 (3 rows)
 ```
+
+In the real-world scenario, one Kafka topic may contain a massive amount of history data, most of which is not needed by the query. To avoid the overhead of scanning these data, the built-in `_rw_kafka_timestamp` column is commonly utilized to filter the data by their insertion timestamps. More information can be found in the [official documentation](https://docs.risingwave.com/docs/current/ingest-from-kafka/#query-kafka-timestamp).
 
 ### Optional: Clean up resources
 To clean up the resources created in this section, go through the steps described in [Section 00-01](../00-get-started/01-ingest-kafka-data.md#optional-clean-up-resources).
