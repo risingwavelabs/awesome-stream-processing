@@ -143,22 +143,17 @@ You can install RisingWave using `curl`.
 curl https://risingwave.com/sh | sh
 ```
 
-or on Mac using homebrew 
-
-```terminal 
-brew tap risingwavelabs/risingwave
-brew install risingwave@1.7-standalone
-risingwave -V
-```
-
 Next, start all RisingWave services by running the executable.
 
 ```terminal
+# clean up prior installations 
+rm -r ~/.risingwave
+
 # on Ubuntu
 ./risingwave
 
 # on Mac
-risingwave playground
+CONNECTOR_LIBS_PATH=/opt/homebrew/lib risingwave
 ```
 
 In another terminal, run the following code to connect to RisingWave.
