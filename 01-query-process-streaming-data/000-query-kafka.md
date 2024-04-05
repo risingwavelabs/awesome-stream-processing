@@ -45,7 +45,7 @@ The results will look like the following. Note that the rows do not necessarily 
 
 In the real-world scenario, one Kafka topic may contain a massive amount of history data, most of which is not needed by the query. To avoid the overhead of scanning these data, the built-in `_rw_kafka_timestamp` column is commonly utilized to filter the data by their insertion timestamps. More information can be found in the [official documentation](https://docs.risingwave.com/docs/current/ingest-from-kafka/#query-kafka-timestamp). 
 
-Please not that `_rw_kafka_timestamp` denotes the time at which the event was inserted into kafka. Event though you may have inserted an event like `{"timestamp": "2023-06-13T10:05:00Z", "user_id": 1, "page_id": 1, "action": "click"}`, `_rw_kafka_timestamp` will hold a different timestamp value, e.g.
+Please note that `_rw_kafka_timestamp` denotes the time at which the event was inserted into Kafka. Even though you may have inserted an event like `{"timestamp": "2023-06-13T10:05:00Z", "user_id": 1, "page_id": 1, "action": "click"}`, `_rw_kafka_timestamp` will hold a different timestamp value, e.g.
 
 ```sql 
 select _rw_kafka_timestamp from website_visits_stream LIMIT 1;
