@@ -6,7 +6,11 @@ If you do not have experience with or have not installed Kafka, PostgreSQL, or R
 
 As a kind reminder, both RisingWave and Kafka require Java in the environment, so make sure you have set up Java in advance. As an example, in Ubuntu you can install by running the following line of code.
 ```terminal
+# on ubuntu
 sudo apt-get install default-jre
+
+# on mac 
+brew install openjdk
 ```
 
 You can verify the installation using the following line of code.
@@ -21,21 +25,47 @@ Apache Kafka is an open-source distributed event streaming platform for building
 
 To install and run the self-hosted version of Kafka, follow steps outlined in this [Apache Kafka quickstart](https://kafka.apache.org/quickstart). You will have a good handle on how to install Kafka, start the environment, and create a topic where you can write/read events to/from.
 
+On Mac you may also install Kafka via 
+
+```terminal
+brew install kafka
+
+# verify that the installation was successful
+/opt/homebrew/opt/kafka/bin/kafka-server-start --version
+```
+
+
 ## Install PostgreSQL
 
 PostgreSQL is a relational database management system, allowing you to store and manage your data.
 
 To use RisingWave and ingest CDC data from PostgreSQL databases, you will need to install the PostgreSQL server. To learn about the different packages and installers for various platforms, see [PostgreSQL Downloads](https://www.postgresql.org/download/).
 
+On Mac you may also install PostgreSQL via 
+
+```terminal 
+brew install postgresql@14
+
+# verify that the installation was successful
+postgres --version
+
+# start the postgres service in foreground mode
+/opt/homebrew/opt/postgresql@14/bin/postgres -D /opt/homebrew/var/postgresql@14
+```
+
 ### Connect to a database in the local PostgreSQL server 
 
 Once you have the PostgreSQL server installed, connect to a database. By default, we will be running queries in the `public` schema under the `postgres` database. The default port is `5432` and the user is `postgres`. You can connect to a database by starting the `psql` terminal or by running the following line of code in a terminal window.
 
 ```terminal
+# on Ubuntu
 psql -h localhost -p 5432 -d postgres -U postgres
+
+# on Mac the default user is the installing user
+psql -h localhost -p 5432 -d postgres -U $(whoami)
 ```
 
-> NOTE: If you are prompted for a password when running the `psql` command above, but you have not yet specified any password after installing PostgreSQL, check in the `pg_hba.conf` file (normally located as `/etc/postgresql/16/main/pg_hba.conf` in Ubuntu) whether the default authentication method for the local connections is `trust`:
+> NOTE: If you are prompted for a password when running the `psql` command above, but you have not yet specified any password after installing PostgreSQL, check in the `pg_hba.conf` file (normally located as `/etc/postgresql/16/main/pg_hba.conf` in Ubuntu and under `/opt/homebrew/var/postgresql@14/pg_hba.conf`) whether the default authentication method for the local connections is `trust`:
 ```
 # TYPE  DATABASE        USER            ADDRESS                 METHOD
 ...
@@ -45,7 +75,7 @@ host    all             all             127.0.0.1/32            trust
 host    all             all             ::1/128                 trust
 ```
 
-If not, modify the `METHOD` to `trust` and restart the postgres server by running `sudo service postgresql restart`.
+If not, modify the `METHOD` to `trust` and restart the postgres server by running `sudo service postgresql restart`. If you started postgres in foreground mode simply abort it and re-run it. 
 
 Now you should be able to connect to the database without specifying any password. You may assign a password to the default user, or to a [newly created user](#optional-create-a-database-user).
 
@@ -93,6 +123,7 @@ GRANT CREATE ON SCHEMA <schema_name> TO <username>;
 As an example, you may specify for our default settings as follows.
 ```sql
 GRANT CONNECT ON DATABASE postgres TO rw;
+GRANT CREATE ON DATABASE postgres TO rw;
 GRANT USAGE ON SCHEMA public TO rw;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO rw;
 GRANT CREATE ON SCHEMA public TO rw;
@@ -110,13 +141,25 @@ RisingWave is an open-source distributed SQL streaming database licensed under t
 You can install RisingWave using `curl`.
 
 ```terminal
+# on Ubuntu
 curl https://risingwave.com/sh | sh
+
+# On Mac
+brew tap risingwavelabs/risingwave
+brew install risingwave
 ```
 
 Next, start all RisingWave services by running the executable.
 
 ```terminal
+# clean up prior installations
+rm -rf ~/.risingwave
+
+# on Ubuntu
 ./risingwave
+
+# on Mac
+risingwave
 ```
 
 In another terminal, run the following code to connect to RisingWave.

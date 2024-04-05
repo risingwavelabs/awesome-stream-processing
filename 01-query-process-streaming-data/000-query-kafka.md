@@ -43,7 +43,18 @@ The results will look like the following. Note that the rows do not necessarily 
 (3 rows)
 ```
 
-In the real-world scenario, one Kafka topic may contain a massive amount of history data, most of which is not needed by the query. To avoid the overhead of scanning these data, the built-in `_rw_kafka_timestamp` column is commonly utilized to filter the data by their insertion timestamps. More information can be found in the [official documentation](https://docs.risingwave.com/docs/current/ingest-from-kafka/#query-kafka-timestamp).
+In the real-world scenario, one Kafka topic may contain a massive amount of history data, most of which is not needed by the query. To avoid the overhead of scanning these data, the built-in `_rw_kafka_timestamp` column is commonly utilized to filter the data by their insertion timestamps. More information can be found in the [official documentation](https://docs.risingwave.com/docs/current/ingest-from-kafka/#query-kafka-timestamp). 
+
+Please note that `_rw_kafka_timestamp` denotes the time at which the event was inserted into Kafka. Even though you may have inserted an event like `{"timestamp": "2023-06-13T10:05:00Z", "user_id": 1, "page_id": 1, "action": "click"}`, `_rw_kafka_timestamp` will hold a different timestamp value, e.g.
+
+```sql 
+SELECT _rw_kafka_timestamp FROM website_visits_stream LIMIT 1;
+# result
+      _rw_kafka_timestamp
+-------------------------------
+ 2024-04-05 09:48:02.827+00:00
+(1 row)
+```
 
 ### Optional: Clean up resources
 To clean up the resources created in this section, go through the steps described in [Section 00-01](../00-get-started/01-ingest-kafka-data.md#optional-clean-up-resources).

@@ -6,16 +6,35 @@ Now that you have the necessary systems installed for stream processing, let us 
 
 First, ensure you have downloaded and started the Kafka environment. For more information, check the [installation guide for Kafka](00-install-kafka-pg-rw.md#install-kafka).
 
+On Mac you can start the Kafka environment via 
+
+```terminal 
+brew services start zookeeper 
+brew services start kafka
+# ensure that both services are running
+brew services list
+# ensure that kafka is reachable at 9092
+lsof -i :9092
+```
+
 Then, you will need to create a topic to store your streaming events. The following line of code creates a topic named `test`.
 
 ```terminal
+# On Ubuntu
 bin/kafka-topics.sh --create --topic test --bootstrap-server localhost:9092
+
+# On Mac 
+/opt/homebrew/opt/kafka/bin/kafka-topics --create --topic test --bootstrap-server localhost:9092
 ```
 
 Next, start the producer program in another terminal so that we can send messages to the topic. If you named your topic something different, be sure to adjust it accordingly. 
 
 ```terminal
+# On Ubuntu
 bin/kafka-console-producer.sh --topic test --bootstrap-server localhost:9092
+
+# On Mac
+/opt/homebrew/opt/kafka/bin/kafka-console-producer --topic test --bootstrap-server localhost:9092
 ```
 
 Once the `>` symbol appears, we can enter the message. To facilitate data consumption in RisingWave, we input data in JSON format.
@@ -31,7 +50,11 @@ Once the `>` symbol appears, we can enter the message. To facilitate data consum
 You may also start a consumer program in another terminal to view the messages for verification.
 
 ```terminal
+# On Ubuntu
 bin/kafka-console-consumer.sh --topic test --from-beginning --bootstrap-server localhost:9092
+
+# On Mac
+/opt/homebrew/opt/kafka/bin/kafka-console-consumer --topic test --from-beginning --bootstrap-server localhost:9092
 ```
 
 ## Use RisingWave to process the data
@@ -146,5 +169,9 @@ DROP TABLE IF EXISTS website_visits_table;
 Next, stop the Kafka producer and delete the Kafka topic.
 
 ```terminal
+# Ubuntu
 bin/kafka-topics.sh --delete --topic test --bootstrap-server localhost:9092
+
+# Mac 
+/opt/homebrew/opt/kafka/bin/kafka-topics --delete --topic test --bootstrap-server localhost:9092
 ```
