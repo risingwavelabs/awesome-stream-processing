@@ -49,6 +49,7 @@ Please note that `_rw_kafka_timestamp` denotes the time at which the event was i
 
 ```sql 
 SELECT _rw_kafka_timestamp FROM website_visits_stream LIMIT 1;
+# result
       _rw_kafka_timestamp
 -------------------------------
  2024-04-05 09:48:02.827+00:00
