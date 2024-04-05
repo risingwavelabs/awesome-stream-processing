@@ -123,6 +123,7 @@ GRANT CREATE ON SCHEMA <schema_name> TO <username>;
 As an example, you may specify for our default settings as follows.
 ```sql
 GRANT CONNECT ON DATABASE postgres TO rw;
+GRANT CREATE ON DATABASE postgres TO rw;
 GRANT USAGE ON SCHEMA public TO rw;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO rw;
 GRANT CREATE ON SCHEMA public TO rw;
@@ -140,20 +141,25 @@ RisingWave is an open-source distributed SQL streaming database licensed under t
 You can install RisingWave using `curl`.
 
 ```terminal
+# on Ubuntu
 curl https://risingwave.com/sh | sh
+
+# On Mac
+brew tap risingwavelabs/risingwave
+brew install risingwave
 ```
 
 Next, start all RisingWave services by running the executable.
 
 ```terminal
-# clean up prior installations 
-rm -r ~/.risingwave
+# clean up prior installations
+rm -rf ~/.risingwave
 
 # on Ubuntu
 ./risingwave
 
 # on Mac
-CONNECTOR_LIBS_PATH=/opt/homebrew/lib risingwave
+risingwave
 ```
 
 In another terminal, run the following code to connect to RisingWave.
