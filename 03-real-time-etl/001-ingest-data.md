@@ -1,6 +1,6 @@
 # Query and join data from Kafka and PostgreSQL
 
-This demos shows how to ingest data from a Kafka topic and a PostgreSQL database. We will run a Python data generator that sends data to a Kafka topic.
+This demos shows how to ingest data from a Kafka topic and a PostgreSQL table. We will run a Python data generator that sends data to a Kafka topic.
 
 ## Prerequisites
 
@@ -14,21 +14,21 @@ To execute this demo, the following systems must be installed:
 
 ## Set up a Kafka message producer
 
-### Create a Kafka instance
+### Start a Kafka instance
 
-Refer to [Install Kafka, PostgreSQL, and RisingWave](/00-get-started/00-install-kafka-pg-rw.md#install-kafka) on how to install Kafka.
+Refer to [Install Kafka, PostgreSQL, and RisingWave](/00-get-started/00-install-kafka-pg-rw.md#install-kafka) on how to install and start Kafka.
 
 ### Configure the data generator
 
 For this demo, we have created a [Python data generator](/03-real-time-etl/data-generator.py) that will continously send messages to a Kafka topic. This generator is dependent on the `kafka` library.
 
-Download the Python data generator script. Run the Python script.
+Download the Python data generator file. Run the Python script.
 
 ## Set up a PostgreSQL database
 
 Refer to [Install Kafka, PostgreSQL, and RisingWave](/00-get-started/00-install-kafka-pg-rw.md#install-postgresql) on how to install and configure your PostgreSQL database.
 
-Next, create a table in PostgreSQL.
+Next, create a table in PostgreSQL. We will create this table under the default database, `postgres`, and the default schema, `public`.
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (
@@ -61,15 +61,14 @@ Refer to [Install Kafka, PostgreSQL, and RisingWave](/00-get-started/00-install-
 
 ### Ingest data from a Kafka topic
 
-To connect to the Kafka topic, use the following SQL query. For this source, we will create a watermark to ensure that all events are processed within the proper time windows. In this case, the window is three seconds. Events that arrive outside of the time window will not be processed. We use the `CREATE SOURCE` command here, but `CREATE TABLE` can be used as well if we want to persist the data in RisingWave.
+To connect to the Kafka topic, use the following SQL query. We use the `CREATE SOURCE` command here, but `CREATE TABLE` can be used as well if we want to persist the data in RisingWave. Here we create a source named `site_visits`, which connects to the Kafka topic `website_visits`. A schema is also defined.
 
 ```sql
 CREATE SOURCE site_visits (
     page_id INTEGER,
     user_id INTEGER, 
     action VARCHAR,
-    action_time TIMESTAMPTZ,
-    WATERMARK FOR action_time AS action_time - INTERVAL '3' SECOND
+    action_time TIMESTAMPTZ
 ) WITH (
     connector = 'kafka',
     topic = 'website_visits',
@@ -85,9 +84,9 @@ To learn more about how to consume data from Kafka, see [Ingest data from Kafka]
 
 ### Ingest CDC data from PostgreSQL
 
-Next, we will connect to the `users` table in PostgreSQL by using the following SQL query to ingest CDC data from PostgreSQL. With RisingWave you, can create multiple sources that reads data from multiple different upstream systems. 
+Next, we will connect to the `users` table in PostgreSQL by using the following SQL query to ingest CDC data from PostgreSQL. With RisingWave you, can connect to multiple sources that reads data from different upstream systems. 
 
-We create a `users` table in RisingWave that reads data from the PostgreSQL table by using the `CREATE TABLE` command. Fill out the parameters accordingly.
+We create a `users` table in RisingWave that reads data from the PostgreSQL table by using the `CREATE TABLE` command. When ingesting CDC data, the `CREATE TABLE` command must be used instead of the `CREATE SOURCE` command to persist the data in RisingWave. Fill out the parameters accordingly based on your PostgreSQL database configurations.
 
 ```sql
 CREATE TABLE users (
