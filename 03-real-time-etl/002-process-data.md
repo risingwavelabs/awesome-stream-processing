@@ -2,41 +2,23 @@
 
 Now that the sources in RisingWave are set up, we can create some materialized views. The sources and tables in RisingWave do not ingest any data; they only connect to the data stream. In order to ingest, process, and persist the data in RisingWave, we need materialized views. The materialized views continuously, incrementally compute the ingested data.
 
+## Create a materialized view
+
 We will create a materialized view that tracks how many actions each user performs on each web page within a three minute window.
 
-The following SQL query tracks how many action each user performs on each webpage within a three minute window by employing the `TUMBLE` function by creating a materialized view called `tumbled`. The `EMIT ON WINDOW CLOSE` clause is also used so the materialized view emits a new row result at the end of each window frame. This clause can be used since the `site_visits` source was defined with a watermark.
+The following SQL query uses the `tumble` function to map events into 3-minute windows, then groups by `user_id`, `page_id`, and the time window to count the number of actions each user performs on each web page within the designated time window. Finally, we join the resulting table with the `users` table to know the corresponding `first_name`, `last_name`, and `age` of each user. 
 
 ```sql
-CREATE MATERIALIZED VIEW tumbled AS
-SELECT user_id, page_id, COUNT(action) AS num_actions, window_end 
-FROM TUMBLE (site_visits, action_time, INTERVAL '3' MINUTE)
-GROUP BY user_id, page_id, window_end
-EMIT ON WINDOW CLOSE;
+CREATE MATERIALIZED VIEW mv3 AS
+SELECT user_id, first_name, last_name, age, page_id, num_actions, window_end
+FROM
+    (SELECT user_id, page_id, COUNT(action) AS num_actions, window_end 
+    FROM TUMBLE (mv1, action_time, INTERVAL '3' MINUTE)
+    GROUP BY user_id, page_id, window_end) t
+LEFT JOIN users ON users.id = t.user_id
 ```
 
 The results may look like this.
-
-```
- user_id | page_id | num_actions |        window_end         
----------+---------+-------------+---------------------------
-       1 |       1 |           1 | 2024-04-19 21:21:00+00:00
-       1 |       2 |           1 | 2024-04-19 21:09:00+00:00
-       1 |       2 |           1 | 2024-04-19 23:09:00+00:00
-       1 |       2 |           7 | 2024-04-19 23:12:00+00:00
-       1 |       3 |           1 | 2024-04-19 20:57:00+00:00
-
-```
-
-Next, we will join the `tumbled` materialized view with the `users` table from PostgreSQL to gain additional information on each user. 
-
-```sql
-CREATE MATERIALIZED VIEW website_visits_1min AS
-SELECT user_id, first_name, last_name, age, page_id, num_actions, window_end
-FROM tumbled 
-LEFT JOIN users ON users.id = mv1.user_id;
-```
-
-The results may look like this. 
 
 ```
  user_id | first_name | last_name | age | page_id | num_actions |        window_end         
@@ -47,4 +29,5 @@ The results may look like this.
        2 | Emma       | Johnson   |  34 |       5 |           4 | 2024-04-19 23:15:00+00:00
        1 | John       | Smith     |  28 |       9 |           3 | 2024-04-19 23:15:00+00:00
 ```
+
 

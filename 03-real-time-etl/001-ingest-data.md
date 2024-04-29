@@ -20,9 +20,9 @@ Refer to [Install Kafka, PostgreSQL, and RisingWave](/00-get-started/00-install-
 
 ### Configure the data generator
 
-For this demo, we have created a [Python data generator](/03-real-time-etl/data-generator.py) that will continously send messages to a Kafka topic. 
+For this demo, we have created a [Python data generator](/03-real-time-etl/data-generator.py) that will continously send messages to a Kafka topic. This generator is dependent on the `kafka` library.
 
-Download the Python data generator script. Run the Python script in a virtual environment if you do not want to install any dependent libraries.
+Download the Python data generator script. Run the Python script.
 
 ## Set up a PostgreSQL database
 
@@ -61,13 +61,7 @@ Refer to [Install Kafka, PostgreSQL, and RisingWave](/00-get-started/00-install-
 
 ### Ingest data from a Kafka topic
 
-To connect to the Kafka topic, use the following SQL query. For this source, we will create a watermark to ensure that all events are processed within the proper time windows, in this case three seconds. Events that arrived outside of the time window will not be processed. We use the `CREATE SOURCE` command here but `CREATE TABLE` can be used as well if we want to persist the data in RisingWave.
-
-To learn more about the `CREATE SOURCE` command, see [`CREATE SOURCE`](https://docs.risingwave.com/docs/current/sql-create-source/) from the offical RisingWave documentation.
-
-To learn more about the `CREATE TABLE` command, see [`CREATE TABLE`](https://docs.risingwave.com/docs/current/sql-create-table/) from the offical RisingWave documentation.
-
-To learn more about how to consume data from Kafka, see [Ingest data from Kafka](https://docs.risingwave.com/docs/current/ingest-from-kafka/) from the official documentation.
+To connect to the Kafka topic, use the following SQL query. For this source, we will create a watermark to ensure that all events are processed within the proper time windows. In this case, the window is three seconds. Events that arrive outside of the time window will not be processed. We use the `CREATE SOURCE` command here, but `CREATE TABLE` can be used as well if we want to persist the data in RisingWave.
 
 ```sql
 CREATE SOURCE site_visits (
@@ -83,11 +77,17 @@ CREATE SOURCE site_visits (
 ) FORMAT PLAIN ENCODE JSON;
 ```
 
+To learn more about the `CREATE SOURCE` command, see [`CREATE SOURCE`](https://docs.risingwave.com/docs/current/sql-create-source/) from the offical RisingWave documentation.
+
+To learn more about the `CREATE TABLE` command, see [`CREATE TABLE`](https://docs.risingwave.com/docs/current/sql-create-table/) from the offical RisingWave documentation.
+
+To learn more about how to consume data from Kafka, see [Ingest data from Kafka](https://docs.risingwave.com/docs/current/ingest-from-kafka/) from the official documentation.
+
 ### Ingest CDC data from PostgreSQL
 
-Next, we will connect to the `users` table in PostgreSQL by using the following SQL query to ingest CDC data from PostgreSQL. We create a `users` table in RisingWave that reads data from the PostgreSQL table. Fill out the parameters accordingly.
+Next, we will connect to the `users` table in PostgreSQL by using the following SQL query to ingest CDC data from PostgreSQL. With RisingWave you, can create multiple sources that reads data from multiple different upstream systems. 
 
-To learn more about how to read data from PostgreSQL, see [Ingest data from PostgreSQL CDC](https://docs.risingwave.com/docs/current/ingest-from-postgres-cdc/) from the official documentation.
+We create a `users` table in RisingWave that reads data from the PostgreSQL table by using the `CREATE TABLE` command. Fill out the parameters accordingly.
 
 ```sql
 CREATE TABLE users (
@@ -106,3 +106,5 @@ CREATE TABLE users (
     table.name = 'users'
 );
 ```
+
+To learn more about how to read data from PostgreSQL, see [Ingest data from PostgreSQL CDC](https://docs.risingwave.com/docs/current/ingest-from-postgres-cdc/) from the official documentation.
