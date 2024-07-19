@@ -50,7 +50,7 @@ services:
 
   # risingwave
   risingwave:
-    image: risingwavelabs/risingwave:v1.6.0
+    image: risingwavelabs/risingwave:v1.9.1
     ports:
     - 5690:5690
     - 5691:5691
@@ -65,7 +65,7 @@ services:
   # use host = risingwave
   metabase:
     platform: linux/amd64
-    image: metabase/metabase
+    image: metabase/metabase:v0.49.10
     ports: 
     - 3000:3000
     networks:
