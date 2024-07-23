@@ -12,7 +12,7 @@ Additionally, RisingWave must be configured to read data from a PostgreSQL table
 
 ## Create and update a materialized view
 
-Next, we will create a materialized view based on the CDC table, `pg_users`, created in Ingest data from PostgreSQL CDC into RisingWave. The materialized view `over21` will filter for all users who are at least 21 years old.
+Next, you will create a materialized view based on the CDC table, `pg_users`, created in Ingest data from PostgreSQL CDC into RisingWave. The materialized view `over21` will filter for all users who are at least 21 years old.
 
 ```sql
 CREATE MATERIALIZED VIEW atleast21 AS
@@ -20,7 +20,7 @@ SELECT * FROM pg_users
 WHERE age >= 21;
 ```
 
-If we query from this table, it should return all three users.
+If you query from this table, it should return all three users.
 
 ```sql
 SELECT * FROM atleast21;
@@ -32,7 +32,7 @@ SELECT * FROM atleast21;
   3 |  22 | Bob Johnson
 ```
 
-Next, we will update the `pg_users` table in PostgreSQL by inserting a few new users. In the terminal window running PostgreSQL, run the following query to add new users to the table.
+Next, you will update the `pg_users` table in PostgreSQL by inserting a few new users. In the terminal window running PostgreSQL, run the following query to add new users to the table.
 
 ```sql
 INSERT INTO users (name, age) VALUES
@@ -41,7 +41,7 @@ INSERT INTO users (name, age) VALUES
     ('Paul Lewis', 35);
 ```
 
-These new changes will be reflected in the `atleast21` materialized view in RisingWave. We can check by querying from `atleast21` again. All users over the age of 21 should be listed.
+These new changes will be reflected in the `atleast21` materialized view in RisingWave. Check by querying from `atleast21` again. All users over the age of 21 should be listed.
 
 ```sql
  id | age |    name
@@ -53,11 +53,12 @@ These new changes will be reflected in the `atleast21` materialized view in Risi
   6 |  35 | Paul Lewis
 ```
 
-Describe:
-- the advantage of the materialized view
-    - Saves valuable OLTP system resources
-    - Cost does not increase with the number of queries(can refer to https://materialize.com/blog/why-use-a-materialized-view/). Comparing with offload to real-time OLAP system.
+Creating materialized views allows you to save on valuable OLTP system resources. Increase the number of queries does not incur additional query costs as the materialized view is refreshed instantly when new data arrives in the system. 
 
 ## Conclusion
 
-- use RW as a coprocessor to offload the analytics on RW, But the analysis results, in the RisingWave, were split from the original PG data. The results of the analysis can be served in two ways, by querying from RisingWave, or by querying from the original database portal, as will be described in the following two articles
+In this tutorial, RisingWave was used as a coprocessor to offload the analysis results in RisingWave. However, the results are split from the original data in PostgreSQL. There are two ways to serve the analysis results:
+  - Querying from RisingWave
+  - Querying from the original database portal.
+
+In the following two sections, we will go over the each of these processes.
