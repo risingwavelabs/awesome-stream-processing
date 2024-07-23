@@ -4,7 +4,7 @@ RisingWave is designed for online serving and supports online data serving at hi
 
 ## Create an index
 
-Querying from a growing materialized view can get slower over time. To accelerate the query, create an index on the column being queried from.
+Querying from a growing materialized view gets slower as the volume of data grows. To accelerate the query, create an index on the column you want to query on.
 
 Continuing with the `users` table described in [Create materialized views to offload predefined analytics](/02-bring-analytics-closer-to-odb/001-create-mv-offload-analytics.md), you can build an index on the `age` column. This will speed up the query of fetching a user by their age. 
 
@@ -13,6 +13,8 @@ CREATE INDEX idx_age ON users(age);
 
 SELECT * FROM users WHERE age > 18;
 ```
+
+You can continue to build additional indexes on other columns if necessary.
 
 To learn more about the `CREATE INDEX` command, see the [official documentation](https://docs.risingwave.com/docs/current/sql-create-index/#how-to-decide-the-index-distribution-key).
 
@@ -24,4 +26,4 @@ If you are simultaneously running streaming and batch queries, it will be diffic
 
 In this case, deploying a dedicated batch-serving cluster helps to alleviate resource competition and speed up queries. Additionally, compute node failures for streaming queries will not affect batch queries. 
 
-This feature is only available if you deploy RisingWave in a distributed environment. These tutorials rely on the standalone version of RisingWave, which does not support deploying separate nodes. However, if you would like to learn more about this process, see the [official documentation](https://docs.risingwave.com/docs/current/dedicated-compute-node/).
+This feature is only available if you deploy RisingWave in a distributed environment. This tutorial environment is based on the standalone version of RisingWave, which does not support deploying separate nodes. However, if you would like to learn more about this process, see the [official documentation](https://docs.risingwave.com/docs/current/dedicated-compute-node/).

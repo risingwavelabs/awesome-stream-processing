@@ -1,6 +1,6 @@
 # Query the results from the original database
 
-Alternatively, you can use a foreign data wrapper (FDW) in PostgreSQL to directly retrieve the analysis results from RisingWave.
+Alternatively, you can use a foreign data wrapper (FDW) in PostgreSQL to directly retrieve the analysis results from RisingWave. 
 
 ## Query results using a FDW 
 
@@ -56,7 +56,7 @@ SELECT * FROM atleast21;
 
 ## Sink results back to PostgreSQL
 
-If the performance of the foreign data wrapper does not meet your requirements, you can sink the results from RisingWave back to the PostgreSQL database. 
+If the performance of the foreign data wrapper does not meet your requirements, you can sink the results from RisingWave back to the PostgreSQL database. This can allow you to retrieve the query results faster than a FDW.
 
 When sinking data back to PostgreSQL, ensure the schema of your destination table and materialized view match. The following SQL query creates a table in PostgreSQL that has the same schema as the `atleast21` materialized view in RisingWave.
 
@@ -68,7 +68,7 @@ CREATE TABLE pg_atleast21 (
 );
 ```
 
-In RisingWave, use the `CREATE SINK` command to sink materialized view's results to the PostgreSQL table.
+In RisingWave, use the `CREATE SINK` command to sink the results of the materialized view to the PostgreSQL table.
 
 ```sql
 CREATE SINK target_count_postgres_sink FROM target_count WITH (
@@ -81,3 +81,4 @@ CREATE SINK target_count_postgres_sink FROM target_count WITH (
 ```
 
 For more information on how to sink data to PostgreSQL, see the [official documentation](https://docs.risingwave.com/docs/current/sink-to-postgres/).
+

@@ -12,7 +12,7 @@ Additionally, RisingWave must be configured to read data from a PostgreSQL table
 
 ## Create and update a materialized view
 
-Next, you will create a materialized view based on the CDC table, `pg_users`, created in Ingest data from PostgreSQL CDC into RisingWave. The materialized view `over21` will filter for all users who are at least 21 years old.
+Create a materialized view based on the CDC table, `pg_users`, created in Ingest data from PostgreSQL CDC into RisingWave. The materialized view `over21` will filter for all users who are at least 21 years old.
 
 ```sql
 CREATE MATERIALIZED VIEW atleast21 AS
@@ -32,7 +32,7 @@ SELECT * FROM atleast21;
   3 |  22 | Bob Johnson
 ```
 
-Next, you will update the `pg_users` table in PostgreSQL by inserting a few new users. In the terminal window running PostgreSQL, run the following query to add new users to the table.
+Next, you will update the `pg_users` table in PostgreSQL by inserting a few new users. In the window running PostgreSQL, run the following query to add new users to the table.
 
 ```sql
 INSERT INTO users (name, age) VALUES
@@ -44,6 +44,8 @@ INSERT INTO users (name, age) VALUES
 These new changes will be reflected in the `atleast21` materialized view in RisingWave. Check by querying from `atleast21` again. All users over the age of 21 should be listed.
 
 ```sql
+SELECT * FROM atleast21;
+
  id | age |    name
 ----+-----+-------------
   1 |  25 | John Doe
@@ -53,11 +55,11 @@ These new changes will be reflected in the `atleast21` materialized view in Risi
   6 |  35 | Paul Lewis
 ```
 
-Creating materialized views allows you to save on valuable OLTP system resources. Increase the number of queries does not incur additional query costs as the materialized view is refreshed instantly when new data arrives in the system. 
+Creating materialized views allows you to save on valuable OLTP system resources. Increasing the number of queries does not incur additional query costs as the materialized view is refreshed instantly when new data arrives in the system. 
 
 ## Conclusion
 
-In this tutorial, RisingWave was used as a coprocessor to offload the analysis results in RisingWave. However, the results are split from the original data in PostgreSQL. There are two ways to serve the analysis results:
+In this tutorial, RisingWave was used as a coprocessor to offload the analysis results. However, the results are split from the original data in PostgreSQL. There are two ways to serve the analysis results:
   - Querying from RisingWave
   - Querying from the original database portal.
 
