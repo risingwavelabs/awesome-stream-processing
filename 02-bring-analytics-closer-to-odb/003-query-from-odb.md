@@ -1,12 +1,12 @@
 # Query the results from the original database
 
-Alternatively, you can use a foreign data wrapper (FDW) in PostgreSQL to directly retrieve the analysis results from RisingWave. 
+Alternatively, a foreign data wrapper (FDW) can be used in PostgreSQL to directly retrieve the analysis results from RisingWave. 
 
 ## Query results using a FDW 
 
-Recall the materialized view created in [Create and update a materialized view](/02-bring-analytics-closer-to-odb/001-create-mv-offload-analytics.md#create-and-update-a-materialized-view). 
+We will continue to use the materialized view created in [Create and update a materialized view](/02-bring-analytics-closer-to-odb/001-create-mv-offload-analytics.md#create-and-update-a-materialized-view). 
 
-For additional information on how to set up PostgreSQL, see [Install PostgreSQL](/00-get-started/00-install-kafka-pg-rw.md#install-postgresql). Ensure that the PostgreSQL service supports the `postgres_fdw` extension. See [PostgreSQL's documentation](https://www.postgresql.org/docs/current/postgres-fdw.html) for more information. 
+Ensure that the PostgreSQL service supports the `postgres_fdw` extension. See [PostgreSQL's documentation](https://www.postgresql.org/docs/current/postgres-fdw.html) for more information. 
 
 Start by running the following commands in the PostgreSQL database to prepare remote access. 
 
@@ -33,7 +33,7 @@ You can check the list of foreign tables and materialized views.
 
 ```sql
 SELECT * FROM pg_foreign_table;
----------+----------+-------------------------------------------------
+
  ftrelid | ftserver |                    ftoptions
 ---------+----------+-------------------------------------------------
    16413 |    16411 | {schema_name=public,table_name=atleast21}
@@ -45,38 +45,37 @@ Then, you can query directly from the materialized view in PostgreSQL. These res
 ```sql
 SELECT * FROM atleast21;
 
- id | age |    name
-----+-----+-------------
-  1 |  25 | John Doe
-  2 |  30 | Jane Smith
-  3 |  22 | Bob Johnson
-  5 |  21 | Denice Tucker
-  6 |  35 | Paul Lewis
+     city      | avg_age 
+---------------+---------
+ Beijing       |   21.50
+ San Francisco |   21.50
+ New York      |   32.50
 ```
 
 ## Sink results back to PostgreSQL
 
-If the performance of the foreign data wrapper does not meet your requirements, you can sink the results from RisingWave back to the PostgreSQL database. This can allow you to retrieve the query results faster than a FDW.
+If the performance of the foreign data wrapper does not meet your requirements, you can sink the results from RisingWave back to the PostgreSQL database. Although this method incurs additional overhead compared to querying RisingWave directly, there are a few benefits.
 
-When sinking data back to PostgreSQL, ensure the schema of your destination table and materialized view match. The following SQL query creates a table in PostgreSQL that has the same schema as the `atleast21` materialized view in RisingWave.
+Storing the materialized view results as a table in PostgreSQL means the querying performance is more predictable. With PostgreSQL's ecosystem, you have access to some functionalities that RisingWave does not support, such as compatibility with Hasura and special indexes supported through PostgreSQL plugins.
+
+When sinking data to PostgreSQL, you must have a destination table to sink data into. Ensure the schema of your destination table and materialized view match. The following SQL query creates a table in PostgreSQL that has the same data schema as the `atleast21` materialized view in RisingWave.
 
 ```sql
 CREATE TABLE pg_atleast21 (
-  id INT PRIMARY KEY,
-  age INT,
-  name VARCHAR
+  city VARCHAR PRIMARY KEY,
+  avg_age INT,
 );
 ```
 
-In RisingWave, use the `CREATE SINK` command to sink the results of the materialized view to the PostgreSQL table.
+In RisingWave, use the `CREATE SINK` command to sink the results of the materialized view to the PostgreSQL table. The following JDBC URL is specified for the [newly created user](00-install-kafka-pg-rw.md#optional-create-a-database-user) `rw` with the password `abc123`.
 
 ```sql
-CREATE SINK target_count_postgres_sink FROM target_count WITH (
+CREATE SINK target_count_postgres_sink FROM atleast21 WITH (
     connector = 'jdbc',
-    jdbc.url = 'jdbc:postgresql://postgres:5432/mydb?user=postgres&password=',
+    jdbc.url = 'jdbc:postgresql://postgres:5432/mydb?user=rw&password=abc123',
     table.name = 'pg_atleast21',
     type = 'upsert',
-    primary_key = 'id'
+    primary_key = 'city'
 );
 ```
 
