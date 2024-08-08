@@ -35,6 +35,8 @@ In this repository, we provide a series of executable demos demonstrating how st
 	* Perform ETL continuously and incrementally
 4. [**Solution demonstrations ✅**](04-solution-demos/)
 	* A collection of demos showcasing how stream processing is used in real-world applications
+5. [**Integration demonstrations ✅**](https://github.com/risingwavelabs/risingwave/tree/main/integration_tests)
+   * A collection of Docker Compose demos showcasing the integration between RisingWave and other data platforms. To run these demos, install Docker, pull the RisingWave directory, navigate to the respective folder, and run `docker compose up` in a terminal window.
 
 We use [RisingWave](https://github.com/risingwavelabs/risingwave) as the default stream processing system to run these demos. We also assume that you have [Kafka](https://kafka.apache.org/) and/or [PostgreSQL](https://www.postgresql.org/) installed and possess basic knowledge of how to use these systems. **These demos have been verified on Ubuntu and Mac.**
 
@@ -42,4 +44,4 @@ _**All you need is a laptop**_ 💻 - _**no cluster is required.**_
 
 Any comments are welcome. Happy streaming!
 
-Join out [Slack community](https://www.risingwave.com/slack) to engage in discussions with thousands of stream processing enthusiasts!
+Join our [Slack community](https://www.risingwave.com/slack) to engage in discussions with thousands of stream processing enthusiasts!
