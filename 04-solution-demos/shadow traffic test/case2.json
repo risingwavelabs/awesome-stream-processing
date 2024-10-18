@@ -1,0 +1,237 @@
+{
+    "generators": [
+        {
+            "topic": "flights",
+            "vars": {
+                "now": {
+                    "_gen": "now"
+                },
+                "carrier_code": {
+                    "_gen": "oneOf",
+                    "choices": [
+                        "EK",
+                        "LH"
+                    ]
+                },
+                "flight_number": {
+                    "_gen": "uniformDistribution",
+                    "bounds": [
+                        1111,
+                        9999
+                    ],
+                    "decimals": 0
+                }
+            },
+            "value": {
+                "flight_number": {
+                    "_gen": "string",
+                    "expr": "#{flight_number}"
+                },
+                "carrier_code": {
+                    "_gen": "string",
+                    "expr": "#{carrier_code}"
+                },
+                "departure": {
+                    "_gen": "formatDateTime",
+                    "ms": {
+                        "_gen": "uniformDistribution",
+                        "bounds": [
+                            {      
+                                "_gen": "add",              
+                                "args": [{"_gen": "now"}, 86400000]
+                            },
+                            {
+                                "_gen": "add",              
+                                "args": [{"_gen": "now"}, 259200000]
+                            }
+                        ]
+                    },
+                    "format": "yyyy-MM-dd'T'HH:mm:ss'Z'"
+                },
+                "origin": {
+                    "_gen": "oneOf",
+                    "choices": [
+                        "JFK",
+                        "LAX",
+                        "ORD",
+                        "MIA"
+                    ]
+                },
+                "destination": {
+                    "_gen": "oneOf",
+                    "choices": [
+                        "SFO",
+                        "PVG",
+                        "SIN",
+                        "HAM"
+                    ]
+                }
+            }
+        },
+        {
+            "topic": "dcs-events",
+            "vars": {
+                "empty": {
+                    "_gen": "string",
+                    "expr": "null",
+                    "null": {
+                        "rate": 1
+                    }
+                },
+                "check_in": {
+                    "_gen": "formatDateTime",
+                    "ms": {
+                        "_gen": "now"
+                    },
+                    "format": "yyyy-MM-dd'T'HH:mm:ss'Z'"
+                }
+            },
+            "fork": {
+                "oneTimeKeys": true,
+                "key": {
+                    "_gen": "constant",
+                    "x": {
+                        "_gen": "lookup",
+                        "topic": "flights",
+                        "path": ["value"]
+                    },
+                    "selectKeys": ["flight_number", "carrier_code", "origin", "destination", "departure"]
+                }
+            },
+            "value": {
+                "flight_number": {
+                    "_gen": "var",
+                    "var": "forkKey",
+                    "path": ["flight_number"]  
+                },
+                "carrier_code": {
+                    "_gen": "var",
+                    "var": "forkKey",
+                    "path": ["carrier_code"]  
+                },
+                "departure_time": {
+                    "_gen": "var",
+                    "var": "forkKey",
+                    "path": ["departure"]  
+                },
+                "origin": {
+                    "_gen": "var",
+                    "var": "forkKey",
+                    "path": ["origin"]  
+                },
+                "destination": {
+                    "_gen": "var",
+                    "var": "forkKey",
+                    "path": ["destination"]  
+                },
+                "passenger_ref_number": {
+                    "_gen": "ulid"
+                },
+                "class": {
+                    "_gen": "oneOf",
+                    "choices": ["first class", "business", "premium economy", "economy"]
+                },
+                "check_in": {
+                    "_gen": "weightedOneOf",
+                    "choices": [
+                        { "weight": 5, "value": null },    
+                        {
+                          "weight": 95,
+                          "value": {
+                            "_gen": "formatDateTime",
+                            "ms": {
+                                "_gen": "now"
+                            },
+                            "format": "yyyy-MM-dd'T'HH:mm:ss'Z'"
+                          }
+                        }
+                      ]
+                }
+            },
+            "localConfigs": {
+                "maxEvents": 40
+            }
+        },
+        {
+            "topic": "cms-events",
+            "fork": {
+                "oneTimeKeys": true,
+                "key": {
+                    "_gen": "constant",
+                    "x": {
+                        "_gen": "lookup",
+                        "topic": "flights",
+                        "path": ["value"]
+                    },
+                    "selectKeys": ["flight_number", "carrier_code", "origin", "destination", "departure"]
+                }
+            },
+            "value": {
+                "flight_number": {
+                    "_gen": "var",
+                    "var": "forkKey",
+                    "path": ["flight_number"]  
+                },
+                "carrier_code": {
+                    "_gen": "var",
+                    "var": "forkKey",
+                    "path": ["carrier_code"]  
+                },
+                "departure_time": {
+                    "_gen": "var",
+                    "var": "forkKey",
+                    "path": ["departure"]  
+                },
+                "origin": {
+                    "_gen": "var",
+                    "var": "forkKey",
+                    "path": ["origin"]  
+                },
+                "destination": {
+                    "_gen": "var",
+                    "var": "forkKey",
+                    "path": ["destination"]  
+                },
+                "class": {
+                    "_gen": "stateMachine",
+                    "initial": "a",
+                    "transitions": {
+                        "a": "b",
+                        "b": "c",
+                        "c": "d"
+                    },
+                    "states": {
+                        "a": "first class",
+                        "b": "business",
+                        "c": "premium economy",
+                        "d": "economy"
+                    }
+                },
+                "available_meals": {
+                    "_gen": "uniformDistribution",
+                    "bounds": [
+                        5,
+                        10
+                    ],
+                    "decimals": 0
+            },
+            "localConfigs": {
+                "maxEvents": 4
+            }
+        }
+    }
+    ],
+    "globalConfigs": {
+        "throughput": 110
+    },
+    "connections": {
+        "localKafka": {
+            "kind": "kafka",
+            "producerConfigs": {
+                "bootstrap.servers": "kafka:9092",
+                "key.serializer": "io.shadowtraffic.kafka.serdes.JsonSerializer",
+                "value.serializer": "io.shadowtraffic.kafka.serdes.JsonSerializer"
+            }
+        }
+    }
+}
