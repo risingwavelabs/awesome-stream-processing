@@ -12,7 +12,7 @@ Ensure you have the following installed:
 - **[Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/):** Docker Compose is included with Docker Desktop for Windows and macOS. Ensure Docker Desktop is running if you're using it.
 - **[PostgreSQL interactive terminal (psql)](https://www.postgresql.org/download/):** This will allow you to connect to RisingWave for stream management and queries.
 
-## Launching the Demo Cluster
+## Launch the Demo Cluster
 
 The demo uses the Aviationstack API to fetch real-time flight data, which is then streamed into Kafka once the cluster starts.
 
@@ -31,7 +31,7 @@ The demo uses the Aviationstack API to fetch real-time flight data, which is the
     
     ```
     
-    This will initiate the necessary RisingWave components (frontend node, compute node, metadata node) as well as MinIO for storage. The Aviationstack API will begin fetching real-time flight data and send it to a Kafka topic, where RisingWave ingests and processes it into materialized views, stored in MinIO.
+    This will initiate the standalone mode of RisingWave. The Aviationstack API will begin fetching real-time flight data and send it to a Kafka topic, where RisingWave ingests and processes it into materialized views, stored in the embedded SQLite database.
     
     > Note: Kafka is exposed on `kafka:9092` for internal applications and on `localhost:29092` for local applications. The corresponding source topic is created automatically.
     > 
@@ -41,30 +41,10 @@ The demo uses the Aviationstack API to fetch real-time flight data, which is the
     psql -h localhost -p 4566 -d dev -U root
     
     ```
-    
 
-## Setting Up Metabase
+### Connect RisingWave to Metabase
 
-1. **Install Metabase with Docker:**
-    
-    ```bash
-    docker pull metabase/metabase:latest
-    
-    ```
-    
-2. **Start the Metabase Container:**
-    
-    ```bash
-    docker run -d -p 3000:3000 --name metabase metabase/metabase
-    
-    ```
-    
-    Access Metabase at `http://localhost:3000` once it starts.
-    
-
-### Connecting RisingWave to Metabase
-
-Since RisingWave is PostgreSQL-compatible, you can connect it to Metabase as a data source for building visualizations. This integration allows you to create real-time dashboards on streaming data using RisingWave tables and materialized views.
+Since RisingWave is PostgreSQL-compatible, you can connect it to Metabase as a data source for building visualizations. This integration allows you to create real-time dashboards on streaming data using RisingWave tables and materialized views. You can access Metabase at `http://localhost:3000` in this demo.
 
 For more details, refer to [Real-time flight tracking with Redpanda, RisingWave, and Metabase](https://risingwave.com/blog/real-time-flight-tracking-with-redpanda-risingwave-and-metabase/).
 
