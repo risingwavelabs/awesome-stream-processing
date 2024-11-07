@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # risingwave
+  risingwave-standalone:
+    image: risingwavelabs/risingwave:latest
+    ports:
+      - "4566:4566"
+      - "5690:5690"
+      - "5691:5691"
+    entrypoint:
+      - /risingwave/bin/risingwave
+      - playground
+    networks:
+      - kafka-net
+
+  # mqtt-server
+  mqtt-server:
+    image: eclipse-mosquitto
+  # Generate the script dynamically using here-strings
+    command: >
+      sh -c '
+        echo "running command"
+        echo "allow_anonymous true" >> /mosquitto/config/mosquitto.conf
+        echo "listener 1883 0.0.0.0" >> /mosquitto/config/mosquitto.conf
+        echo "starting service..."
+        cat /mosquitto/config/mosquitto.conf
+        /docker-entrypoint.sh
+        exec mosquitto -c /mosquitto/config/mosquitto.conf'
+    ports:
+      - "1883"
+    networks:
+      - kafka-net
+
+  # grafana
+  grafana-0:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - kafka-net
+
+  # prometheus
+  prometheus-0:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    networks:
+      - kafka-net
+
+  # kafka producer
+  data-producer:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    depends_on:
+     - mqtt-server
+    restart: always
+    networks:
+     - kafka-net
+
+networks:
+  kafka-net:
+    driver: bridge
+    name: kafka-net
