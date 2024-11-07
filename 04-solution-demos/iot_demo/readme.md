@@ -60,6 +60,6 @@ Here is a sample of the shop-floor data for electric motors in JSON format:
 
 The Docker Compose setup includes a Grafana instance. Open your browser to [http://localhost:3000](http://localhost:3000/), and log in with the default credentials (admin/admin) unless otherwise configured.
 
-To utilize RisingWave as a data source in Grafana and create visualizations and dashboards, follow the instructions provided in [Configure Grafana to read data from RisingWave](https://docs.risingwave.com/docs/current/grafana-integration/).
+To utilize RisingWave as a data source in Grafana and create visualizations and dashboards, follow the instructions provided in [Configure Grafana to read data from RisingWave](https://docs.risingwave.com/docs/current/grafana-integration/). Set the host URL as `risingwave-standalone:4566` to connect to RisingWave in this demo.
 
 Once the connection between RisingWave and Grafana is established, you can incorporate materialized views from RisingWave as tables to design charts and build a comprehensive dashboard for real-time monitoring of factory floor, predictive maintenance, and anomaly detection.
