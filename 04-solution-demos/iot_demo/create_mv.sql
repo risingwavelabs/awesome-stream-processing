@@ -15,63 +15,7 @@ window_end
 FROM TUMBLE (shop_floor_machine_data,ts, INTERVAL '1 MINUTE')
 GROUP BY machine_id, window_start,window_end;
 
--- Materialized view for maintenance alerts based on recent machine metrics
-CREATE MATERIALIZED VIEW maintenance_mv AS 
-WITH Historical_Averages AS (
-    SELECT
-        machine_id,
-        AVG(winding_temperature) AS avg_winding_temp,
-        AVG(vibration_level) AS avg_vibration,
-        AVG(current_draw) AS avg_current_draw,
-        AVG(power_consumption) AS avg_power_consumption,
-        AVG(efficiency) AS avg_efficiency
-    FROM shop_floor_machine_data
-    WHERE ts < NOW() - INTERVAL '1' HOUR  -- Historical data for the last 1 hour 
-    GROUP BY machine_id
-),
-Recent_Stats AS (
-    SELECT
-        machine_id,
-        COUNT(*) AS event_count,
-        window_start,
-        window_end,
-        AVG(winding_temperature) AS avg_winding_temp,
-        AVG(vibration_level) AS avg_vibration,
-        AVG(current_draw) AS avg_current_draw,
-        AVG(power_consumption) AS avg_power_consumption,
-        AVG(efficiency) AS avg_efficiency
-    FROM TUMBLE (shop_floor_machine_data,ts, INTERVAL '1 MINUTES')
-    GROUP BY machine_id, window_start,window_end
-)
-SELECT
-    r.machine_id,
-    r.window_start,
-    r.window_end,
-    r.avg_winding_temp,
-    r.avg_vibration,
-    r.avg_current_draw,
-    r.avg_power_consumption,
-    r.avg_efficiency,
-    CASE
-        WHEN r.avg_winding_temp > h.avg_winding_temp + 5 THEN 'Potential Overheating'
-        WHEN r.avg_vibration > h.avg_vibration + 0.1 THEN 'Increased Vibration'
-        WHEN r.avg_current_draw > h.avg_current_draw + 2 THEN 'Possible overcurrent condition'
-        WHEN r.avg_efficiency < h.avg_efficiency - 5 THEN 'Efficiency Drop'
-        ELSE 'Normal'
-    END AS maintenance_alert
-FROM
-    Recent_Stats r
-JOIN
-    Historical_Averages h
-ON
-    r.machine_id = h.machine_id
-WHERE
-    r.avg_winding_temp > h.avg_winding_temp + 5 OR
-    r.avg_vibration > h.avg_vibration + 0.1 OR
-    r.avg_current_draw > h.avg_current_draw + 2 OR
-    r.avg_efficiency < h.avg_efficiency - 5
-ORDER BY
-    r.window_end DESC;
+
 
 -- Materialized view for anomaly detection in machine metrics
 CREATE MATERIALIZED VIEW anomalies_mv AS
@@ -171,3 +115,62 @@ WHERE
     (avg_power_consumption - prev_avg_power_consumption) > 2 * stddev_power_consumption
 ORDER BY
     window_end DESC;
+
+
+-- Materialized view for maintenance alerts based on recent machine metrics
+CREATE MATERIALIZED VIEW maintenance_mv AS 
+WITH Historical_Averages AS (
+    SELECT
+        machine_id,
+        AVG(winding_temperature) AS avg_winding_temp,
+        AVG(vibration_level) AS avg_vibration,
+        AVG(current_draw) AS avg_current_draw,
+        AVG(power_consumption) AS avg_power_consumption,
+        AVG(efficiency) AS avg_efficiency
+    FROM shop_floor_machine_data
+    WHERE ts < NOW() - INTERVAL '5' MINUTES  -- Historical data for the last 5 minutes  
+    GROUP BY machine_id
+),
+Recent_Stats AS (
+    SELECT
+        machine_id,
+        COUNT(*) AS event_count,
+        window_start,
+        window_end,
+        AVG(winding_temperature) AS avg_winding_temp,
+        AVG(vibration_level) AS avg_vibration,
+        AVG(current_draw) AS avg_current_draw,
+        AVG(power_consumption) AS avg_power_consumption,
+        AVG(efficiency) AS avg_efficiency
+    FROM TUMBLE (shop_floor_machine_data,ts, INTERVAL '1 MINUTES')
+    GROUP BY machine_id, window_start,window_end
+)
+SELECT
+    r.machine_id,
+    r.window_start,
+    r.window_end,
+    r.avg_winding_temp,
+    r.avg_vibration,
+    r.avg_current_draw,
+    r.avg_power_consumption,
+    r.avg_efficiency,
+    CASE
+        WHEN r.avg_winding_temp > h.avg_winding_temp + 5 THEN 'Potential Overheating'
+        WHEN r.avg_vibration > h.avg_vibration + 0.1 THEN 'Increased Vibration'
+        WHEN r.avg_current_draw > h.avg_current_draw + 2 THEN 'Possible overcurrent condition'
+        WHEN r.avg_efficiency < h.avg_efficiency - 5 THEN 'Efficiency Drop'
+        ELSE 'Normal'
+    END AS maintenance_alert
+FROM
+    Recent_Stats r
+JOIN
+    Historical_Averages h
+ON
+    r.machine_id = h.machine_id
+WHERE
+    r.avg_winding_temp > h.avg_winding_temp + 5 OR
+    r.avg_vibration > h.avg_vibration + 0.1 OR
+    r.avg_current_draw > h.avg_current_draw + 2 OR
+    r.avg_efficiency < h.avg_efficiency - 5
+ORDER BY
+    r.window_end DESC;
