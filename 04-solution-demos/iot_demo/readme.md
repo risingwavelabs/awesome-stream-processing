@@ -62,4 +62,31 @@ The Docker Compose setup includes a Grafana instance. Open your browser to [http
 
 To utilize RisingWave as a data source in Grafana and create visualizations and dashboards, follow the instructions provided in [Configure Grafana to read data from RisingWave](https://docs.risingwave.com/docs/current/grafana-integration/). Set the host URL as `risingwave-standalone:4566` to connect to RisingWave in this demo.
 
-Once the connection between RisingWave and Grafana is established, you can incorporate materialized views from RisingWave as tables to design charts and build a comprehensive dashboard for real-time monitoring of factory floor, predictive maintenance, and anomaly detection.
+Once the connection between RisingWave and Grafana is established, you can incorporate materialized views from RisingWave as tables to design charts and build a comprehensive dashboard for real-time monitoring of the factory floor, predictive maintenance, and anomaly detection.
+
+1. **Table of Sensor Readings and Operational Metrics**: This table, sourced from `shop_floor_machine_data`, shows machine performance metrics with each record detailing a machine’s status at a specific time.
+![1](https://github.com/user-attachments/assets/d7c06048-1e49-4ca7-a051-76a347bab17b)
+
+2. **Anomaly Alerts Chart**: This chart from `anomalies_mv` displays alerts (e.g., “Anomalous Vibration Level,” “Rising Power Consumption”) triggered by threshold deviations, aiding real-time anomaly detection.
+![2](https://github.com/user-attachments/assets/d6dcb1f6-b7fe-4f9a-8649-857b7c7b9c23)
+
+3. **Maintenance Alerts Chart**: This chart, based on `maintenance_mv`, highlights deviations from historical averages, triggering alerts (e.g., "Potential Overheating") to support proactive maintenance.
+![3](https://github.com/user-attachments/assets/0d107898-46d1-4a46-a4d6-7ea6c0bc95b8)
+
+4. **Winding Temperature Chart**: This chart from `shop_floor_machine_data` tracks winding temperatures, highlighting data points in red for readings above 81°C to signal potential overheating.
+![4](https://github.com/user-attachments/assets/463212ad-ef16-4023-99ec-427319660e89)
+
+5. **Vibration Levels Chart**: This chart from `shop_floor_machine_data` shows vibration levels, flagging readings above 2.05 as indicators of potential mechanical issues.
+![5](https://github.com/user-attachments/assets/a006456b-23d2-4dd4-88fe-82b5ac787bd1)
+
+6. **Ambient Temperature Distribution Pie Chart**: Using data from `shop_floor_machine_data`, this chart represents the distribution of ambient temperatures on the shop floor.
+![6](https://github.com/user-attachments/assets/c8546ec4-be04-4336-b275-b648d1352f82)
+
+7. **Speed and Power Consumption Chart**: This bar chart from `shop_floor_machine_data` shows nominal speed and power consumption, with a red line indicating a threshold of 4210 for comparison.
+![7](https://github.com/user-attachments/assets/90d4dfda-1006-42e2-8819-5cc013ca1c90)
+
+8. **Efficiency Chart**: Based on `shop_floor_machine_data`, this chart displays machine efficiency, with red highlights for data points below 80 to flag underperformance.
+![8](https://github.com/user-attachments/assets/85f96203-4c8a-46f9-8241-d7c57887c594)
+
+9. **Real-time Unified Dashboard**: This comprehensive dashboard monitors shop floor operations, displaying alerts for predictive maintenance and anomaly detection, supporting proactive equipment management.
+![9](https://github.com/user-attachments/assets/0e87b49e-97e0-42a3-90b1-93570a918270)
