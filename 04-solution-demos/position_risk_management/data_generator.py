@@ -3,7 +3,7 @@ import random
 from datetime import datetime, timedelta
 import time
 
-# RisingWave connection parameters
+# RisingWave connection parameters. We are using default parameters.
 conn_params = {
     "dbname": "dev",
     "user": "root",
@@ -16,9 +16,9 @@ conn_params = {
 conn = psycopg2.connect(**conn_params)
 cursor = conn.cursor()
 
-# Define parameters
+# Define betting parameters
 num_positions = 10
-leagues = ["MLB", "NBA", "NFL", "NHL", "Soccer", "Tennis"]
+leagues = ["MLB", "NBA", "NFL", "NHL", "MLS", "Tennis"]
 teams = ["Team A", "Team B", "Team C", "Team D", "Team E"]
 bookmakers = ["DraftKings", "FanDuel", "BetMGM", "Caesars"]
 
