@@ -25,18 +25,23 @@ Streaming data is everywhere, generated from operational databases, messaging qu
 In this repository, we provide a series of executable demos demonstrating how stream processing can be applied in practical scenarios:
 
 0. [**Getting started ✅**](00-get-started/)
-	* Install Kafka, PostgreSQL, and RisingWave, and run minimal toy examples
-1. [**Querying and processing event streaming data ✅**](01-query-process-streaming-data/)
-	* Directly query data stored in event streaming systems (e.g., Kafka, Redpanda)
-	* Continuously ingest and analyze data from event streaming systems
-2. [**Bringing analytics closer to operational databases ✅**](02-bring-analytics-closer-to-odb/)
-	* Offload event-driven queries (e.g., materialized views and triggers) from operational databases (e.g., MySQL, PostgreSQL)
-3. [**Real-time ETL (Extract, Transform, Load) ✅**](03-real-time-etl/)
-	* Perform ETL continuously and incrementally
-4. [**Solution demonstrations ✅**](04-solution-demos/)
-	* A collection of demos showcasing how stream processing is used in real-world applications
-5. [**Integration demonstrations ✅**](https://github.com/risingwavelabs/risingwave/tree/main/integration_tests)
-   * A collection of Docker Compose demos showcasing the integration between RisingWave and other data platforms. To run these demos, install Docker, pull the RisingWave directory, navigate to the respective folder, and run `docker compose up` in a terminal window.
+    * Install Kafka, PostgreSQL, and RisingWave, and run minimal toy examples on your device.
+    * A collection of Docker Compose demos showcasing the integration between RisingWave and other data platforms.
+1. [**Basic stream processing workflow**](01-basic-streaming-workflow)
+
+    Learn the basics of how to ingest, process, transform, and offload streaming data.
+    1. [**Querying and processing event streaming data ✅**](/01-basic-streaming-workflow/01-query-process-streaming-data/)
+      * Directly query data stored in event streaming systems (e.g., Kafka, Redpanda).
+      * Continuously ingest and analyze data from event streaming systems.
+    2. [**Bringing analytics closer to operational databases ✅**](/01-basic-streaming-workflow/02-bring-analytics-closer-to-odb/)
+      * Offload event-driven queries (e.g., materialized views and triggers) from operational databases (e.g., MySQL, PostgreSQL).
+    3. [**Real-time ETL (Extract, Transform, Load) ✅**](/01-basic-streaming-workflow/03-real-time-etl/)
+      * Perform ETL continuously and incrementally.
+2. [**Simple demonstrations ✅**](02-simple-demos/)
+   * A
+3. [**Solution demonstrations ✅**](03-solution-demos/)
+   * A collection of comprehensive demos showcasing how to build a stream processing pipeline for real-world applications.
+
 
 We use [RisingWave](https://github.com/risingwavelabs/risingwave) as the default stream processing system to run these demos. We also assume that you have [Kafka](https://kafka.apache.org/) and/or [PostgreSQL](https://www.postgresql.org/) installed and possess basic knowledge of how to use these systems. **These demos have been verified on Ubuntu and Mac.**
 
