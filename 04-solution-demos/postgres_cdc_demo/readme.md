@@ -1,6 +1,6 @@
 # Continuous E-Commerce Data Pipeline with PostgreSQL CDC and RisingWave
 
-This demo delves into an e-commerce scenario that leverages PostgreSQL, CDC, and RisingWave to establish a real-time data processing pipeline. PostgreSQL serves as the repository for transactional data, while CDC captures and tracks database changes for efficient updates. RisingWave, a streaming database compatible with PostgreSQL, empowers real-time insights through the use of SQL. This enables analytics such as sales and user monitoring, which can adapt to dynamic market conditions, facilitating informed decision-making.
+This demo delves into an e-commerce scenario that leverages PostgreSQL, CDC, and RisingWave to establish a real-time data processing pipeline. PostgreSQL serves as the repository for transactional data, while CDC captures and tracks database changes for efficient updates. RisingWave, a streaming database compatible with PostgreSQL, empowers real-time insights through the use of SQL. By adopting this architecture, an e-commerce company can achieve responsiveness and adaptability to dynamic market conditions. It empowers businesses with timely insights and informed decision-making capabilities. With PostgreSQL, CDC, and RisingWave working together, organizations can build a data pipeline that supports their e-commerce operations effectively.
 
 ![1](https://github.com/user-attachments/assets/e7f59bee-9d7f-487a-ad62-5b5a6d6bfd54)
 *Continuous E-Commerce Data Pipeline with PostgreSQL CDC and RisingWave.*
