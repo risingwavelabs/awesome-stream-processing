@@ -1,6 +1,8 @@
 # Real-Time Website Logs Monitoring with Kafka, RisingWave, and Grafana
 
-This demo presents a real-time website monitoring system using RisingWave, Kafka, and Grafana. Kafka streams website audit logs, which are ingested into RisingWave for continuous data analysis, enabling timely threat detection and real-time analytics. Grafana provides a unified dashboard displaying user activities, referrer analytics, status codes, and user security profiles, supporting efficient monitoring and automated threat responses.
+This demo presents a real-time website monitoring system using RisingWave, Kafka, and Grafana. Kafka streams website logs, which are ingested into RisingWave for continuous data analysis, enabling timely threat detection and real-time analytics. Grafana provides a unified dashboard displaying user activities, referrer analytics, status codes, and user security profiles, supporting efficient monitoring and automated threat responses.
+
+![913](https://github.com/user-attachments/assets/bbf72c59-2fd6-4699-a4d6-e115fcbcabb4)
 
 ## Prerequisites
 
