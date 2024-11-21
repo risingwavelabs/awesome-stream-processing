@@ -1,4 +1,4 @@
-# Risk and profit analysis in sports betting
+# Risk and position analysis in sports betting
 
 Manage your sports betting or trading positions in real-time by using RisingWave to monitor exposure and risk.
 
@@ -42,7 +42,7 @@ CREATE TABLE market_data (
 
 ## Step 3: Run the data generator
 
-Ensure that you have a Python environment set up and have installed the psycopg2 library. Run the [data generator](/02-simple-demos/position_risk_management/data_generator.py).
+Ensure that you have a Python environment set up and have installed the psycopg2 library. Run the [data generator](02-simple-demos/sports_betting/position_risk_management/data_generator.py).
 
 This will start inserting mock data into the tables created above.
 
