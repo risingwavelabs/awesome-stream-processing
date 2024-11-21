@@ -107,7 +107,6 @@ JOIN
 ON
     u.user_id = b.user_id
 WHERE
-    u.risk_tolerance = 'High'
-    AND p.total_exposure > u.avg_bet_size * 10  
+    p.total_exposure > u.avg_bet_size * 5
     AND b.avg_profit_loss < 0;
 ```
