@@ -40,4 +40,4 @@ This demo uses the Wikipedia API to obtain real-time data on edits made to Wikip
 
     For SQL queries on ingesting and processing data, see [create-source.sql](/04-solution-demos/wikipedia_monitoring/create_source.sql) and [create-mv.sql](/04-solution-demos/wikipedia_monitoring/create_mv.sql).
 
-    
+For more information, refer to [Real-Time Wikipedia Monitoring Using RisingWave, Instaclustr Cloud, and Apache Superset](https://risingwave.com/blog/real-time-wikipedia-monitoring-using-risingwave-instaclustr-cloud-and-apache-superset/).

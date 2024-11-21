@@ -90,3 +90,5 @@ Once the connection between RisingWave and Grafana is established, you can incor
 
 9. **Real-time Unified Dashboard**: This comprehensive dashboard monitors shop floor operations, displaying alerts for predictive maintenance and anomaly detection, supporting proactive equipment management.
 ![9](https://github.com/user-attachments/assets/0e87b49e-97e0-42a3-90b1-93570a918270)
+
+For more details, refer to [Real-Time Monitoring, Predictive Maintenance, and Anomaly Detection with EMQX, RisingWave, and Grafana](https://risingwave.com/blog/real-time-monitoring-predictive-maintenance-and-anomaly-detection-with-emqx-risingwave-and-grafana/).
