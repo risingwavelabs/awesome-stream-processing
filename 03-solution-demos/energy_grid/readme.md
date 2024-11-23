@@ -1,4 +1,4 @@
-## Real-time energy grid monitoring 
+# Real-time energy grid monitoring 
 
 In this demo, we use RisingWave to monitor an small energy grid in real-time. The data generator mimics energy usage patterns for 20 households. Each household will consume energy and produce energy (such as through solar panels). Data streams will be sent to a Kafka topic and static data on households are stored in a Postgres database. We will use RisingWave to ingest and join Kafka and Postgres data to track the energy usage patterns for each household, as well as their monthly bills. 
 
