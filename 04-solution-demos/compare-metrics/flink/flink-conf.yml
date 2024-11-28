@@ -1,0 +1,7 @@
+execution.checkpointing.interval: 60s
+state.backend: filesystem
+state.checkpoints.dir: file:///flink_checkpoint 
+state.savepoints.dir: file:///flink_checkpoint
+
+metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+metrics.reporter.prom.port: 9249   # Port for Prometheus metrics
