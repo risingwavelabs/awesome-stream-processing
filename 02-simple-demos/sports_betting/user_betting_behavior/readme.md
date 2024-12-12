@@ -31,7 +31,7 @@ CREATE TABLE betting_history (
     bet_amount FLOAT,
     result VARCHAR,
     profit_loss FLOAT, 
-    timestamp TIMESTAMP
+    timestamp TIMESTAMPTZ
 );
 ```
 
@@ -45,7 +45,7 @@ CREATE TABLE positions (
     expected_return FLOAT,
     current_odds FLOAT,
     profit_loss FLOAT,
-    timestamp TIMESTAMP
+    timestamp TIMESTAMPTZ
 );
 ```
 

@@ -18,8 +18,8 @@ Run the following two queries to set up your tables in RisingWave.
 CREATE TABLE trade_data (
     trade_id INT,
     asset_id INT,
-    timestamp TIMESTAMP,
-    price FLOAT,
+    timestamp TIMESTAMPTZ,
+    price NUMERIC,
     volume INT,
     buyer_id INT,
     seller_id INT
@@ -29,10 +29,10 @@ CREATE TABLE trade_data (
 ```sql
 CREATE TABLE market_data (
     asset_id INT,
-    timestamp TIMESTAMP,
-    bid_price FLOAT,
-    ask_price FLOAT,
-    price FLOAT,
+    timestamp TIMESTAMPTZ,
+    bid_price NUMERIC,
+    ask_price NUMERIC,
+    price NUMERIC,
     rolling_volume INT
 );
 ```

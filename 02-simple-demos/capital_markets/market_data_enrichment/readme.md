@@ -17,7 +17,7 @@ Run the following two queries to set up your tables in RisingWave.
 ```sql
 CREATE TABLE raw_market_data (
     asset_id INT,
-    timestamp TIMESTAMP,
+    timestamp TIMESTAMPTZ,
     price NUMERIC,
     volume INT,
     bid_price NUMERIC,
@@ -32,7 +32,7 @@ CREATE TABLE enrichment_data (
     historical_volatility NUMERIC,
     sector_performance NUMERIC,
     sentiment_score NUMERIC,
-    timestamp TIMESTAMP
+    timestamp TIMESTAMPTZ
 );
 ```
 
