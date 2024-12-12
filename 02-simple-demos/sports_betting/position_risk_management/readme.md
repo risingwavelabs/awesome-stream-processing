@@ -19,7 +19,7 @@ CREATE TABLE positions (
     position_id INT,
     league VARCHAR,
     position_name VARCHAR,
-    timestamp TIMESTAMP,
+    timestamp TIMESTAMPTZ,
     stake_amount FLOAT,
     expected_return FLOAT,
     max_risk FLOAT,
@@ -36,7 +36,7 @@ CREATE TABLE market_data (
     bookmaker VARCHAR,
     market_price FLOAT,
     volume INT,
-    timestamp TIMESTAMP
+    timestamp TIMESTAMPTZ
 );
 ```
 

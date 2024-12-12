@@ -18,7 +18,7 @@ Run the following two queries to set up your tables in RisingWave.
 CREATE TABLE inventory (
     warehouse_id INT,
     product_id INT,
-    timestamp TIMESTAMP,
+    timestamp TIMESTAMPTZ,
     stock_level INT,
     reorder_point INT,
     location VARCHAR
@@ -31,7 +31,7 @@ CREATE TABLE sales (
     warehouse_id INT,
     product_id INT,
     quantity_sold INT,
-    timestamp TIMESTAMP
+    timestamp TIMESTAMPTZ
 );
 ```
 
