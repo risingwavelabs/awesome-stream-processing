@@ -4,7 +4,7 @@ Detect suspicious patterns, compliance breaches, and anomalies from trading acti
 
 Follow the instructions below to learn how to run this demo. 
 
-For more details about the process and the use case, see the official documentation.
+For more details about the process and the use case, see the [official documentation](https://docs.risingwave.com/demos/market-trade-surveillance).
 
 ## Step 1: Install and run a RisingWave instance
 
@@ -39,7 +39,7 @@ CREATE TABLE market_data (
 
 ## Step 3: Run the data generator
 
-Ensure that you have a Python environment set up and have installed the psycopg2 library. Run the [data generator](02-simple-demos/capital_markets/market_surveillance/data_generator.py).
+Ensure that you have a Python environment set up and have installed the psycopg2 library. Run the data generator.
 
 This will start inserting mock data into the tables created above.
 
