@@ -41,7 +41,7 @@ def gen_shipments(warehouse_loc, truck_id):
         "shipment_id": faker.bothify(text="SHIP-####-??"),
         "origin": faker.city(),
         "destination": warehouse_loc,
-        "shipment_weight": random.randint(1, 50),
+        "shipment_weight": random.randint(10, 20),
         "truck_id": truck_id
     }
 

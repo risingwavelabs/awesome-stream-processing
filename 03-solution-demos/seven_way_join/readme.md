@@ -122,7 +122,7 @@ join
 join 
     fuel f on f.truck_id = t.truck_id
 join
-    maint m on m.truck_id = t.truck_id
+    maint m on m.truck_id = t.truck_id;
 ```
 
 ### Simple analysis, 6-way join
@@ -130,6 +130,7 @@ join
 Find truck performance, cost analysis, and driver information
 
 ```sql
+CREATE MATERIALIZED VIEW truck_fleet_overview AS
 WITH TruckPerformance AS (
     SELECT
         t.truck_id,
