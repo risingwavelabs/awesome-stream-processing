@@ -1,0 +1,16 @@
+apiVersion: 1
+deleteDatasources:
+  - name: risingwave
+datasources:
+  - name: risingwave
+    type: postgres
+    access: proxy
+    url: risingwave:4566
+    database: dev
+    user: root
+    password: 
+    isDefault: true
+    jsonData:
+      sslmode: "disable"
+    version: 1
+    editable: true

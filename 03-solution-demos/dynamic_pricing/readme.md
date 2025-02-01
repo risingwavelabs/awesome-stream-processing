@@ -1,6 +1,6 @@
-# Real-time energy grid monitoring 
+# Dynamic Pricing Model
 
-In this demo, we use RisingWave to monitor an small energy grid in real-time. The data generator mimics energy usage patterns for 20 households. Each household will consume energy and produce energy (such as through solar panels). Data streams will be sent to a Kafka topic and static data on households are stored in a Postgres database. We will use RisingWave to ingest and join Kafka and Postgres data to track the energy usage patterns for each household, as well as their monthly bills. 
+In this demo, we use RisingWave to dynamic pricing model. The data generators will generate purchase and restock events. Restock events happen at longer intervals. Data streams will be sent to a Kafka topic and static data on product information are stored in a Postgres database. We will use RisingWave to ingest and join Kafka and Postgres data to create a pricing model that adjust the sales price of products based on the demand.
 
 ## Prerequisites
 
@@ -18,10 +18,10 @@ Ensure you have the following installed:
     
     ```
     
-2. **Start the Demo Cluster:** Navigate to the `04-solution-demos/energy_grid` directory, and start the demo using Docker Compose.
+2. **Start the Demo Cluster:** Navigate to the `04-solution-demos/dynamic_pricing` directory, and start the demo using Docker Compose.
     
     ```bash
-    cd awesome-stream-processing/04-solution-demos/energy_grid
+    cd awesome-stream-processing/04-solution-demos/dynamic_pricing
     docker compose up -d
     
     ```
@@ -36,7 +36,7 @@ Ensure you have the following installed:
     psql -h localhost -p 4566 -d dev -U root
     ```
 
-    Once connected, run all queries included in the [create-source](/04-solution-demos/energy_grid/create_source.md) and [create-mv](/04-solution-demos/energy_grid/create_mv.md) files.
+    Once connected, run all queries included in the [create-source](/04-solution-demos/dynamic_pricing/create_source.md) and [create-mv](/04-solution-demos/dynamic_pricing/create_mv.md) files.
     
 4. **Build a dashboard:**
 
