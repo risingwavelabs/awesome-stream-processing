@@ -45,8 +45,8 @@ To learn more about how to sink data to PostgreSQL, see [Sink data from RisingWa
 
 Since RisingWave offers built-in connectors to various downstream platforms, we can connect to additional downstream systems if necessary. For instance, we can also sink the same `website_visits_1min` materialized view to ClickHouse for additional ad-hoc analysis by using a `CREATE SINK` command and making the appropriate configurations when setting up ClickHouse. Additionally, we can also connect to Grafana to create live dashboards. 
 
-For a full list of supported integrations, see [Integrations](https://docs.risingwave.com/docs/dev/rw-integration-summary/).
+For a full list of supported integrations, see [Integrations](https://docs.risingwave.com/integrations/overview).
 
-For more details on how to sink to ClickHouse, see [Sink data from RisingWave to ClickHouse](https://docs.risingwave.com/docs/dev/sink-to-clickhouse/).
+For more details on how to sink to ClickHouse, see [Sink data from RisingWave to ClickHouse](https://docs.risingwave.com/integrations/destinations/clickhouse#sink-data-from-risingwave-to-clickhouse).
 
-For more details on how to connect to Grafana, see [Configure Grafana to read data from RisingWave](https://docs.risingwave.com/docs/dev/grafana-integration/).
+For more details on how to connect to Grafana, see [Configure Grafana to read data from RisingWave](https://docs.risingwave.com/integrations/visualization/grafana#configure-grafana-to-read-data-from-risingwave).
