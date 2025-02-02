@@ -128,8 +128,7 @@ Then, in the RisingWave terminal, run `SELECT * FROM verify_website_visits;` aga
 
 To learn more about the `CREATE SOURCE` command, check [`CREATE SOURCE`](https://docs.risingwave.com/docs/current/sql-create-source/) from the offical RisingWave documentation.
 
-To further perform some basic analysis on the data from the created source, check [Continuously ingest and analyze Kafka data
-](../01-basic-streaming-workflow/01-query-process-streaming-data/001-ingest-analyze-kafka.md#analyze-the-data) section.
+To further perform some basic analysis on the data from the created source, check [Continuously ingest and analyze Kafka data](../01-basic-streaming-workflow/01-query-process-streaming-data/001-ingest-analyze-kafka.md#analyze-the-data) section.
 
 ### Create a table
 
