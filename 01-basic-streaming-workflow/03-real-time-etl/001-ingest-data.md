@@ -20,7 +20,7 @@ Refer to [Install Kafka, PostgreSQL, and RisingWave](/00-get-started/00-install-
 
 ### Configure the data generator
 
-For this demo, we have created a [Python data generator](/03-real-time-etl/data-generator.py) that will continously send messages to a Kafka topic. This generator is dependent on the `kafka` library.
+For this demo, we have created a [Python data generator](./data-generator.py) that will continously send messages to a Kafka topic. This generator is dependent on the `kafka` library.
 
 Download the Python data generator file. Run the Python script.
 
