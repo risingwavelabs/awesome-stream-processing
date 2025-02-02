@@ -14,19 +14,19 @@ To execute this demo, the following systems must be installed:
 
 ### Produce messages to a Kafka topic
 
-Refer to [Section 00-01](../00-get-started/01-ingest-kafka-data.md#use-kafka-to-produce-messages) to create a Kafka topic and add messages to it using a Kafka producer.
+Refer to [here](../../00-get-started/01-ingest-kafka-data.md#use-kafka-to-produce-messages) to create a Kafka topic and add messages to it using a Kafka producer.
 
 ### Create a source in RisingWave for the Kafka topic
 
-Refer to [Section 00-01](../00-get-started/01-ingest-kafka-data.md#create-a-source) to create a source in RisingWave for the Kafka topic.
+Refer to [here](../../00-get-started/01-ingest-kafka-data.md#create-a-source) to create a source in RisingWave for the Kafka topic.
 
 ### Insert data into a PostgreSQL table
 
-Refer to [Section 00-02](../00-get-started/02-ingest-pg-cdc.md#create-a-table-in-postgresql) to insert some data into a PostgreSQL table.
+Refer to [here](../../00-get-started/02-ingest-pg-cdc.md#create-a-table-in-postgresql) to insert some data into a PostgreSQL table.
 
 ### Create a table in RisingWave for the PostgreSQL table
 
-Refer to [Section 00-02](../00-get-started/02-ingest-pg-cdc.md#use-risingwave-to-process-the-data) to create a table in RisingWave for the PostgreSQL table.
+Refer to [here](../../00-get-started/02-ingest-pg-cdc.md#use-risingwave-to-process-the-data) to create a table in RisingWave for the PostgreSQL table.
 
 ### Combine two data sources into a materialized view
 
