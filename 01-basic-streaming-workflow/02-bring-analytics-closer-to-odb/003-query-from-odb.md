@@ -4,7 +4,7 @@ Alternatively, a foreign data wrapper (FDW) can be used in PostgreSQL to directl
 
 ## Query results using a FDW 
 
-We will continue to use the materialized view created in [Create and update a materialized view](/02-bring-analytics-closer-to-odb/001-create-mv-offload-analytics.md#create-and-update-a-materialized-view). 
+We will continue to use the materialized view created in [Create and update a materialized view](001-create-mv-offload-analytics.md#create-and-update-a-materialized-view). 
 
 Ensure that the PostgreSQL service supports the `postgres_fdw` extension. See [PostgreSQL's documentation](https://www.postgresql.org/docs/current/postgres-fdw.html) for more information. 
 
@@ -67,7 +67,7 @@ CREATE TABLE pg_atleast21 (
 );
 ```
 
-In RisingWave, use the `CREATE SINK` command to sink the results of the materialized view to the PostgreSQL table. The following JDBC URL is specified for the [newly created user](00-install-kafka-pg-rw.md#optional-create-a-database-user) `rw` with the password `abc123`.
+In RisingWave, use the `CREATE SINK` command to sink the results of the materialized view to the PostgreSQL table. The following JDBC URL is specified for the [newly created user](../../00-get-started/00-install-kafka-pg-rw.md#optional-create-a-database-user) `rw` with the password `abc123`.
 
 ```sql
 CREATE SINK target_count_postgres_sink FROM atleast21 WITH (
