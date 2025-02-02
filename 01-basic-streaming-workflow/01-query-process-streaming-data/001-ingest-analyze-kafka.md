@@ -13,17 +13,17 @@ To execute this demo, the following systems must be installed:
 
 ### Produce messages to a Kafka topic
 
-Refer to [Section 00-01](../00-get-started/01-ingest-kafka-data.md#use-kafka-to-produce-messages) to create a Kafka topic and add messages to it using a Kafka producer.
+Refer to [here](../../00-get-started/01-ingest-kafka-data.md#use-kafka-to-produce-messages) to create a Kafka topic and add messages to it using a Kafka producer.
 
 ### Create a source in RisingWave
 
-Refer to [Section 00-01](../00-get-started/01-ingest-kafka-data.md#create-a-source) to create a source in RisingWave.
+Refer to [here](../../00-get-started/01-ingest-kafka-data.md#create-a-source) to create a source in RisingWave.
 
 ### Analyze the data with materialized views
 
-By creating a source, RisingWave has been connected to the data stream. However, in order to ingest, process, and persist the data from Kafka, we need to create some [materialized views](https://docs.risingwave.com/docs/dev/key-concepts/#materialized-views). Each of these materialized views contains the results of a query, which are updated as soon as new data comes in.
+By creating a source, RisingWave has been connected to the data stream. However, in order to ingest, process, and persist the data from Kafka, we need to create some [materialized views](https://docs.risingwave.com/reference/key-concepts#materialized-views). Each of these materialized views contains the results of a query, which are updated as soon as new data comes in.
 
-The following SQL query creates a materialized view named `visits_stream_mv` based on the source `website_visits_stream`. The inner SQL query is the same as the one demonstrated in [Section 01-000](000-query-kafka.md#analyze-the-data). For each `page_id`, it calculates the number of total visits, the number of unique visitors, and the timestamp when the page was most recently visited. 
+The following SQL query creates a materialized view named `visits_stream_mv` based on the source `website_visits_stream`. The inner SQL query is the same as the one demonstrated in [here](000-query-kafka.md#analyze-the-data). For each `page_id`, it calculates the number of total visits, the number of unique visitors, and the timestamp when the page was most recently visited. 
 
 ```sql
 CREATE MATERIALIZED VIEW IF NOT EXISTS visits_stream_mv AS
@@ -57,7 +57,7 @@ Compared to directly querying the data source, the created materialized view pos
 1. It persists the processed data in RisingWave. So the queries' result will still stored in RisingWave when the data is cleaned by the kafka's TTL;
 2. It is far more efficient to query the materialized view rather than executing the inner SQL query, owing to the fact that the results in the materialized view are updated once new data is written to the Kafka topic.
 
-Additionally, if you add one more data to the Kafka topic as described in [Section 00-01](../00-get-started/01-ingest-kafka-data.md#create-a-source), using the Kafka producer, you can also verify the updated version of this materialized view. The new data is as follow.
+Additionally, if you add one more data to the Kafka topic as described in [here](../00-get-started/01-ingest-kafka-data.md#create-a-source), using the Kafka producer, you can also verify the updated version of this materialized view. The new data is as follow.
 ```terminal
 {"timestamp": "2023-06-13T10:10:00Z", "user_id": 6, "page_id": 4, "action": "click"}
 ```
