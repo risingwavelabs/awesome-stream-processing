@@ -3,7 +3,7 @@
 
 <div>
   <a
-    href="https://risingwave.com/slack"
+    href="https://go.risingwave.com/slack"
     target="_blank"
   >
     <img alt="Slack" src="https://badgen.net/badge/Slack/Join%20RisingWave/0abd59?icon=slack" />
@@ -30,10 +30,10 @@ In this repository, we provide a series of executable demos demonstrating how st
 1. [**Basic stream processing examples ✅**](01-basic-streaming-workflow)
 
     Learn the fundamentals of ingesting, processing, transforming, and offloading data from streaming systems.
-    1. [**Querying and processing event streaming data**](/01-basic-streaming-workflow/01-query-process-streaming-data/)
+    1. [**Querying and processing event streaming data**](/01-basic-streaming-workflow/01-query-process-streaming-data/) (👈 _**Kafka users, you may start here!**_ 💡)
       * Directly query data stored in event streaming systems (e.g., Kafka, Redpanda).
       * Continuously ingest and analyze data from event streaming systems.
-    2. [**Bringing analytics closer to operational databases**](/01-basic-streaming-workflow/02-bring-analytics-closer-to-odb/)
+    2. [**Bringing analytics closer to operational databases**](/01-basic-streaming-workflow/02-bring-analytics-closer-to-odb/) (👈 _**Postgres users, you may start here!**_ 💡)
       * Offload event-driven queries (e.g., materialized views and triggers) from operational databases (e.g., MySQL, PostgreSQL).
     3. [**Real-time ETL (Extract, Transform, Load)**](/01-basic-streaming-workflow/03-real-time-etl/)
       * Perform ETL continuously and incrementally.
