@@ -6,6 +6,6 @@ The demos in this directory aim to show how RisingWave can be used to query and 
 
 1. [Continuously ingest and analyze Kafka data](001-ingest-analyze-kafka.md)
 
-2. [Continuously ingest and join data from Kafka and PostgreSQL](002-ingest-join-kafka-pg.md)
+2. [Continuously ingest and join data from Kafka and PostgreSQL](002-ingest-analyze-kafka-pg.md)
 
 
