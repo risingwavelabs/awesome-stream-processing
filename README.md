@@ -27,15 +27,15 @@ In this repository, we provide a series of executable demos demonstrating how st
 0. [**Getting started ✅**](00-get-started/)
     * Install Kafka, PostgreSQL, and RisingWave, and run minimal toy examples on your device.
     * Integrate RisingWave with other data platforms.
-1. [**Basic stream processing workflow**](01-basic-streaming-workflow)
+1. [**Basic stream processing examples ✅**](01-basic-streaming-workflow)
 
     Learn the fundamentals of ingesting, processing, transforming, and offloading data from streaming systems.
-    1. [**Querying and processing event streaming data ✅**](/01-basic-streaming-workflow/01-query-process-streaming-data/)
+    1. [**Querying and processing event streaming data**](/01-basic-streaming-workflow/01-query-process-streaming-data/)
       * Directly query data stored in event streaming systems (e.g., Kafka, Redpanda).
       * Continuously ingest and analyze data from event streaming systems.
-    2. [**Bringing analytics closer to operational databases ✅**](/01-basic-streaming-workflow/02-bring-analytics-closer-to-odb/)
+    2. [**Bringing analytics closer to operational databases**](/01-basic-streaming-workflow/02-bring-analytics-closer-to-odb/)
       * Offload event-driven queries (e.g., materialized views and triggers) from operational databases (e.g., MySQL, PostgreSQL).
-    3. [**Real-time ETL (Extract, Transform, Load) ✅**](/01-basic-streaming-workflow/03-real-time-etl/)
+    3. [**Real-time ETL (Extract, Transform, Load)**](/01-basic-streaming-workflow/03-real-time-etl/)
       * Perform ETL continuously and incrementally.
 2. [**Simple demonstrations ✅**](02-simple-demos/)
    * A collection of simple, self-contained demos showcasing how stream processing can be applied in specific industry use cases.
