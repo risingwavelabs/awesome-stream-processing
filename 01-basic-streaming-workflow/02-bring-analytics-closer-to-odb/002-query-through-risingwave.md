@@ -6,7 +6,7 @@ RisingWave is designed for online serving and supports online data serving at hi
 
 Querying from a growing materialized view gets slower as the volume of data grows. To accelerate the query, create an index on the column you want to query on.
 
-Continuing with the `atleast21` materialized view described in [Create materialized views to offload predefined analytics](/02-bring-analytics-closer-to-odb/001-create-mv-offload-analytics.md), you can build an index on the `avg_age` column. This will speed up the query when fetching rows based on the age. 
+Continuing with the `atleast21` materialized view described in [Create materialized views to offload predefined analytics](001-create-mv-offload-analytics.md), you can build an index on the `avg_age` column. This will speed up the query when fetching rows based on the age. 
 
 ```sql
 CREATE INDEX idx_age ON atleast21(avg_age);
