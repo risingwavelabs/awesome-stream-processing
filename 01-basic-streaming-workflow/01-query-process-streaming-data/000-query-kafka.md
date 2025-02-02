@@ -13,11 +13,11 @@ To execute this demo, the following systems must be installed:
 
 ### Produce messages to a Kafka topic
 
-Refer to [Section 00-01](../../00-get-started/01-ingest-kafka-data.md#use-kafka-to-produce-messages) to create a Kafka topic and add messages to it using a Kafka producer.
+Refer to [here](../../00-get-started/01-ingest-kafka-data.md#use-kafka-to-produce-messages) to create a Kafka topic and add messages to it using a Kafka producer.
 
 ### Create a source in RisingWave
 
-Refer to [Section 00-01](../../00-get-started/01-ingest-kafka-data.md#create-a-source) to create a source in RisingWave.
+Refer to [here](../../00-get-started/01-ingest-kafka-data.md#create-a-source) to create a source in RisingWave.
 
 ### Analyze the data
 
