@@ -57,4 +57,4 @@ SELECT _rw_kafka_timestamp FROM website_visits_stream LIMIT 1;
 ```
 
 ### Optional: Clean up resources
-To clean up the resources created in this section, go through the steps described in [Section 00-01](../../00-get-started/01-ingest-kafka-data.md#optional-clean-up-resources).
+To clean up the resources created in this section, go through the steps described in [here](../../00-get-started/01-ingest-kafka-data.md#optional-clean-up-resources).
