@@ -17,7 +17,7 @@ After the server started, create the necessary UDFs and tables.
 The following SQL creates a UDF `text_embedding` that uses OpenAI's API to embed a text into a vector. The function relies on the `fetch` API, which is introduced in the latest version of RisingWave.
 
 ```sql
-create function text_embedding(t varchar) returns real[] language javascript as $$
+CREATE FUNCTION text_embedding(t varchar) RETURNS real[] LANGUAGE javascript AS $$
     export async function text_embedding(t) {
         for (let retries = 0; retries < 3; retries++) {
             try {
@@ -94,7 +94,7 @@ done
 To compare the similarity between the question and the documents, we need to introduce the `cosine_similarity` UDF.
 
 ```sql
-create function cosine_similarity(v1 real[], v2 real[]) returns real language rust as $$
+CREATE FUNCTION cosine_similarity(v1 real[], v2 real[]) RETURNS real LANGUAGE rust AS $$
     fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
         let dot_product: f32 = a.iter().zip(b).map(|(a, b)| a * b).sum();
         let norm_a: f32 = a.iter().map(|a| a * a).sum();
