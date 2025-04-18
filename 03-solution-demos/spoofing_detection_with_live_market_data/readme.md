@@ -1,4 +1,4 @@
-1. Clone [this repository](https://github.com/risingwavelabs/awesome-stream-processing), and navigate to this folder (``).
+1. Clone [this repository](https://github.com/risingwavelabs/awesome-stream-processing), and navigate to the current folder.
 
 ```bash
 cd 03-solution-demos/spoofing_detection_with_live_market_data
