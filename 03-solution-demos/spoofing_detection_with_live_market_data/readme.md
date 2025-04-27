@@ -1,3 +1,6 @@
+Detailed explanations can be found in [this blog post](https://risingwave.com/blog/spoofing-detection-databento-risingwave/).
+
+
 1. Clone [this repository](https://github.com/risingwavelabs/awesome-stream-processing), and navigate to the current folder.
 
 ```bash
