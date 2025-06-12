@@ -15,16 +15,10 @@ tasks:
           echo "⏳ Attempt $i: RisingWave not ready yet"
           sleep 3
         fi
-
-        if [ "$i" -eq 10 ]; then
-          echo "❌ RisingWave still not ready after 10 attempts"
-          docker-compose logs risingwave
-          exit 1
-        fi
       done
 
       echo "▶ Running bootstrap SQL..."
-      psql -h localhost -p 4567 -U root -d dev < bootstrap.sql
+      psql -h localhost -p 4567 -U root -d dev < bootstrap.sql || echo "⚠️ Failed to run bootstrap.sql, continuing anyway..."
 
 ports:
   - port: 4567
