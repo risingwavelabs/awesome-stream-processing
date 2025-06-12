@@ -7,7 +7,7 @@ tasks:
       docker-compose up -d
       echo "Waiting for services to start..."
       sleep 15
-      docker exec -i risingwave psql -U root -d dev < bootstrap.sql
+      docker-compose exec -T risingwave psql -U root -d dev < bootstrap.sql
     command: |
       echo "All services started. RisingWave, Kafka, and psql are ready to use."
 
