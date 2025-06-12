@@ -5,8 +5,19 @@ tasks:
   - name: Start All Services
     init: |
       docker-compose up -d
-      echo "Waiting for services to start..."
-      sleep 15
+      echo "Waiting for RisingWave to be ready..."
+
+      for i in {1..10}; do
+        if psql -h localhost -p 4567 -U root -d dev -c '\q' 2>/dev/null; then
+          echo "✅ RisingWave is ready!"
+          break
+        else
+          echo "⏳ Still waiting... ($i)"
+          sleep 3
+        fi
+      done
+
+      echo "Running bootstrap SQL..."
       psql -h localhost -p 4567 -U root -d dev < bootstrap.sql
     command: |
       echo "All services started. RisingWave, Kafka, and psql are ready to use."
