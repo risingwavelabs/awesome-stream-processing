@@ -39,7 +39,7 @@ services:
       - "4567:4567"  # PostgreSQL-compatible SQL port
       - "5691:5691"  # Dashboard port
     environment:
-      RW_META_BACKEND: hummock+minio://minio:9000/data
+      RW_META_BACKEND: hummock+s3://minio:9000/data
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
     depends_on:
