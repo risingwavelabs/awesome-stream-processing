@@ -2,7 +2,7 @@ image:
   file: .gitpod.Dockerfile
 
 tasks:
-  - name: Start Environment
+  - name: Start Services
     init: |
       docker-compose up -d
       echo "⏳ Waiting for RisingWave to be ready..."
@@ -17,8 +17,8 @@ tasks:
         fi
       done
 
-      echo "▶ Running bootstrap SQL..."
-      psql -h localhost -p 4567 -U root -d dev < bootstrap.sql || echo "⚠️ Failed to run bootstrap.sql, continuing anyway..."
+      echo "▶ Running bootstrap.sql..."
+      psql -h localhost -p 4567 -U root -d dev < bootstrap.sql || echo "⚠️ Failed to run bootstrap.sql, continuing..."
 
 ports:
   - port: 4567
