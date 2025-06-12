@@ -1,0 +1,25 @@
+image:
+  file: .gitpod.Dockerfile
+
+tasks:
+  - name: Start All Services
+    init: |
+      docker-compose up -d
+      echo "Waiting for services to start..."
+      sleep 15
+      docker exec -i risingwave psql -U root -d dev < bootstrap.sql
+    command: |
+      echo "All services started. RisingWave, Kafka, and psql are ready to use."
+
+ports:
+  - port: 4567
+    onOpen: open-preview
+  - port: 9092
+    onOpen: ignore
+  - port: 5691
+    onOpen: open-preview
+
+vscode:
+  extensions:
+    - ms-azuretools.vscode-docker
+    - ms-python.python
