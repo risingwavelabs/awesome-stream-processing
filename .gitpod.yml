@@ -5,22 +5,20 @@ tasks:
   - name: Start Services
     init: |
       docker-compose up -d
-      echo "⏳ Waiting for RisingWave to be ready..."
+      echo "Waiting for RisingWave to be ready..."
 
-      for i in {1..20}; do
+      for i in {1..10}; do
         if psql -h localhost -p 4567 -U root -d dev -c '\q' 2>/dev/null; then
-          echo "✅ RisingWave is ready!"
-          echo "▶ Running bootstrap.sql..."
-          psql -h localhost -p 4567 -U root -d dev < bootstrap.sql && break
+          echo "RisingWave is ready!"
+          break
         else
-          echo "⏳ Attempt $i: Still waiting..."
+          echo "Attempt $i: RisingWave not ready yet"
           sleep 3
         fi
-
-        if [ "$i" -eq 20 ]; then
-          echo "❌ Timeout: RisingWave never became ready."
-        fi
       done
+
+      echo "▶ Running bootstrap.sql..."
+      psql -h localhost -p 4567 -U root -d dev < bootstrap.sql || echo "⚠️ Failed to run bootstrap.sql, continuing..."
 
 ports:
   - port: 4567
