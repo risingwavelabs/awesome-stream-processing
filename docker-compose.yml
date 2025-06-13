@@ -44,18 +44,24 @@ services:
       - "4566:4566"
       - "5691:5691"
 
-  superset:
-    image: apache/superset:latest
-    container_name: superset
-    environment:
-      - SUPERSET_LOAD_EXAMPLES=yes
-      - ADMIN_USERNAME=admin
-      - ADMIN_PASSWORD=admin
-      - ADMIN_FIRST_NAME=Admin
-      - ADMIN_LAST_NAME=User
-      - ADMIN_EMAIL=admin@example.com
-    ports:
-      - "8088:8088"
-    depends_on:
-      - risingwave
-      - postgres
+    superset:
+      image: apache/superset:2.1.0
+      container_name: superset
+      ports:
+        - "8088:8088"
+      environment:
+        SUPERSET_SECRET_KEY: "supersecret"
+        ADMIN_USERNAME: admin
+        ADMIN_FIRST_NAME: admin
+        ADMIN_LAST_NAME: user
+        ADMIN_EMAIL: admin@example.com
+        ADMIN_PASSWORD: admin
+        FLASK_ENV: development
+      depends_on:
+        - postgres
+      command: >
+        sh -c "
+          superset db upgrade &&
+          superset fab create-admin --username admin --firstname admin --lastname user --email admin@example.com --password admin &&
+          superset init &&
+          superset run -h 0.0.0.0 -p 8088"
