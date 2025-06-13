@@ -23,13 +23,39 @@ services:
     depends_on:
       - zookeeper
 
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_USER: pguser
+      POSTGRES_PASSWORD: pgpass
+      POSTGRES_DB: pgdb
+    ports:
+      - "5432:5432"
+
   risingwave:
     image: ghcr.io/risingwavelabs/risingwave:latest
     container_name: risingwave
-    ports:
-      - "4566:4566"
-      - "5691:5691"
+    command: playground
     depends_on:
       - kafka
       - zookeeper
-    command: playground
+    ports:
+      - "4566:4566"
+      - "5691:5691"
+
+  superset:
+    image: apache/superset:latest
+    container_name: superset
+    environment:
+      - SUPERSET_LOAD_EXAMPLES=yes
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=admin
+      - ADMIN_FIRST_NAME=Admin
+      - ADMIN_LAST_NAME=User
+      - ADMIN_EMAIL=admin@example.com
+    ports:
+      - "8088:8088"
+    depends_on:
+      - risingwave
+      - postgres
