@@ -6,6 +6,8 @@ services:
     container_name: awesome-stream-processing-zookeeper-1
     ports:
       - "2181:2181"
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: yes
 
   kafka:
     image: bitnami/kafka:3.4.0
