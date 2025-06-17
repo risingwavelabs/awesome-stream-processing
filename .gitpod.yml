@@ -34,9 +34,6 @@ tasks:
       sudo apt-get install -y python3-pip
       pip3 install psycopg2-binary
 
-      # Detect which demo to bootstrap
-      # Detect folder name from GitHub clone path
-      CURRENT_PATH=$(basename "$(git rev-parse --show-toplevel)")
       if [[ "$GITPOD_REPO_CONTEXT" == *"market_data_enrichment" ]]; then
         DEMO_PATH="02-simple-demos/capital_markets/market_data_enrichment"
       elif [[ "$GITPOD_REPO_CONTEXT" == *"market_surveillance" ]]; then
