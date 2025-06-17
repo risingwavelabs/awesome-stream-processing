@@ -4,23 +4,37 @@ image:
 tasks:
   - name: Start Services + Bootstrap
     init: |
+      echo "🚀 Starting Docker containers..."
       docker-compose up -d
 
-      # Wait for RisingWave
+      echo "⏳ Waiting for PostgreSQL to be ready..."
       for i in {1..15}; do
-        if psql -h localhost -p 4566 -U root -d dev -c '\q' 2>/dev/null; then break; else sleep 3; fi
+        if psql -h localhost -p 5432 -U pguser -d pgdb -c '\q' 2>/dev/null; then
+          echo "✅ PostgreSQL is ready!"
+          break
+        else
+          echo "Attempt $i: PostgreSQL not ready yet"
+          sleep 3
+        fi
       done
 
-      # Bootstrap RisingWave
+      echo "📦 Running pg_bootstrap.sql to create sink target tables..."
+      PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < 02-simple-demos/capital_markets/market_data_enrichment/pg_bootstrap.sql
+
+      echo "⏳ Waiting for RisingWave to be ready..."
+      for i in {1..15}; do
+        if psql -h localhost -p 4566 -U root -d dev -c '\q' 2>/dev/null; then
+          echo "✅ RisingWave is ready!"
+          break
+        else
+          echo "Attempt $i: RisingWave not ready yet"
+          sleep 3
+        fi
+      done
+
+      echo "📦 Running bootstrap.sql to set up RisingWave schema and sinks..."
       psql -h localhost -p 4566 -U root -d dev < 02-simple-demos/capital_markets/market_data_enrichment/bootstrap.sql
 
-      # Wait for PostgreSQL
-      for i in {1..15}; do
-        if psql -h localhost -p 5432 -U pguser -d pgdb -c '\q' 2>/dev/null; then break; else sleep 3; fi
-      done
-
-      # Bootstrap PostgreSQL sink targets
-      PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < 02-simple-demos/capital_markets/market_data_enrichment/pg_bootstrap.sql
 
 
 ports:
