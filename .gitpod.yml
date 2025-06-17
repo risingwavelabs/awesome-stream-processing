@@ -4,24 +4,12 @@ image:
 tasks:
   - name: Auto Bootstrap Demo
     init: |
-      echo "🔍 Detecting demo path from current directory..."
-      FULL_PATH=$(pwd)
-
-      if [[ "$FULL_PATH" == *"market_data_enrichment"* ]]; then
-        DEMO_PATH="02-simple-demos/capital_markets/market_data_enrichment"
-      elif [[ "$FULL_PATH" == *"market_surveillance"* ]]; then
-        DEMO_PATH="02-simple-demos/capital_markets/market_surveillance"
-      elif [[ "$FULL_PATH" == *"market_anomaly_detection"* ]]; then
-        DEMO_PATH="02-simple-demos/capital_markets/market_anomaly_detection"
+      # STEP 0: Confirm DEMO_PATH before anything else
+      if [ -n "$DEMO_PATH" ]; then
+        echo "📁 Auto-detected DEMO_PATH from query param: $DEMO_PATH"
       else
-        echo "❌ Not in a known demo folder. Current path: $FULL_PATH"
-        exit 1
-      fi
-
-      echo "📁 Using DEMO_PATH: $DEMO_PATH"
-
-      if [ ! -d "$DEMO_PATH" ]; then
-        echo "❌ Demo folder $DEMO_PATH does not exist."
+        echo "❌ No DEMO_PATH set. Please use Gitpod URL like:"
+        echo "   https://gitpod.io/#https://github.com/user/repo?DEMO_PATH=02-simple-demos/capital_markets/market_surveillance"
         exit 1
       fi
 
@@ -57,18 +45,19 @@ tasks:
 
       if [ -f "${DEMO_PATH}/pg_bootstrap.sql" ]; then
         echo "📦 Loading Postgres bootstrap..."
-        PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < "${DEMO_PATH}/pg_bootstrap.sql"
+        PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < ${DEMO_PATH}/pg_bootstrap.sql
       fi
 
       if [ -f "${DEMO_PATH}/bootstrap.sql" ]; then
         echo "📦 Loading RisingWave bootstrap..."
-        psql -h localhost -p 4566 -U root -d dev < "${DEMO_PATH}/bootstrap.sql"
+        psql -h localhost -p 4566 -U root -d dev < ${DEMO_PATH}/bootstrap.sql
       fi
 
       if [ -f "${DEMO_PATH}/data_generator.py" ]; then
         echo "⚙️ Running data generator..."
-        python3 "${DEMO_PATH}/data_generator.py"
+        python3 ${DEMO_PATH}/data_generator.py
       fi
+
 
 ports:
   - port: 8088
