@@ -4,12 +4,16 @@ image:
 tasks:
   - name: Auto Bootstrap Demo
     init: |
-      # STEP 0: Confirm DEMO_PATH before anything else
-      if [ -n "$DEMO_PATH" ]; then
-        echo "📁 Auto-detected DEMO_PATH from query param: $DEMO_PATH"
+      echo "📦 Starting demo bootstrap..."
+
+      # STEP 0: Detect DEMO_PATH from subfolder Gitpod launch
+      if [[ "$GITPOD_REPO_ROOT" != "$PWD" ]]; then
+        DEMO_PATH="${PWD#$GITPOD_REPO_ROOT/}"
+        echo "📁 Auto-detected DEMO_PATH: ${DEMO_PATH}"
       else
-        echo "❌ No DEMO_PATH set. Please use Gitpod URL like:"
-        echo "   https://gitpod.io/#https://github.com/user/repo?DEMO_PATH=02-simple-demos/capital_markets/market_surveillance"
+        echo "❌ Could not detect a valid demo folder."
+        echo "👉 Use a Gitpod URL like:"
+        echo "   https://gitpod.io/#https://github.com/user/repo/tree/main/02-simple-demos/..."
         exit 1
       fi
 
