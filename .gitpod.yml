@@ -1,3 +1,6 @@
+image:
+  file: .gitpod.Dockerfile
+
 tasks:
   - name: Start Services + Bootstrap
     init: |
@@ -18,3 +21,23 @@ tasks:
 
       # Bootstrap PostgreSQL sink targets
       PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < 02-simple-demos/capital_markets/market_data_enrichment/pg_bootstrap.sql
+
+
+ports:
+  - port: 4566
+    onOpen: ignore
+  - port: 5691
+    onOpen: ignore
+  - port: 9092
+    onOpen: ignore
+  - port: 2181
+    onOpen: ignore
+  - port: 5432
+    onOpen: ignore
+  - port: 8088
+    onOpen: open-preview
+
+vscode:
+  extensions:
+    - ms-azuretools.vscode-docker
+    - ms-python.python
