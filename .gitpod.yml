@@ -35,15 +35,18 @@ tasks:
       pip3 install psycopg2-binary
 
       # Detect which demo to bootstrap
-      if [ -f "02-simple-demos/capital_markets/market_data_enrichment/bootstrap.sql" ]; then
+      # Detect folder name from GitHub clone path
+      CURRENT_PATH=$(basename "$(git rev-parse --show-toplevel)")
+      if [[ "$GITPOD_REPO_CONTEXT" == *"market_data_enrichment" ]]; then
         DEMO_PATH="02-simple-demos/capital_markets/market_data_enrichment"
-      elif [ -f "02-simple-demos/capital_markets/market_surveillance/bootstrap.sql" ]; then
+      elif [[ "$GITPOD_REPO_CONTEXT" == *"market_surveillance" ]]; then
         DEMO_PATH="02-simple-demos/capital_markets/market_surveillance"
-      elif [ -f "02-simple-demos/capital_markets/market_anomaly_detection/bootstrap.sql" ]; then
+      elif [[ "$GITPOD_REPO_CONTEXT" == *"market_anomaly_detection" ]]; then
         DEMO_PATH="02-simple-demos/capital_markets/market_anomaly_detection"
       else
         DEMO_PATH=""
       fi
+
 
       echo "📁 Auto-detected DEMO_PATH: ${DEMO_PATH}"
 
