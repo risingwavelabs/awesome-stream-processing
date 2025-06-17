@@ -18,10 +18,6 @@ tasks:
         fi
       done
 
-      echo "📦 Bootstrapping PostgreSQL tables for all demos..."
-      PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < 02-simple-demos/capital_markets/market_data_enrichment/pg_bootstrap.sql
-      PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < 02-simple-demos/capital_markets/market_surveillance/pg_bootstrap.sql
-
       echo "⏳ Waiting for RisingWave to be ready..."
       for i in {1..15}; do
         if psql -h localhost -p 4566 -U root -d dev -c '\q' 2>/dev/null; then
@@ -33,18 +29,34 @@ tasks:
         fi
       done
 
-      echo "📦 Bootstrapping RisingWave for all demos..."
-      psql -h localhost -p 4566 -U root -d dev < 02-simple-demos/capital_markets/market_data_enrichment/bootstrap.sql
-      psql -h localhost -p 4566 -U root -d dev < 02-simple-demos/capital_markets/market_surveillance/bootstrap.sql
-
-      echo "🐍 Installing Python dependencies..."
+      echo "🐍 Installing Python + psycopg2..."
       sudo apt-get update
       sudo apt-get install -y python3-pip
       pip3 install psycopg2-binary
 
-      echo "🧪 Running data generators..."
-      python3 02-simple-demos/capital_markets/market_data_enrichment/data_generator.py
-      python3 02-simple-demos/capital_markets/market_surveillance/data_generator.py
+      echo "📁 Selected demo: ${DEMO_PATH}"
+
+      if [ "$DEMO_PATH" = "02-simple-demos/capital_markets/market_data_enrichment" ]; then
+        echo "⚙️ Bootstrapping Market Data Enrichment..."
+        PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < ${DEMO_PATH}/pg_bootstrap.sql
+        psql -h localhost -p 4566 -U root -d dev < ${DEMO_PATH}/bootstrap.sql
+        python3 ${DEMO_PATH}/data_generator.py
+
+      elif [ "$DEMO_PATH" = "02-simple-demos/capital_markets/market_surveillance" ]; then
+        echo "⚙️ Bootstrapping Market Surveillance..."
+        PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < ${DEMO_PATH}/pg_bootstrap.sql
+        psql -h localhost -p 4566 -U root -d dev < ${DEMO_PATH}/bootstrap.sql
+        python3 ${DEMO_PATH}/data_generator.py
+
+      elif [ "$DEMO_PATH" = "02-simple-demos/capital_markets/market_anomaly_detection" ]; then
+        echo "⚙️ Bootstrapping Market Anomaly Detection..."
+        PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < ${DEMO_PATH}/pg_bootstrap.sql
+        psql -h localhost -p 4566 -U root -d dev < ${DEMO_PATH}/bootstrap.sql
+        python3 ${DEMO_PATH}/data_generator.py
+
+      else
+        echo "⚠️ No valid DEMO_PATH set. Skipping demo bootstrap."
+      fi
 
 ports:
   - port: 8088
