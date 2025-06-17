@@ -18,8 +18,9 @@ tasks:
         fi
       done
 
-      echo "📦 Running pg_bootstrap.sql to create sink target tables..."
+      echo "📦 Bootstrapping PostgreSQL tables for all demos..."
       PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < 02-simple-demos/capital_markets/market_data_enrichment/pg_bootstrap.sql
+      PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < 02-simple-demos/capital_markets/market_surveillance/pg_bootstrap.sql
 
       echo "⏳ Waiting for RisingWave to be ready..."
       for i in {1..15}; do
@@ -32,34 +33,31 @@ tasks:
         fi
       done
 
-      echo "📦 Running RisingWave bootstrap.sql..."
+      echo "📦 Bootstrapping RisingWave for all demos..."
       psql -h localhost -p 4566 -U root -d dev < 02-simple-demos/capital_markets/market_data_enrichment/bootstrap.sql
+      psql -h localhost -p 4566 -U root -d dev < 02-simple-demos/capital_markets/market_surveillance/bootstrap.sql
 
       echo "🐍 Installing Python dependencies..."
-      sudo apt-get update &&
-      sudo apt-get install -y python3-pip &&
+      sudo apt-get update
+      sudo apt-get install -y python3-pip
       pip3 install psycopg2-binary
 
-      echo "🧪 Running data generator..."
-      python3 ./02-simple-demos/capital_markets/market_data_enrichment/data_generator.py
-
-
+      echo "🧪 Running data generators..."
+      python3 02-simple-demos/capital_markets/market_data_enrichment/data_generator.py
+      python3 02-simple-demos/capital_markets/market_surveillance/data_generator.py
 
 ports:
+  - port: 8088
+    onOpen: open-preview
   - port: 4566
     onOpen: ignore
-  - port: 5691
+  - port: 5432
     onOpen: ignore
   - port: 9092
     onOpen: ignore
   - port: 2181
     onOpen: ignore
-  - port: 5432
-    onOpen: ignore
-  - port: 8088
-    onOpen: open-preview
 
 vscode:
   extensions:
     - ms-azuretools.vscode-docker
-    - ms-python.python
