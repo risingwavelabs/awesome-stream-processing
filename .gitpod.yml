@@ -1,36 +1,20 @@
-image:
-  file: .gitpod.Dockerfile
-
 tasks:
-  - name: Start Services
+  - name: Start Services + Bootstrap
     init: |
       docker-compose up -d
-      echo "Waiting for RisingWave to be ready..."
-      for i in {1..10}; do
-        if psql -h localhost -p 4566 -U root -d dev -c '\q' 2>/dev/null; then
-          echo "RisingWave is ready!"
-          break
-        else
-          echo "Attempt $i: RisingWave not ready yet"
-          sleep 3
-        fi
+
+      # Wait for RisingWave
+      for i in {1..15}; do
+        if psql -h localhost -p 4566 -U root -d dev -c '\q' 2>/dev/null; then break; else sleep 3; fi
       done
 
-ports:
-  - port: 4566
-    onOpen: ignore
-  - port: 5691
-    onOpen: ignore
-  - port: 9092
-    onOpen: ignore
-  - port: 2181
-    onOpen: ignore
-  - port: 5432
-    onOpen: ignore
-  - port: 8088
-    onOpen: open-preview
+      # Bootstrap RisingWave
+      psql -h localhost -p 4566 -U root -d dev < 02-simple-demos/capital_markets/market_data_enrichment/bootstrap.sql
 
-vscode:
-  extensions:
-    - ms-azuretools.vscode-docker
-    - ms-python.python
+      # Wait for PostgreSQL
+      for i in {1..15}; do
+        if psql -h localhost -p 5432 -U pguser -d pgdb -c '\q' 2>/dev/null; then break; else sleep 3; fi
+      done
+
+      # Bootstrap PostgreSQL sink targets
+      PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < 02-simple-demos/capital_markets/market_data_enrichment/pg_bootstrap.sql
