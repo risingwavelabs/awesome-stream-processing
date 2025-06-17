@@ -2,7 +2,7 @@ image:
   file: .gitpod.Dockerfile
 
 tasks:
-  - name: Start Services + Bootstrap
+  - name: Start Services + Bootstrap + Data
     init: |
       echo "🚀 Starting Docker containers..."
       docker-compose up -d
@@ -32,8 +32,16 @@ tasks:
         fi
       done
 
-      echo "📦 Running bootstrap.sql to set up RisingWave schema and sinks..."
+      echo "📦 Running RisingWave bootstrap.sql..."
       psql -h localhost -p 4566 -U root -d dev < 02-simple-demos/capital_markets/market_data_enrichment/bootstrap.sql
+
+      echo "🐍 Installing Python dependencies..."
+      sudo apt-get update &&
+      sudo apt-get install -y python3-pip &&
+      pip3 install psycopg2-binary
+
+      echo "🧪 Running data generator..."
+      python3 ./02-simple-demos/capital_markets/market_data_enrichment/data_generator.py
 
 
 
