@@ -2,7 +2,7 @@ image:
   file: .gitpod.Dockerfile
 
 tasks:
-  - name: Auto-detect demo from folder
+  - name: Auto Bootstrap Demo
     init: |
       echo "🚀 Starting Docker containers..."
       docker-compose up -d
@@ -34,11 +34,20 @@ tasks:
       sudo apt-get install -y python3-pip
       pip3 install psycopg2-binary
 
-      # Detect demo folder from path
-      DEMO_PATH=$(pwd | grep -o '02-simple-demos/.*')
+      # Detect which demo to bootstrap
+      if [ -f "02-simple-demos/capital_markets/market_data_enrichment/bootstrap.sql" ]; then
+        DEMO_PATH="02-simple-demos/capital_markets/market_data_enrichment"
+      elif [ -f "02-simple-demos/capital_markets/market_surveillance/bootstrap.sql" ]; then
+        DEMO_PATH="02-simple-demos/capital_markets/market_surveillance"
+      elif [ -f "02-simple-demos/capital_markets/market_anomaly_detection/bootstrap.sql" ]; then
+        DEMO_PATH="02-simple-demos/capital_markets/market_anomaly_detection"
+      else
+        DEMO_PATH=""
+      fi
+
       echo "📁 Auto-detected DEMO_PATH: ${DEMO_PATH}"
 
-      if [ -d "${DEMO_PATH}" ]; then
+      if [ -n "$DEMO_PATH" ]; then
         if [ -f "${DEMO_PATH}/pg_bootstrap.sql" ]; then
           echo "📦 Loading Postgres bootstrap..."
           PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < ${DEMO_PATH}/pg_bootstrap.sql
