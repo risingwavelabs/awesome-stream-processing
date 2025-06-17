@@ -57,7 +57,7 @@ tasks:
         echo "⚙️ Running data generator..."
         python3 ${DEMO_PATH}/data_generator.py
       fi
-
+    command: bash
 
 ports:
   - port: 8088
