@@ -4,6 +4,25 @@ image:
 tasks:
   - name: Auto Bootstrap Demo
     init: |
+      echo "🔍 Detecting current demo path..."
+      CURRENT_PATH=$(pwd)
+      if [[ "$CURRENT_PATH" == *"market_data_enrichment"* ]]; then
+        DEMO_PATH="02-simple-demos/capital_markets/market_data_enrichment"
+      elif [[ "$CURRENT_PATH" == *"market_surveillance"* ]]; then
+        DEMO_PATH="02-simple-demos/capital_markets/market_surveillance"
+      elif [[ "$CURRENT_PATH" == *"market_anomaly_detection"* ]]; then
+        DEMO_PATH="02-simple-demos/capital_markets/market_anomaly_detection"
+      else
+        DEMO_PATH=""
+      fi
+
+      echo "📁 Auto-detected DEMO_PATH: ${DEMO_PATH}"
+
+      if [ -z "$DEMO_PATH" ]; then
+        echo "❌ No valid demo path detected. Exiting bootstrap script."
+        exit 1
+      fi
+
       echo "🚀 Starting Docker containers..."
       docker-compose up -d
 
@@ -34,36 +53,17 @@ tasks:
       sudo apt-get install -y python3-pip
       pip3 install psycopg2-binary
 
-      RAW_URL=$(grep url .git/config | cut -d'=' -f2 | tr -d ' ')
-      if [[ "$RAW_URL" == *"market_data_enrichment" ]]; then
-        DEMO_PATH="02-simple-demos/capital_markets/market_data_enrichment"
-      elif [[ "$RAW_URL" == *"market_surveillance" ]]; then
-        DEMO_PATH="02-simple-demos/capital_markets/market_surveillance"
-      elif [[ "$RAW_URL" == *"market_anomaly_detection" ]]; then
-        DEMO_PATH="02-simple-demos/capital_markets/market_anomaly_detection"
-      else
-        DEMO_PATH=""
+      if [ -f "${DEMO_PATH}/pg_bootstrap.sql" ]; then
+        echo "📦 Loading Postgres bootstrap..."
+        PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < ${DEMO_PATH}/pg_bootstrap.sql
       fi
-
-
-
-      echo "📁 Auto-detected DEMO_PATH: ${DEMO_PATH}"
-
-      if [ -n "$DEMO_PATH" ]; then
-        if [ -f "${DEMO_PATH}/pg_bootstrap.sql" ]; then
-          echo "📦 Loading Postgres bootstrap..."
-          PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < ${DEMO_PATH}/pg_bootstrap.sql
-        fi
-        if [ -f "${DEMO_PATH}/bootstrap.sql" ]; then
-          echo "📦 Loading RisingWave bootstrap..."
-          psql -h localhost -p 4566 -U root -d dev < ${DEMO_PATH}/bootstrap.sql
-        fi
-        if [ -f "${DEMO_PATH}/data_generator.py" ]; then
-          echo "⚙️ Running data generator..."
-          python3 ${DEMO_PATH}/data_generator.py
-        fi
-      else
-        echo "⚠️ Could not detect a valid demo folder."
+      if [ -f "${DEMO_PATH}/bootstrap.sql" ]; then
+        echo "📦 Loading RisingWave bootstrap..."
+        psql -h localhost -p 4566 -U root -d dev < ${DEMO_PATH}/bootstrap.sql
+      fi
+      if [ -f "${DEMO_PATH}/data_generator.py" ]; then
+        echo "⚙️ Running data generator..."
+        python3 ${DEMO_PATH}/data_generator.py
       fi
 
 ports:
