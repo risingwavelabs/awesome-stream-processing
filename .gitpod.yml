@@ -151,7 +151,30 @@ tasks:
           # Any additional marketing analysis specific setup
           echo "🛒 Marketing Analysis demo ready!"
           ;;
+        "warehouse_inventory_mgmt")
+          echo "💰 Running Market Enrichment bootstrap..."
+          
+          # Load PostgreSQL bootstrap if it exists
+          if [ -f "pg_bootstrap.sql" ]; then
+            echo "📦 Loading Postgres bootstrap for Market Enrichment..."
+            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+          fi
 
+          # Load RisingWave bootstrap if it exists
+          if [ -f "bootstrap.sql" ]; then
+            echo "📦 Loading RisingWave bootstrap for Market Enrichment..."
+            psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
+          fi
+
+          # Run data generator if it exists
+          if [ -f "data_generator.py" ]; then
+            echo "⚙️ Running Market Enrichment data generator..."
+            python3 data_generator.py
+          fi
+
+          # Any additional market enrichment specific setup
+          echo "💎 Market Enrichment demo ready!"
+          ;;
         *)
           echo "🔧 Running generic bootstrap..."
           
