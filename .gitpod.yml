@@ -4,19 +4,6 @@ image:
 tasks:
   - name: Auto Bootstrap Demo
     init: |
-      echo "📦 Starting demo bootstrap..."
-
-      # STEP 0: Detect DEMO_PATH from subfolder Gitpod launch
-      if [[ "$GITPOD_REPO_ROOT" != "$PWD" ]]; then
-        DEMO_PATH="${PWD#$GITPOD_REPO_ROOT/}"
-        echo "📁 Auto-detected DEMO_PATH: ${DEMO_PATH}"
-      else
-        echo "❌ Could not detect a valid demo folder."
-        echo "👉 Use a Gitpod URL like:"
-        echo "   https://gitpod.io/#https://github.com/user/repo/tree/main/02-simple-demos/..."
-        exit 1
-      fi
-
       echo "🚀 Starting Docker containers..."
       docker-compose up -d
 
@@ -60,6 +47,18 @@ tasks:
       if [ -f "${DEMO_PATH}/data_generator.py" ]; then
         echo "⚙️ Running data generator..."
         python3 ${DEMO_PATH}/data_generator.py
+      fi
+      echo "📦 Starting demo bootstrap..."
+
+      # STEP 0: Detect DEMO_PATH from subfolder Gitpod launch
+      if [[ "$GITPOD_REPO_ROOT" != "$PWD" ]]; then
+        DEMO_PATH="${PWD#$GITPOD_REPO_ROOT/}"
+        echo "📁 Auto-detected DEMO_PATH: ${DEMO_PATH}"
+      else
+        echo "❌ Could not detect a valid demo folder."
+        echo "👉 Use a Gitpod URL like:"
+        echo "   https://gitpod.io/#https://github.com/user/repo/tree/main/02-simple-demos/..."
+        exit 1
       fi
     command: bash
 
