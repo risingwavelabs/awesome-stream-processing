@@ -67,6 +67,9 @@ tasks:
       elif [[ "$DEMO_PATH" == *"market_enrichment"* ]]; then
         DEMO_NAME="market_enrichment"
         echo "💰 Detected Market Enrichment demo"
+      elif [[ "$DEMO_PATH" == *"marketing_analysis"* ]]; then
+        DEMO_NAME="marketing_analysis"
+        echo "📊 Detected Marketing Analysis demo"
       else
         echo "⚠️  Unknown demo type, using generic bootstrap"
         DEMO_NAME="generic"
@@ -122,6 +125,31 @@ tasks:
 
           # Any additional market enrichment specific setup
           echo "💎 Market Enrichment demo ready!"
+          ;;
+
+        "marketing_analysis")
+          echo "📊 Running Marketing Analysis bootstrap..."
+          
+          # Load PostgreSQL bootstrap if it exists
+          if [ -f "pg_bootstrap.sql" ]; then
+            echo "📦 Loading Postgres bootstrap for Marketing Analysis..."
+            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+          fi
+
+          # Load RisingWave bootstrap if it exists
+          if [ -f "bootstrap.sql" ]; then
+            echo "📦 Loading RisingWave bootstrap for Marketing Analysis..."
+            psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
+          fi
+
+          # Run data generator if it exists
+          if [ -f "data_generator.py" ]; then
+            echo "⚙️ Running Marketing Analysis data generator..."
+            python3 data_generator.py
+          fi
+
+          # Any additional marketing analysis specific setup
+          echo "🛒 Marketing Analysis demo ready!"
           ;;
 
         *)
