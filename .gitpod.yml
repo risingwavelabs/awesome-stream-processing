@@ -4,10 +4,6 @@ image:
 tasks:
   - name: Auto Bootstrap Demo
     init: |
-      echo "🔍 Debug info:"
-      echo "PWD: $PWD"
-      echo "GITPOD_REPO_ROOT: $GITPOD_REPO_ROOT"
-      echo "GITPOD_WORKSPACE_CONTEXT: $GITPOD_WORKSPACE_CONTEXT"
       echo "🚀 Starting Docker containers..."
       docker-compose up -d
 
@@ -38,31 +34,120 @@ tasks:
       sudo apt-get install -y python3-pip
       pip3 install psycopg2-binary
 
-      if [ -f "${DEMO_PATH}/pg_bootstrap.sql" ]; then
-        echo "📦 Loading Postgres bootstrap..."
-        PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < ${DEMO_PATH}/pg_bootstrap.sql
-      fi
-
-      if [ -f "${DEMO_PATH}/bootstrap.sql" ]; then
-        echo "📦 Loading RisingWave bootstrap..."
-        psql -h localhost -p 4566 -U root -d dev < ${DEMO_PATH}/bootstrap.sql
-      fi
-
-      if [ -f "${DEMO_PATH}/data_generator.py" ]; then
-        echo "⚙️ Running data generator..."
-        python3 ${DEMO_PATH}/data_generator.py
-      fi
       echo "📦 Starting demo bootstrap..."
 
-      # STEP 0: Detect DEMO_PATH from subfolder Gitpod launch
-      if [[ "$GITPOD_REPO_ROOT" != "$PWD" ]]; then
+      # Extract demo path from GITPOD_WORKSPACE_CONTEXT
+      if [[ -n "$GITPOD_WORKSPACE_CONTEXT" ]]; then
+        DEMO_PATH=$(echo "$GITPOD_WORKSPACE_CONTEXT" | python3 -c "import sys, json; print(json.load(sys.stdin)['path'])" 2>/dev/null)
+        echo "📁 Auto-detected DEMO_PATH from workspace context: ${DEMO_PATH}"
+      elif [[ "$GITPOD_REPO_ROOT" != "$PWD" ]]; then
         DEMO_PATH="${PWD#$GITPOD_REPO_ROOT/}"
-        echo "📁 Auto-detected DEMO_PATH: ${DEMO_PATH}"
+        echo "📁 Auto-detected DEMO_PATH from PWD: ${DEMO_PATH}"
       else
         echo "❌ Could not detect a valid demo folder."
         echo "👉 Use a Gitpod URL like:"
         echo "   https://gitpod.io/#https://github.com/user/repo/tree/main/02-simple-demos/..."
+        exit 1
       fi
+
+      # Navigate to the demo directory
+      if [[ -d "${DEMO_PATH}" ]]; then
+        cd "${DEMO_PATH}"
+        echo "📂 Changed to demo directory: $(pwd)"
+      else
+        echo "❌ Demo directory ${DEMO_PATH} does not exist"
+        exit 1
+      fi
+
+      # Determine which demo we're running based on the path
+      DEMO_NAME=""
+      if [[ "$DEMO_PATH" == *"market_surveillance"* ]]; then
+        DEMO_NAME="market_surveillance"
+        echo "🔍 Detected Market Surveillance demo"
+      elif [[ "$DEMO_PATH" == *"market_enrichment"* ]]; then
+        DEMO_NAME="market_enrichment"
+        echo "💰 Detected Market Enrichment demo"
+      else
+        echo "⚠️  Unknown demo type, using generic bootstrap"
+        DEMO_NAME="generic"
+      fi
+
+      # Run demo-specific bootstrap
+      case $DEMO_NAME in
+        "market_surveillance")
+          echo "🔍 Running Market Surveillance bootstrap..."
+          
+          # Load PostgreSQL bootstrap if it exists
+          if [ -f "pg_bootstrap.sql" ]; then
+            echo "📦 Loading Postgres bootstrap for Market Surveillance..."
+            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+          fi
+
+          # Load RisingWave bootstrap if it exists
+          if [ -f "bootstrap.sql" ]; then
+            echo "📦 Loading RisingWave bootstrap for Market Surveillance..."
+            psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
+          fi
+
+          # Run data generator if it exists
+          if [ -f "data_generator.py" ]; then
+            echo "⚙️ Running Market Surveillance data generator..."
+            python3 data_generator.py
+          fi
+
+          # Any additional market surveillance specific setup
+          echo "🎯 Market Surveillance demo ready!"
+          ;;
+
+        "market_enrichment")
+          echo "💰 Running Market Enrichment bootstrap..."
+          
+          # Load PostgreSQL bootstrap if it exists
+          if [ -f "pg_bootstrap.sql" ]; then
+            echo "📦 Loading Postgres bootstrap for Market Enrichment..."
+            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+          fi
+
+          # Load RisingWave bootstrap if it exists
+          if [ -f "bootstrap.sql" ]; then
+            echo "📦 Loading RisingWave bootstrap for Market Enrichment..."
+            psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
+          fi
+
+          # Run data generator if it exists
+          if [ -f "data_generator.py" ]; then
+            echo "⚙️ Running Market Enrichment data generator..."
+            python3 data_generator.py
+          fi
+
+          # Any additional market enrichment specific setup
+          echo "💎 Market Enrichment demo ready!"
+          ;;
+
+        *)
+          echo "🔧 Running generic bootstrap..."
+          
+          # Generic bootstrap logic
+          if [ -f "pg_bootstrap.sql" ]; then
+            echo "📦 Loading Postgres bootstrap..."
+            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+          fi
+
+          if [ -f "bootstrap.sql" ]; then
+            echo "📦 Loading RisingWave bootstrap..."
+            psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
+          fi
+
+          if [ -f "data_generator.py" ]; then
+            echo "⚙️ Running data generator..."
+            python3 data_generator.py
+          fi
+
+          echo "✅ Generic demo ready!"
+          ;;
+      esac
+
+      echo "🎉 Demo bootstrap completed successfully!"
     command: bash
 
 ports:
