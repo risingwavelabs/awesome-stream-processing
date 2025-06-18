@@ -70,6 +70,9 @@ tasks:
       elif [[ "$DEMO_PATH" == *"marketing_analysis"* ]]; then
         DEMO_NAME="marketing_analysis"
         echo "📊 Detected Marketing Analysis demo"
+      elif [[ "$DEMO_PATH" == *"energy_grid"* ]]; then
+        DEMO_NAME="energy_grid"
+        echo "⚡ Detected Energy Grid demo"
       else
         echo "⚠️  Unknown demo type, using generic bootstrap"
         DEMO_NAME="generic"
@@ -250,6 +253,35 @@ tasks:
           echo "🛒 user betting behavior demo ready!"
           ;;
 
+          "energy_grid")
+          echo "⚡ Running Energy Grid bootstrap..."
+          # Prepare Postgres (household data)
+          if [ -f "postgres_prepare.sql" ]; then
+            echo "📦 Loading Postgres household data..."
+            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < postgres_prepare.sql
+          fi
+
+          # Load RisingWave sources
+          if [ -f "create_source.sql" ]; then
+            echo "📦 Loading RisingWave sources..."
+            psql -h localhost -p 4566 -U root -d dev < create_source.sql
+          fi
+
+          # Load RisingWave MVs
+          if [ -f "create_mv.sql" ]; then
+            echo "📦 Loading RisingWave MVs..."
+            psql -h localhost -p 4566 -U root -d dev < create_mv.sql
+          fi
+
+          # Run Kafka producers
+          if [ -f "data-producers/run-producers.py" ]; then
+            echo "⚙️ Starting energy data producers..."
+            python3 data-producers/run-producers.py &
+          fi
+
+          echo "⚡ Energy Grid demo ready! Access Grafana at http://localhost:3000"
+          ;;
+
         *)
           echo "🔧 Running generic bootstrap..."
           
@@ -287,6 +319,8 @@ ports:
     onOpen: ignore
   - port: 2181
     onOpen: ignore
+  - port: 3000
+    onOpen: open-preview
 
 vscode:
   extensions:
