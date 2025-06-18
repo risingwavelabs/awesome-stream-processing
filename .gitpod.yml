@@ -4,6 +4,10 @@ image:
 tasks:
   - name: Auto Bootstrap Demo
     init: |
+      echo "🔍 Debug info:"
+      echo "PWD: $PWD"
+      echo "GITPOD_REPO_ROOT: $GITPOD_REPO_ROOT"
+      echo "GITPOD_WORKSPACE_CONTEXT: $GITPOD_WORKSPACE_CONTEXT"
       echo "🚀 Starting Docker containers..."
       docker-compose up -d
 
@@ -58,7 +62,6 @@ tasks:
         echo "❌ Could not detect a valid demo folder."
         echo "👉 Use a Gitpod URL like:"
         echo "   https://gitpod.io/#https://github.com/user/repo/tree/main/02-simple-demos/..."
-        exit 1
       fi
     command: bash
 
