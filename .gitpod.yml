@@ -32,7 +32,7 @@ tasks:
       echo "🐍 Installing Python + psycopg2..."
       sudo apt-get update
       sudo apt-get install -y python3-pip
-      pip3 install psycopg2-binary
+      pip3 install psycopg2-binary kafka-python
 
       echo "📦 Starting demo bootstrap..."
 
