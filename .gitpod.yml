@@ -151,30 +151,105 @@ tasks:
           # Any additional marketing analysis specific setup
           echo "🛒 Marketing Analysis demo ready!"
           ;;
+
         "warehouse_inventory_mgmt")
-          echo "💰 Running Market Enrichment bootstrap..."
+          echo "💰 Running warehouse management..."
           
           # Load PostgreSQL bootstrap if it exists
           if [ -f "pg_bootstrap.sql" ]; then
-            echo "📦 Loading Postgres bootstrap for Market Enrichment..."
+            echo "📦 Loading Postgres bootstrap for warehouse management..."
             PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
           fi
 
           # Load RisingWave bootstrap if it exists
           if [ -f "bootstrap.sql" ]; then
-            echo "📦 Loading RisingWave bootstrap for Market Enrichment..."
+            echo "📦 Loading RisingWave bootstrap for warehouse management..."
             psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
           fi
 
           # Run data generator if it exists
           if [ -f "data_generator.py" ]; then
-            echo "⚙️ Running Market Enrichment data generator..."
+            echo "⚙️ Running warehouse management data generator..."
             python3 data_generator.py
           fi
 
-          # Any additional market enrichment specific setup
-          echo "💎 Market Enrichment demo ready!"
+          echo "💎 warehouse management demo ready!"
           ;;
+
+          "position_risk_management")
+          echo "📊 Running position risk management bootstrap..."
+          
+          # Load PostgreSQL bootstrap if it exists
+          if [ -f "pg_bootstrap.sql" ]; then
+            echo "📦 Loading Postgres bootstrap for position risk management..."
+            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+          fi
+
+          # Load RisingWave bootstrap if it exists
+          if [ -f "bootstrap.sql" ]; then
+            echo "📦 Loading RisingWave bootstrap for position risk management..."
+            psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
+          fi
+
+          # Run data generator if it exists
+          if [ -f "data_generator.py" ]; then
+            echo "⚙️ Running position risk management data generator..."
+            python3 data_generator.py
+          fi
+
+          # Any additional position risk managementspecific setup
+          echo "🛒 position risk management demo ready!"
+          ;;
+
+        "warehouse_inventory_mgmt")
+          echo "💰 Running warehouse management..."
+          
+          # Load PostgreSQL bootstrap if it exists
+          if [ -f "pg_bootstrap.sql" ]; then
+            echo "📦 Loading Postgres bootstrap for warehouse management..."
+            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+          fi
+
+          # Load RisingWave bootstrap if it exists
+          if [ -f "bootstrap.sql" ]; then
+            echo "📦 Loading RisingWave bootstrap for warehouse management..."
+            psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
+          fi
+
+          # Run data generator if it exists
+          if [ -f "data_generator.py" ]; then
+            echo "⚙️ Running warehouse management data generator..."
+            python3 data_generator.py
+          fi
+
+          echo "💎 warehouse management demo ready!"
+          ;;
+
+          "user_betting_behavior")
+          echo "📊 Running user betting behavior bootstrap..."
+          
+          # Load PostgreSQL bootstrap if it exists
+          if [ -f "pg_bootstrap.sql" ]; then
+            echo "📦 Loading Postgres bootstrap for user betting behavior..."
+            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+          fi
+
+          # Load RisingWave bootstrap if it exists
+          if [ -f "bootstrap.sql" ]; then
+            echo "📦 Loading RisingWave bootstrap for user betting behavior..."
+            psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
+          fi
+
+          # Run data generator if it exists
+          if [ -f "data_generator.py" ]; then
+            echo "⚙️ Running user betting behavior data generator..."
+            python3 data_generator.py
+          fi
+
+          # Any additional user betting behavior specific setup
+          echo "🛒 user betting behavior demo ready!"
+          ;;
+
         *)
           echo "🔧 Running generic bootstrap..."
           
