@@ -35,7 +35,7 @@ tasks:
 
       echo "🐍 Installing Python + psycopg2..."
       sudo apt-get update
-      sudo apt-get install -y python3-pip
+      sudo apt-get install -y python3-pip uuid-runtime jq
       pip3 install psycopg2-binary kafka-python
 
       echo "📦 Starting demo bootstrap..."
@@ -136,9 +136,6 @@ tasks:
             echo "📦 Loading RisingWave bootstrap for Market Enrichment..."
             psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
           fi
-          echo "⚙️ Setting up Superset dashboard..."
-          chmod +x superset_scripts/market_enrichment_script.sh
-          ./superset_scripts/market_enrichment_script.sh
 
           # Run data generator if it exists
           if [ -f "data_generator.py" ]; then
@@ -148,6 +145,9 @@ tasks:
 
           # Any additional market enrichment specific setup
               # After everything is ready
+          echo "⚙️ Setting up Superset dashboard..."
+          chmod +x superset_scripts/market_enrichment_script.sh
+          ./superset_scripts/market_enrichment_script.sh
 
           ;;
 
