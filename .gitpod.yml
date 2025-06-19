@@ -77,7 +77,19 @@ tasks:
         echo "📊 Detected Marketing Analysis demo"
       elif [[ "$DEMO_PATH" == *"energy_grid"* ]]; then
         DEMO_NAME="energy_grid"
-        echo "⚡ Detected Energy Grid demo"
+        echo "⚡ Detected energy_grid demo"
+      elif [[ "$DEMO_PATH" == *"market_data_enrichment"* ]]; then
+        DEMO_NAME="market_data_enrichment"
+        echo "⚡ Detected market data enrichment demo"
+      elif [[ "$DEMO_PATH" == *"warehouse_inventory_mgmt"* ]]; then
+        DEMO_NAME="warehouse_inventory_mgmt"
+        echo "⚡ Detected warehouse inventory management demo"
+      elif [[ "$DEMO_PATH" == *"position_risk_management"* ]]; then
+        DEMO_NAME="position_risk_management"
+        echo "⚡ Detected position risk management demo"
+      elif [[ "$DEMO_PATH" == *"user_betting_behavior"* ]]; then
+        DEMO_NAME="user_betting_behavior"
+        echo "⚡ Detected user betting behavior demo"
       else
         echo "⚠️  Unknown demo type, using generic bootstrap"
         DEMO_NAME="generic"
@@ -110,7 +122,7 @@ tasks:
           echo "🎯 Market Surveillance demo ready!"
           ;;
 
-        "market_enrichment")
+        "market_data_enrichment")
           echo "💰 Running Market Enrichment bootstrap..."
           
           # Load PostgreSQL bootstrap if it exists
