@@ -6,6 +6,10 @@ tasks:
     init: |
       echo "🚀 Starting Docker containers..."
       docker-compose up -d
+      
+      echo "🔐 Creating .pgpass file for PostgreSQL auth..."
+      echo "localhost:5432:pgdb:pguser:pgpass" > ~/.pgpass
+      chmod 600 ~/.pgpass
 
       echo "⏳ Waiting for PostgreSQL to be ready..."
       for i in {1..15}; do
@@ -87,7 +91,7 @@ tasks:
           # Load PostgreSQL bootstrap if it exists
           if [ -f "pg_bootstrap.sql" ]; then
             echo "📦 Loading Postgres bootstrap for Market Surveillance..."
-            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+            psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
           fi
 
           # Load RisingWave bootstrap if it exists
@@ -99,7 +103,7 @@ tasks:
           # Run data generator if it exists
           if [ -f "data_generator.py" ]; then
             echo "⚙️ Running Market Surveillance data generator..."
-            python3 data_generator.py
+            python3 data_generator.py &
           fi
 
           # Any additional market surveillance specific setup
@@ -112,7 +116,7 @@ tasks:
           # Load PostgreSQL bootstrap if it exists
           if [ -f "pg_bootstrap.sql" ]; then
             echo "📦 Loading Postgres bootstrap for Market Enrichment..."
-            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+            psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
           fi
 
           # Load RisingWave bootstrap if it exists
@@ -124,7 +128,7 @@ tasks:
           # Run data generator if it exists
           if [ -f "data_generator.py" ]; then
             echo "⚙️ Running Market Enrichment data generator..."
-            python3 data_generator.py
+            python3 data_generator.py &
           fi
 
           # Any additional market enrichment specific setup
@@ -142,7 +146,7 @@ tasks:
           # Load PostgreSQL bootstrap if it exists
           if [ -f "pg_bootstrap.sql" ]; then
             echo "📦 Loading Postgres bootstrap for Marketing Analysis..."
-            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+            psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
           fi
 
           # Load RisingWave bootstrap if it exists
@@ -154,7 +158,7 @@ tasks:
           # Run data generator if it exists
           if [ -f "data_generator.py" ]; then
             echo "⚙️ Running Marketing Analysis data generator..."
-            python3 data_generator.py
+            python3 data_generator.py &
           fi
 
           # Any additional marketing analysis specific setup
@@ -167,7 +171,7 @@ tasks:
           # Load PostgreSQL bootstrap if it exists
           if [ -f "pg_bootstrap.sql" ]; then
             echo "📦 Loading Postgres bootstrap for warehouse management..."
-            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+            psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
           fi
 
           # Load RisingWave bootstrap if it exists
@@ -179,7 +183,7 @@ tasks:
           # Run data generator if it exists
           if [ -f "data_generator.py" ]; then
             echo "⚙️ Running warehouse management data generator..."
-            python3 data_generator.py
+            python3 data_generator.py &
           fi
 
           echo "💎 warehouse management demo ready!"
@@ -191,7 +195,7 @@ tasks:
           # Load PostgreSQL bootstrap if it exists
           if [ -f "pg_bootstrap.sql" ]; then
             echo "📦 Loading Postgres bootstrap for position risk management..."
-            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+            psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
           fi
 
           # Load RisingWave bootstrap if it exists
@@ -203,7 +207,7 @@ tasks:
           # Run data generator if it exists
           if [ -f "data_generator.py" ]; then
             echo "⚙️ Running position risk management data generator..."
-            python3 data_generator.py
+            python3 data_generator.py &
           fi
 
           # Any additional position risk managementspecific setup
@@ -216,7 +220,7 @@ tasks:
           # Load PostgreSQL bootstrap if it exists
           if [ -f "pg_bootstrap.sql" ]; then
             echo "📦 Loading Postgres bootstrap for warehouse management..."
-            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+            psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
           fi
 
           # Load RisingWave bootstrap if it exists
@@ -228,7 +232,7 @@ tasks:
           # Run data generator if it exists
           if [ -f "data_generator.py" ]; then
             echo "⚙️ Running warehouse management data generator..."
-            python3 data_generator.py
+            python3 data_generator.py &
           fi
 
           echo "💎 warehouse management demo ready!"
@@ -240,7 +244,7 @@ tasks:
           # Load PostgreSQL bootstrap if it exists
           if [ -f "pg_bootstrap.sql" ]; then
             echo "📦 Loading Postgres bootstrap for user betting behavior..."
-            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+            psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
           fi
 
           # Load RisingWave bootstrap if it exists
@@ -252,7 +256,7 @@ tasks:
           # Run data generator if it exists
           if [ -f "data_generator.py" ]; then
             echo "⚙️ Running user betting behavior data generator..."
-            python3 data_generator.py
+            python3 data_generator.py &
           fi
 
           # Any additional user betting behavior specific setup
@@ -264,7 +268,7 @@ tasks:
           # Prepare Postgres (household data)
           if [ -f "postgres_prepare.sql" ]; then
             echo "📦 Loading Postgres household data..."
-            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < postgres_prepare.sql
+            psql -h localhost -p 5432 -U pguser -d pgdb < postgres_prepare.sql
           fi
 
           # Load RisingWave sources
@@ -294,7 +298,7 @@ tasks:
           # Generic bootstrap logic
           if [ -f "pg_bootstrap.sql" ]; then
             echo "📦 Loading Postgres bootstrap..."
-            PGPASSWORD=pgpass psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+            psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
           fi
 
           if [ -f "bootstrap.sql" ]; then
@@ -304,7 +308,7 @@ tasks:
 
           if [ -f "data_generator.py" ]; then
             echo "⚙️ Running data generator..."
-            python3 data_generator.py
+            python3 data_generator.py &
           fi
 
           echo "✅ Generic demo ready!"
