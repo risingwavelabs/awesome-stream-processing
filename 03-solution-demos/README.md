@@ -11,4 +11,7 @@ Here are the runnable demos so far:
 * [Real-time monitoring, predictive maintenance, and anomaly detection](/03-solution-demos/iot_demo/readme.md): Detect anomalies in real-time for PBL86-80 motors using MQTT, RisingWave, and Grafana.
 
 * [Wikipedia edits monitoring system](/03-solution-demos/wikipedia_monitoring/readme.md): Track contributions made to Wikipedia pages in real time using the Wikipedia API, Kafka, and RisingWave.
+
 * [Spoofing detection with actual Market data](/03-solution-demos/spoofing_detection_with_live_market_data/readme.md): Detect spoofing in trading events in real-time by leveraging RisingWave and real-time market data from [Databento](https://databento.com/). Detailed explanations can be found in [this blog post](https://risingwave.com/blog/spoofing-detection-databento-risingwave/).
+
+* [Traffic flow monitoring and predication](/03-solution-demos/traffic_prediction): Detect traffic flow by ingesting car speed events in real-time, and predict the traffic flow based historical data and a ML model.
