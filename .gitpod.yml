@@ -44,19 +44,20 @@ tasks:
         DEMO_PATH="${PWD#$GITPOD_REPO_ROOT/}"
         echo "📁 Auto-detected DEMO_PATH from PWD: ${DEMO_PATH}"
       else
-        echo "❌ Could not detect a valid demo folder."
-        echo "👉 Use a Gitpod URL like:"
-        echo "   https://gitpod.io/#https://github.com/user/repo/tree/main/02-simple-demos/..."
-        exit 1
+      echo "No demo folder selected."
+      echo "Opening shell."
+      exec bash
       fi
+
 
       # Navigate to the demo directory
       if [[ -d "${DEMO_PATH}" ]]; then
         cd "${DEMO_PATH}"
         echo "📂 Changed to demo directory: $(pwd)"
       else
-        echo "❌ Demo directory ${DEMO_PATH} does not exist"
-        exit 1
+        echo "No specific demo chosen"
+        echo "Opening shell."
+        exec bash
       fi
 
       # Determine which demo we're running based on the path
@@ -127,6 +128,11 @@ tasks:
           fi
 
           # Any additional market enrichment specific setup
+              # After everything is ready
+          echo "⚙️ Setting up Superset dashboard..."
+          chmod +x superset_scripts/market_enrichment_script.sh
+          ./superset_scripts/market_enrichment_script.sh
+
           echo "💎 Market Enrichment demo ready!"
           ;;
 
