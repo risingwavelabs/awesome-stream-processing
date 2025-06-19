@@ -6,7 +6,7 @@ tasks:
     init: |
       echo "🚀 Starting Docker containers..."
       docker-compose up -d
-      
+
       echo "🔐 Creating .pgpass file for PostgreSQL auth..."
       echo "localhost:5432:pgdb:pguser:pgpass" > ~/.pgpass
       chmod 600 ~/.pgpass
@@ -124,6 +124,9 @@ tasks:
             echo "📦 Loading RisingWave bootstrap for Market Enrichment..."
             psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
           fi
+          echo "⚙️ Setting up Superset dashboard..."
+          chmod +x superset_scripts/market_enrichment_script.sh
+          ./superset_scripts/market_enrichment_script.sh
 
           # Run data generator if it exists
           if [ -f "data_generator.py" ]; then
@@ -133,11 +136,7 @@ tasks:
 
           # Any additional market enrichment specific setup
               # After everything is ready
-          echo "⚙️ Setting up Superset dashboard..."
-          chmod +x superset_scripts/market_enrichment_script.sh
-          ./superset_scripts/market_enrichment_script.sh
 
-          echo "💎 Market Enrichment demo ready!"
           ;;
 
         "marketing_analysis")
