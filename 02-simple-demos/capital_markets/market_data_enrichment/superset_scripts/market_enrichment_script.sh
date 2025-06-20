@@ -42,7 +42,14 @@ if [[ "$DB_COUNT" == "0" ]]; then
     }')
   DB_ID=$(echo "$CREATE_DB_RESPONSE" | jq -r '.id // empty')
 else
+  # Use the ID of the first existing database
   DB_ID=$(echo "$DB_RESPONSE" | jq -r '.result[0].id')
+fi
+
+if [[ -z "$DB_ID" || "$DB_ID" == "null" ]]; then
+  echo "❌ Failed to find or create a database ID."
+  echo "Database response: $DB_RESPONSE"
+  exit 1
 fi
 
 echo "🗃️ Using database ID: $DB_ID"
@@ -59,6 +66,12 @@ DATASET_RESPONSE=$(curl -s -X POST http://localhost:8088/api/v1/dataset/ \
   }')
 DATASET_ID=$(echo "$DATASET_RESPONSE" | jq -r '.id // empty')
 
+if [[ -z "$DATASET_ID" || "$DATASET_ID" == "null" ]]; then
+  echo "❌ Failed to create dataset. Response:"
+  echo "$DATASET_RESPONSE"
+  exit 1
+fi
+
 echo "📈 Created dataset with ID: $DATASET_ID"
 
 # First, let's get the dataset columns to identify the datetime column
@@ -68,34 +81,47 @@ COLUMNS_RESPONSE=$(curl -s -X GET "http://localhost:8088/api/v1/dataset/$DATASET
 
 # Extract datetime column (common names: timestamp, created_at, updated_at, time, date)
 DATETIME_COLUMN=$(echo "$COLUMNS_RESPONSE" | jq -r '
-  .result.columns[]? | 
-  select(.type_generic == 2 or (.column_name // "" | test("timestamp|time|date|created_at|updated_at"; "i"))) | 
+  .result.columns[]? |
+  select(.type_generic == 2 or (.column_name // "" | test("timestamp|time|date|created_at|updated_at"; "i"))) |
   .column_name // empty' | head -1)
 
+# Determine chart type and parameters based on datetime column existence
 if [[ -z "$DATETIME_COLUMN" || "$DATETIME_COLUMN" == "null" ]]; then
   echo "⚠️ No datetime column found. Using bar chart instead of line chart..."
   VIZ_TYPE="dist_bar"
-  CHART_PARAMS='{"metrics": ["average_price"], "groupby": ["bid_ask_spread"], "adhoc_filters": []}'
+  # Construct the JSON object for params directly
+  CHART_PARAMS_OBJECT='{"metrics": ["average_price"], "groupby": ["bid_ask_spread"], "adhoc_filters": []}'
   CHART_NAME="Bid-Ask Spread vs Average Price (Bar Chart)"
 else
   echo "📅 Found datetime column: $DATETIME_COLUMN"
   VIZ_TYPE="line"
-  CHART_PARAMS="{\"metrics\": [\"average_price\"], \"groupby\": [\"$DATETIME_COLUMN\"], \"adhoc_filters\": [], \"time_range\": \"No filter\", \"granularity_sqla\": \"$DATETIME_COLUMN\"}"
+  # Construct the JSON object for params, using jq's --argjson for variables
+  CHART_PARAMS_OBJECT=$(jq -n \
+    --arg dt_col "$DATETIME_COLUMN" \
+    '{"metrics": ["average_price"], "groupby": [$dt_col], "adhoc_filters": [], "time_range": "No filter", "granularity_sqla": $dt_col}')
   CHART_NAME="Average Price Over Time"
 fi
 
 # Create chart with proper datetime configuration
+# Construct the entire chart payload using jq to ensure correct stringification of 'params'
+CHART_PAYLOAD=$(jq -n \
+  --arg slice_name "$CHART_NAME" \
+  --arg viz_type "$VIZ_TYPE" \
+  --argjson datasource_id "$DATASET_ID" \
+  --argjson params_obj "$CHART_PARAMS_OBJECT" \
+  '{
+    slice_name: $slice_name,
+    viz_type: $viz_type,
+    datasource_id: $datasource_id,
+    datasource_type: "table",
+    params: ($params_obj | tostring)
+  }')
+
 echo "📉 Creating chart: $CHART_NAME..."
 CHART_RESPONSE=$(curl -s -X POST http://localhost:8088/api/v1/chart/ \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "slice_name": "'"$CHART_NAME"'",
-    "viz_type": "'"$VIZ_TYPE"'",
-    "datasource_id": '"$DATASET_ID"',
-    "datasource_type": "table",
-    "params": "'"$CHART_PARAMS"'"
-  }')
+  -d "$CHART_PAYLOAD")
 CHART_ID=$(echo "$CHART_RESPONSE" | jq -r '.id // empty')
 
 if [[ -z "$CHART_ID" || "$CHART_ID" == "null" ]]; then
@@ -107,18 +133,29 @@ fi
 echo "📊 Created chart with ID: $CHART_ID"
 
 # Create a second chart for bid-ask spread analysis
+# Construct the entire spread chart payload using jq
+SPREAD_CHART_PAYLOAD=$(jq -n \
+  --argjson datasource_id "$DATASET_ID" \
+  '{
+    slice_name: "Bid-Ask Spread Distribution",
+    viz_type: "dist_bar",
+    datasource_id: $datasource_id,
+    datasource_type: "table",
+    params: ("{\"metrics\": [\"COUNT(*)\"], \"groupby\": [\"bid_ask_spread\"], \"adhoc_filters\": []}" | fromjson | tostring)
+  }')
+
 echo "📊 Creating additional chart for bid-ask spread analysis..."
 SPREAD_CHART_RESPONSE=$(curl -s -X POST http://localhost:8088/api/v1/chart/ \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "slice_name": "Bid-Ask Spread Distribution",
-    "viz_type": "dist_bar",
-    "datasource_id": '"$DATASET_ID"',
-    "datasource_type": "table",
-    "params": "{\"metrics\": [\"COUNT(*)\"], \"groupby\": [\"bid_ask_spread\"], \"adhoc_filters\": []}"
-  }')
+  -d "$SPREAD_CHART_PAYLOAD")
 SPREAD_CHART_ID=$(echo "$SPREAD_CHART_RESPONSE" | jq -r '.id // empty')
+
+if [[ -z "$SPREAD_CHART_ID" || "$SPREAD_CHART_ID" == "null" ]]; then
+  echo "❌ Failed to create spread chart. Response:"
+  echo "$SPREAD_CHART_RESPONSE"
+  exit 1
+fi
 
 echo "📊 Created spread chart with ID: $SPREAD_CHART_ID"
 
