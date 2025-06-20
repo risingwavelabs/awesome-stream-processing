@@ -82,52 +82,56 @@ echo "➕ Checking and adding necessary metrics to dataset..."
 CURRENT_DATASET_DETAILS=$(curl -s -X GET "http://localhost:8088/api/v1/dataset/$DATASET_ID" \
   -H "Authorization: Bearer $TOKEN")
 
-# Initialize an array for metrics to update
-METRICS_TO_ADD='[]'
+# Initialize the array that will hold the *final* set of metrics to send in the PUT request
+# Start with existing metrics. Default to empty array if none exist, or if metrics_dict is null.
+FINAL_METRICS_PAYLOAD=$(echo "$CURRENT_DATASET_DETAILS" | jq -r '(.result.metrics_dict // {}) | to_entries | map(.value)')
 
-# Helper function to check if a metric exists
-# Returns "null" if not found, otherwise the metric object
-get_metric_status() {
-  echo "$CURRENT_DATASET_DETAILS" | jq -r ".result.metrics_dict.${1} // null"
+METRICS_ADDED_THIS_RUN=0
+
+# Helper function to check if a metric name already exists in the FINAL_METRICS_PAYLOAD array
+metric_exists_in_final_payload() {
+  local metric_name_to_check="$1"
+  # Use -e flag for jq to return non-zero exit code if no match is found
+  echo "$FINAL_METRICS_PAYLOAD" | jq -e ".[] | select(.metric_name == \"$metric_name_to_check\")" > /dev/null
 }
 
-# Check for 'average_price' metric
-if [ "$(get_metric_status "average_price")" == "null" ]; then
+# Check and add 'average_price' metric
+if ! metric_exists_in_final_payload "average_price"; then
   echo "    - 'average_price' metric not found, adding it."
-  METRICS_TO_ADD=$(echo "$METRICS_TO_ADD" | jq '. + [{"metric_name": "average_price", "expression": "AVG(average_price)", "verbose_name": "Average Price"}]')
+  FINAL_METRICS_PAYLOAD=$(echo "$FINAL_METRICS_PAYLOAD" | jq '. + [{"metric_name": "average_price", "expression": "AVG(average_price)", "verbose_name": "Average Price"}]')
+  METRICS_ADDED_THIS_RUN=$((METRICS_ADDED_THIS_RUN + 1))
 else
   echo "    - 'average_price' metric already exists."
 fi
 
-# Check for 'bid_ask_spread' metric
-if [ "$(get_metric_status "bid_ask_spread")" == "null" ]; then
+# Check and add 'bid_ask_spread' metric
+if ! metric_exists_in_final_payload "bid_ask_spread"; then
   echo "    - 'bid_ask_spread' metric not found, adding it (as SUM for flexibility)."
-  METRICS_TO_ADD=$(echo "$METRICS_TO_ADD" | jq '. + [{"metric_name": "bid_ask_spread", "expression": "SUM(bid_ask_spread)", "verbose_name": "Bid Ask Spread Sum"}]')
+  FINAL_METRICS_PAYLOAD=$(echo "$FINAL_METRICS_PAYLOAD" | jq '. + [{"metric_name": "bid_ask_spread", "expression": "SUM(bid_ask_spread)", "verbose_name": "Bid Ask Spread Sum"}]')
+  METRICS_ADDED_THIS_RUN=$((METRICS_ADDED_THIS_RUN + 1))
 else
   echo "    - 'bid_ask_spread' metric already exists."
 fi
 
-# Check for 'count' metric (COUNT(*))
-if [ "$(get_metric_status "count")" == "null" ]; then
+# Check and add 'count' metric (COUNT(*))
+if ! metric_exists_in_final_payload "count"; then
   echo "    - 'count' metric not found, adding it."
-  METRICS_TO_ADD=$(echo "$METRICS_TO_ADD" | jq '. + [{"metric_name": "count", "expression": "COUNT(*)", "verbose_name": "Count"}]')
+  FINAL_METRICS_PAYLOAD=$(echo "$FINAL_METRICS_PAYLOAD" | jq '. + [{"metric_name": "count", "expression": "COUNT(*)", "verbose_name": "Count"}]')
+  METRICS_ADDED_THIS_RUN=$((METRICS_ADDED_THIS_RUN + 1))
 else
   echo "    - 'count' metric already exists."
 fi
 
-# Prepare the payload to update the dataset with new metrics
-# Ensure .result.metrics_dict defaults to an empty object if null
-EXISTING_METRICS=$(echo "$CURRENT_DATASET_DETAILS" | jq -r '(.result.metrics_dict // {}) | to_entries | map(.value)')
-
-# Merge existing metrics with new ones, ensuring no duplicates on metric_name
-MERGED_METRICS=$(echo "$EXISTING_METRICS $METRICS_TO_ADD" | jq -s 'flatten | unique_by(.metric_name)')
-
+# Prepare the payload to update the dataset with the *complete and de-duplicated* list of metrics
 UPDATE_DATASET_PAYLOAD=$(jq -n \
-  --argjson metrics "$MERGED_METRICS" \
+  --argjson metrics "$FINAL_METRICS_PAYLOAD" \
   '{ metrics: $metrics }')
 
-# Only send update request if there are metrics to add or update
-if [[ $(echo "$METRICS_TO_ADD" | jq 'length') -gt 0 ]]; then
+# Only send update request if new metrics were identified to add in this run,
+# or if it's the first run and we're setting up the initial metrics.
+# This prevents unnecessary PUT requests if metrics are already correctly set.
+if [[ "$METRICS_ADDED_THIS_RUN" -gt 0 || $(echo "$CURRENT_DATASET_DETAILS" | jq -r '.result.metrics_dict // {} | length') == 0 ]]; then
+  echo "Attempting to update dataset with merged metrics payload..."
   UPDATE_DATASET_RESPONSE=$(curl -s -X PUT "http://localhost:8088/api/v1/dataset/$DATASET_ID" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
@@ -141,7 +145,7 @@ if [[ $(echo "$METRICS_TO_ADD" | jq 'length') -gt 0 ]]; then
     exit 1
   fi
 else
-  echo "ℹ️ No new metrics to add or update for the dataset."
+  echo "ℹ️ No new metrics were identified to add to the dataset in this run, and existing metrics are present."
 fi
 # --- END: Add Metrics to Dataset ---
 
