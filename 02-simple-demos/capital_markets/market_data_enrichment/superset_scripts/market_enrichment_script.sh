@@ -68,27 +68,19 @@ COLUMNS_RESPONSE=$(curl -s -X GET "http://localhost:8088/api/v1/dataset/$DATASET
 
 # Extract datetime column (common names: timestamp, created_at, updated_at, time, date)
 DATETIME_COLUMN=$(echo "$COLUMNS_RESPONSE" | jq -r '
-  .result.columns[] | 
-  select(.type_generic == 2 or .column_name | test("timestamp|time|date|created_at|updated_at"; "i")) | 
-  .column_name' | head -1)
+  .result.columns[]? | 
+  select(.type_generic == 2 or (.column_name // "" | test("timestamp|time|date|created_at|updated_at"; "i"))) | 
+  .column_name // empty' | head -1)
 
 if [[ -z "$DATETIME_COLUMN" || "$DATETIME_COLUMN" == "null" ]]; then
-  echo "⚠️ No datetime column found. Using scatter plot instead of line chart..."
+  echo "⚠️ No datetime column found. Using bar chart instead of line chart..."
   VIZ_TYPE="dist_bar"
   CHART_PARAMS='{"metrics": ["average_price"], "groupby": ["bid_ask_spread"], "adhoc_filters": []}'
   CHART_NAME="Bid-Ask Spread vs Average Price (Bar Chart)"
 else
   echo "📅 Found datetime column: $DATETIME_COLUMN"
   VIZ_TYPE="line"
-  CHART_PARAMS=$(jq -n \
-    --arg datetime_col "$DATETIME_COLUMN" \
-    '{
-      "metrics": ["average_price"],
-      "groupby": [$datetime_col],
-      "adhoc_filters": [],
-      "time_range": "No filter",
-      "granularity_sqla": $datetime_col
-    }')
+  CHART_PARAMS="{\"metrics\": [\"average_price\"], \"groupby\": [\"$DATETIME_COLUMN\"], \"adhoc_filters\": [], \"time_range\": \"No filter\", \"granularity_sqla\": \"$DATETIME_COLUMN\"}"
   CHART_NAME="Average Price Over Time"
 fi
 
@@ -102,7 +94,7 @@ CHART_RESPONSE=$(curl -s -X POST http://localhost:8088/api/v1/chart/ \
     "viz_type": "'"$VIZ_TYPE"'",
     "datasource_id": '"$DATASET_ID"',
     "datasource_type": "table",
-    "params": "'"$(echo "$CHART_PARAMS" | jq -c .)"'"
+    "params": "'"$CHART_PARAMS"'"
   }')
 CHART_ID=$(echo "$CHART_RESPONSE" | jq -r '.id // empty')
 
