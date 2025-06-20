@@ -135,6 +135,23 @@ DASHBOARD_RESPONSE=$(curl -s -X POST http://localhost:8088/api/v1/dashboard/ \
   -d "$DASHBOARD_PAYLOAD")
 DASHBOARD_ID=$(echo "$DASHBOARD_RESPONSE" | jq -r '.id // empty')
 
+# Attach chart to dashboard
+echo "🔗 Attaching chart to dashboard..."
+PATCH_RESPONSE=$(curl -s -X PUT http://localhost:8088/api/v1/chart/$CHART_ID \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dashboards": ['"$DASHBOARD_ID"']
+  }')
+
+if echo "$PATCH_RESPONSE" | jq -e '.id' > /dev/null; then
+  echo "✅ Chart successfully attached to dashboard!"
+else
+  echo "❌ Failed to attach chart. Response:"
+  echo "$PATCH_RESPONSE"
+fi
+
+
 echo ""
 echo "🎉 SUCCESS! Setup complete!"
 echo "📌 Dashboard created with ID: $DASHBOARD_ID"
