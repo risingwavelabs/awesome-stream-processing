@@ -85,28 +85,30 @@ CURRENT_DATASET_DETAILS=$(curl -s -X GET "http://localhost:8088/api/v1/dataset/$
 # Initialize an array for metrics to update
 METRICS_TO_ADD='[]'
 
+# Helper function to check if a metric exists
+# Returns "null" if not found, otherwise the metric object
+get_metric_status() {
+  echo "$CURRENT_DATASET_DETAILS" | jq -r ".result.metrics_dict.${1} // null"
+}
+
 # Check for 'average_price' metric
-if ! echo "$CURRENT_DATASET_DETAILS" | jq -e '.result.metrics_dict.average_price' > /dev/null; then
+if [ "$(get_metric_status "average_price")" == "null" ]; then
   echo "    - 'average_price' metric not found, adding it."
   METRICS_TO_ADD=$(echo "$METRICS_TO_ADD" | jq '. + [{"metric_name": "average_price", "expression": "AVG(average_price)", "verbose_name": "Average Price"}]')
 else
   echo "    - 'average_price' metric already exists."
 fi
 
-# Check for 'bid_ask_spread' metric (though it's usually used as a dimension, sometimes needed as metric for specific charts)
-# For simplicity, let's also add it as a "SUM" metric, although it's primarily a dimension.
-# If bid_ask_spread is truly a dimension/groupby field, this specific metric might not be strictly necessary,
-# but it won't hurt to have it for flexibility.
-if ! echo "$CURRENT_DATASET_DETAILS" | jq -e '.result.metrics_dict.bid_ask_spread' > /dev/null; then
+# Check for 'bid_ask_spread' metric
+if [ "$(get_metric_status "bid_ask_spread")" == "null" ]; then
   echo "    - 'bid_ask_spread' metric not found, adding it (as SUM for flexibility)."
   METRICS_TO_ADD=$(echo "$METRICS_TO_ADD" | jq '. + [{"metric_name": "bid_ask_spread", "expression": "SUM(bid_ask_spread)", "verbose_name": "Bid Ask Spread Sum"}]')
 else
   echo "    - 'bid_ask_spread' metric already exists."
 fi
 
-
 # Check for 'count' metric (COUNT(*))
-if ! echo "$CURRENT_DATASET_DETAILS" | jq -e '.result.metrics_dict.count' > /dev/null; then
+if [ "$(get_metric_status "count")" == "null" ]; then
   echo "    - 'count' metric not found, adding it."
   METRICS_TO_ADD=$(echo "$METRICS_TO_ADD" | jq '. + [{"metric_name": "count", "expression": "COUNT(*)", "verbose_name": "Count"}]')
 else
@@ -114,8 +116,8 @@ else
 fi
 
 # Prepare the payload to update the dataset with new metrics
-# We need to get existing metrics and merge with new ones
-EXISTING_METRICS=$(echo "$CURRENT_DATASET_DETAILS" | jq -r '.result.metrics_dict | to_entries | map(.value)')
+# Ensure .result.metrics_dict defaults to an empty object if null
+EXISTING_METRICS=$(echo "$CURRENT_DATASET_DETAILS" | jq -r '(.result.metrics_dict // {}) | to_entries | map(.value)')
 
 # Merge existing metrics with new ones, ensuring no duplicates on metric_name
 MERGED_METRICS=$(echo "$EXISTING_METRICS $METRICS_TO_ADD" | jq -s 'flatten | unique_by(.metric_name)')
