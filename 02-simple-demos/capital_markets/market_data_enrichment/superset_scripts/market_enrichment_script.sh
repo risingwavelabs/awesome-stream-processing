@@ -99,7 +99,6 @@ DB_ID=$(get_or_create_asset "database" "$DB_NAME" "$DB_FILTER_Q" "$CREATE_DB_PAY
 
 
 # --- 3. Create Dataset ---
-# MOVED: Filter and Payload are now defined just-in-time, ensuring $DB_ID has a value.
 DATASET_FILTER_Q="q=$(jq -n --arg name "$DATASET_TABLE_NAME" --argjson db_id "$DB_ID" '{filters:[{col:"table_name",opr:"eq",value:$name},{col:"database_id",opr:"eq",value:($db_id | tonumber)}] }')"
 CREATE_DATASET_PAYLOAD=$(jq -n \
     --argjson db_id "$DB_ID" \
@@ -108,7 +107,7 @@ CREATE_DATASET_PAYLOAD=$(jq -n \
 DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD")
 
 
-# --- 4. Synchronize Dataset Columns & Add Metrics ---
+# --- 4. Synchronize Dataset Columns & Add Metrics (ROBUST VERSION) ---
 echo "--- Synchronizing columns and metrics for dataset '$DATASET_NAME' ---"
 curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" > /dev/null
 
@@ -117,29 +116,44 @@ DESIRED_METRICS=$(jq -n '{
     "bid_ask_spread": "AVG(bid_ask_spread)",
     "count": "COUNT(*)"
 }')
-CURRENT_DATASET_DETAILS=$(curl -s -X GET "$SUPERSET_URL/api/v1/dataset/$DATASET_ID?q=\{\"columns\":[\"metrics\"]}" -H "Authorization: Bearer $TOKEN")
-FINAL_METRICS=$(echo "$CURRENT_DATASET_DETAILS" | jq -r '.result.metrics')
 
-METRICS_ADDED=0
+# THE FIX: Use `// []` to gracefully handle cases where 'metrics' is null (i.e., on a new dataset).
+# This ensures FINAL_METRICS is always a valid JSON array, not the string "null".
+CURRENT_DATASET_DETAILS=$(curl -s -X GET "$SUPERSET_URL/api/v1/dataset/$DATASET_ID?q=\{\"columns\":[\"metrics\"]}" -H "Authorization: Bearer $TOKEN")
+FINAL_METRICS=$(echo "$CURRENT_DATASET_DETAILS" | jq '.result.metrics // []')
+
+METRICS_WERE_MODIFIED=0
 for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
-    if ! echo "$FINAL_METRICS" | jq -e ".[] | select(.metric_name == \"$metric_name\")" > /dev/null; then
+    # THE FIX: A safer way to check if the metric exists in the JSON array.
+    metric_exists=$(echo "$FINAL_METRICS" | jq --arg name "$metric_name" 'any(.metric_name == $name)')
+    
+    if [[ "$metric_exists" == "false" ]]; then
         echo "    - Metric '$metric_name' not found, preparing to add it."
         expression=$(echo "$DESIRED_METRICS" | jq -r ".${metric_name}")
         verbose_name=$(echo "$metric_name" | tr '_' ' ' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1')
-        FINAL_METRICS=$(echo "$FINAL_METRICS" | jq --arg name "$metric_name" --arg expr "$expression" --arg vname "$verbose_name" '. + [{"metric_name": $name, "expression": $expr, "verbose_name": $vname}]')
-        METRICS_ADDED=1
+        
+        # Add the new metric object to our JSON array.
+        FINAL_METRICS=$(echo "$FINAL_METRICS" | jq \
+            --arg name "$metric_name" \
+            --arg expr "$expression" \
+            --arg vname "$verbose_name" \
+            '. + [{"metric_name": $name, "expression": $expr, "verbose_name": $vname}]')
+        
+        METRICS_WERE_MODIFIED=1
     else
         echo "    - Metric '$metric_name' already exists."
     fi
 done
 
-if [[ "$METRICS_ADDED" -eq 1 ]]; then
+if [[ "$METRICS_WERE_MODIFIED" -eq 1 ]]; then
     echo "    - Updating dataset with new metrics..."
     UPDATE_PAYLOAD=$(jq -n --argjson metrics "$FINAL_METRICS" '{metrics: $metrics}')
     UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" \
         -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" \
         -H "Content-Type: application/json" -d "$UPDATE_PAYLOAD")
-    if echo "$UPDATE_RESPONSE" | jq -e '.result.id' > /dev/null; then
+
+    # THE FIX: A successful PUT returns a 200 OK with a 'result' object. Check for that.
+    if echo "$UPDATE_RESPONSE" | jq -e '.result' > /dev/null; then
         echo "✅ Dataset metrics updated successfully."
     else
         echo "❌ Failed to update dataset metrics. Response: $UPDATE_RESPONSE"
