@@ -1,0 +1,10 @@
+Faker==37.4.0
+kafka_python==2.2.10
+keras==3.10.0
+matplotlib==3.10.3
+numpy==2.3.0
+pandas==2.3.0
+risingwave==0.1.1
+scikit_learn==1.7.0
+snowflake==1.5.1
+tensorflow==2.18.0
