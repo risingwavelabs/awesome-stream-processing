@@ -1,0 +1,454 @@
+---
+title: "Use Agents to analyze data ingested into RisingWave"
+---
+
+## Overview
+
+Viewing data in RisingWave can be difficult and disorganized at times. A powerful tool to level the playing field is to implement an AI Agent to receive quick and accurate information about data.
+
+Through Model Context Protocol's (MCP's) You can now easily connect any AI Agent and analyzing some data using natural language only.
+
+In this tutorial, you will learn how to implement a custom Anthropic Agent and connect it to RisingWave servers for seamless data analysis.
+
+## Prerequisites
+
+* Install and run RisingWave. For detailed instructions on how to quickly get started, see the [Quick start](/get-started/quickstart/) guide.
+* Ensure you have an [Anthropic](https://console.anthropic.com/settings/keys) API key. Do not worry about tokens, this demo shouldn't spend more than -----CHECK BEFORE PUBLISHING-----.
+* Ensure that the [PostgreSQL](https://www.postgresql.org/docs/current/app-psql.html) interactive terminal, `psql`, is installed in your environment. For detailed instructions, see [Download PostgreSQL](https://www.postgresql.org/download/).
+* Ensure that a Python environment is set up and install the [psycopg2](https://pypi.org/project/psycopg2/) library. 
+
+## Step 1: Clone the RisingWave-Agent or create the file yourself
+
+
+```python
+import os
+import sys
+import asyncio
+from contextlib import AsyncExitStack
+from dataclasses import dataclass
+from typing import Any
+from anthropic import Anthropic
+from dotenv import load_dotenv
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+load_dotenv()
+
+@dataclass
+class ModelConfig:
+    model: str = "claude-3-haiku-20240307" 
+    max_tokens: int = 1024
+    temperature: float = 1.0
+    context_window_tokens: int = 180000
+    
+class MCPConnection:
+    def __init__(self, command: str, args=None, env=None):
+        self.command = command
+        self.args = args or []
+        self.env = env
+        self.session = None
+        self._rw_ctx = None
+        self._session_ctx = None
+
+    async def __aenter__(self):
+        self._rw_ctx = stdio_client(StdioServerParameters(
+            command=self.command, args=self.args, env=self.env
+        ))
+        read, write = await self._rw_ctx.__aenter__()
+        self._session_ctx = ClientSession(read, write)
+        self.session = await self._session_ctx.__aenter__()
+        await self.session.initialize()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        try:
+            if self._session_ctx:
+                await self._session_ctx.__aexit__(exc_type, exc_val, exc_tb)
+            if self._rw_ctx:
+                await self._rw_ctx.__aexit__(exc_type, exc_val, exc_tb)
+        except Exception as e:
+            print(f"Error during cleanup: {e}")
+        finally:
+            self.session = None
+            self._session_ctx = None
+            self._rw_ctx = None
+
+    async def list_tools(self) -> Any:
+        response = await self.session.list_tools()
+        return response.tools
+
+    async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> Any:
+        return await self.session.call_tool(tool_name, arguments=arguments)
+
+class RisingWaveAgent:
+    def __init__(self, system: str, mcp_command: str, mcp_args=None, mcp_env=None, config: ModelConfig | None = None, verbose: bool = False):
+        self.system = system
+        self.config = config or ModelConfig()
+        self.verbose = verbose
+        self.client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+        self.mcp_command = mcp_command
+        self.mcp_args = mcp_args or []
+        self.mcp_env = mcp_env or None
+
+    async def run_async(self, user_input: str) -> str:
+        async with AsyncExitStack() as stack:
+            mcp = await stack.enter_async_context(MCPConnection(
+                command=self.mcp_command,
+                args=self.mcp_args,
+                env=self.mcp_env
+            ))
+            # List available tools
+            tools = await mcp.list_tools()
+            tool_dict = {tool.name: tool for tool in tools}
+
+            # Prepare the Claude messages API call
+            response = self.client.messages.create(
+                model=self.config.model,
+                max_tokens=self.config.max_tokens,
+                temperature=self.config.temperature,
+                system=self.system,
+                messages=[{"role": "user", "content": user_input}],
+                tools=[
+                    {
+                        "name": tool.name,
+                        "description": getattr(tool, "description", ""),
+                        "input_schema": getattr(tool, "inputSchema", {}),
+                    }
+                    for tool in tools
+]
+            )
+
+            tool_calls = [block for block in response.content if block.type == "tool_use"]
+            if tool_calls:
+                tool_results = []
+                for call in tool_calls:
+                    try:
+                        result = await mcp.call_tool(call.name, call.input)
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": call.id,
+                            "content": str(result)
+                        })
+                    except Exception as e:
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": call.id,
+                            "content": f"Error executing tool: {str(e)}",
+                            "is_error": True
+                        })
+
+                final_response = self.client.messages.create(
+                    model=self.config.model,
+                    max_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                    system=self.system,
+                    messages=[
+                        {"role": "user", "content": user_input},
+                        {"role": "assistant", "content": [
+                            {
+                                "type": "tool_use",
+                                "id": call.id,
+                                "name": call.name,
+                                "input": call.input
+                            } for call in tool_calls
+                        ]},
+                        {"role": "user", "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": result["tool_use_id"],
+                                "content": result["content"]
+                            } for result in tool_results
+                        ]}
+                    ],
+                    tools=[
+                        {
+                            "name": tool.name,
+                            "description": getattr(tool, "description", ""),
+                            "input_schema": getattr(tool, "inputSchema", {}),
+                        }
+                        for tool in tools
+                    ]
+                )
+                final_text = "".join(block.text for block in final_response.content if hasattr(block, "text"))
+                tool_output = "\n".join(result["content"] for result in tool_results if result["content"].strip())
+                if tool_output and tool_output in final_text:
+                    return final_text
+               
+                if not final_text.strip() and tool_output:
+                    return f"Here is the result:\n{tool_output}"
+       
+                if tool_output:
+                    return f"{final_text}\n\nHere is the result you requested:\n{tool_output}"
+                return final_text
+            else:
+                return "".join(block.text for block in response.content if hasattr(block, "text"))
+
+    def run(self, user_input: str) -> str:
+        return asyncio.run(self.run_async(user_input))
+
+if __name__ == "__main__":
+    system_prompt = """You are an assistant to a Rising Wave database. Use tools when needed to answer questions about the database.\nBe concise, accurate, and only use tools when necessary."""
+    mcp_command = "python"
+    mcp_args = [os.path.join("risingwave-mcp", "src", "main.py")]
+    agent = RisingWaveAgent(
+    system=system_prompt,
+    mcp_command=mcp_command,
+    mcp_args=mcp_args,
+    mcp_env=os.environ.copy(), 
+    verbose=False
+)
+    print("\nRisingWave Agent Interactive Mode")
+    print("Type 'exit' or 'quit' to end the session")
+    print("----------------------------------------")
+
+    while True:
+        try:
+            user_input = input("\nEnter your query: ").strip()
+            if user_input.lower() in ['exit', 'quit']:
+                print("\nEnding session. Goodbye!")
+                break
+            if not user_input:
+                continue
+            response = agent.run(user_input)
+            print("\n", response)
+        except KeyboardInterrupt:
+            print("\n\nSession interrupted. Goodbye!")
+            break
+        except Exception as e:
+            print(f"\nAn error occurred: {str(e)}")
+            print("Please try again with a different query.")
+```
+
+Now that you have the script prepared, you must configure your .env file. Create one now and enter your Anthropic API key where needed
+```python
+ANTHROPIC_API_KEY=<YOUR-API-KEY-HERE>
+RISINGWAVE_HOST=0.0.0.0
+RISINGWAVE_USER=root
+RISINGWAVE_PASSWORD=root
+RISINGWAVE_PORT=4566
+RISINGWAVE_DATABASE=dev
+RISINGWAVE_SSLMODE=disable
+RISINGWAVE_TIMEOUT=30
+````
+
+Use the SQL statement below to connect RisingWave to the built-in load generator.
+
+## Syntax
+
+```sql
+CREATE TABLE source_name ( column_name data_type, ... )
+WITH (
+   connector = ' datagen ',
+   fields.column_name.column_parameter = ' value ', ...  -- Configure the generator for each column. See detailed information below.
+   datagen.rows.per.second = ' rows_integer '  -- Specify how many rows of records to generate every second. For example, '20'.
+) FORMAT PLAIN ENCODE JSON;
+```
+
+### `WITH` options - _`columnparameter`_[]
+
+The following table shows the data types that can be generated for each load generator type.
+
+| Generator \\ Data | Number | Timestamp | Timestamptz | Varchar | Struct | Array |
+| :---------------- | :----- | :-------- | :---------- | :------ | :----- | :---- |
+| **Sequence**      | <Icon icon="check"  iconType="solid"/>      | <Icon icon="xmark"  iconType="solid"/>         | <Icon icon="xmark"  iconType="solid"/>           | <Icon icon="xmark"  iconType="solid"/>       | <Icon icon="check"  iconType="solid"/>      | <Icon icon="check"  iconType="solid"/>     |
+| **Random**        | <Icon icon="check"  iconType="solid"/>      | <Icon icon="check"  iconType="solid"/>         | <Icon icon="check"  iconType="solid"/>           | <Icon icon="check"  iconType="solid"/>       | <Icon icon="check"  iconType="solid"/>      | <Icon icon="check"  iconType="solid"/>     |
+
+Select the type of data to be generated.
+<Tabs>
+<Tab title="Number">
+
+<Tabs>
+<Tab title="Sequence">
+The sequence load generator can generate numbers, incremented by 1, from the starting number to the ending number. For example, `1`, `2`, `3`, ... and `1.56`, `2.56`, `3.56`, ...
+
+Specify the following fields for every column.
+
+| column\_parameter | Description       | Value                 | Required?            |
+| :---------------- | :---------------- | :-------------------- | :------------------- |
+| kind              | Generator type.    | Set to `sequence`.    | False. Default: `random` |
+| start             | Starting number must be smaller than the ending number. | Any number of the column data type. Example: `50`  | False. Default: `0`      |
+| end               | Ending number must be larger than the starting number.  | Any number of the column data type. Example: `100` | False. Default: `32767`  |
+
+</Tab>
+<Tab title="Random">
+The random number generator produces random numbers within a certain range.
+
+Specify the following fields for every column in the source you are creating.
+
+| column\_parameter | Description             | Value              | Required?              |
+| :---------------- | :---------------------- | :----------------- | :--------------------- |
+| kind              | Generator type.          | Set to random.     | False. Default: `random`|
+| min               | The minimum number can be generated. Must be smaller than the maximum number.       | Any number of the column data type. Example: `50`  | False. Default: `0`                                                       |
+| max               | The maximum number can be generated. Must be larger than the minimum number.        | Any number of the column data type. Example: `100` | False. Default: `32767`                                                   |
+| seed              | A seed number that initializes the random load generator. The sequence of the generated numbers is determined by the seed value. If given the same seed number, the generator will produce the same sequence of numbers. | A positive integer. Example: `3`     | False. If not specified, a fixed sequence of numbers will be generated. |
+
+</Tab>
+</Tabs>
+</Tab>
+<Tab title="Timestamp and Timestamptz">
+
+The random timestamp and timestamptz generator produces random timestamps and timestamps with time zone, respectively, earlier than the current date and time or the source creation time.
+
+Specify the following fields for every column in the source you are creating.
+
+| column\_parameter | Description      | Value          | Required?          |
+| :---------------- | :--------------- | :------------- | :----------------- |
+| kind              | Generator type.    | Set to `random`. | False. Default: `random`  |
+| max\_past         | Specify the maximum deviation from the baseline timestamp or timestamptz to determine the earliest possible timestamp or timestamptz that can be generated.     | An [interval](/sql/data-types/overview). Example: `2h 37min`   | False. Default: `1 day`  |
+| max\_past\_mode   | Specify the baseline timestamp or timestamptz. The range for generated timestamps or timestamptzs is \[base time - `max_past`, base time\]                                                                                                                    | `absolute` — The base time is set to the execution time of the generator. The base time is fixed for each generation. `relative` — The base time is the system time obtained each time a new record is generated. | False. Default: `absolute`   |
+| basetime          | If set, the generator will ignore max\_past\_mode and use the specified time as the base time.   | A [date and time string](https://docs.rs/chrono/latest/chrono/struct.DateTime.html#method.parse%5Ffrom%5Frfc3339). Example: `2023-04-01T16:39:57-08:00`   | False. Default: generator execution time                                                                                    |
+| seed              | A seed number that initializes the random load generator. The sequence of the generated timestamps or timestamptzs is determined by the seed value. If given the same seed number, the generator will produce the same sequence of timestamps or timestamptzs. | A positive integer. Example: `3`       | False. If not specified, a fixed sequence of timestamps or timestamptzs will be generated (if the system time is constant). |
+
+</Tab>
+    <Tab title="Varchar">
+
+
+The random varchar generator produces random combination of uppercase and lowercase letters and numbers.
+
+Specify the following fields for every column in the source you are creating.
+
+| column\_parameter | Description          | Value          | Required?        |
+| :---------------- | :---------------- | :---------------- | :---------------- |
+| kind              | Generator type.      | Set to `random`.    | False. Default: `random` |
+| length            | The length of the varchar to be generated. | A positive integer. Example: `16` | False. Default: 10    |
+| seed              | A seed number that initializes the random load generator. The sequence of the generated characters is determined by the seed value. If given the same seed number, the generator will produce the same sequence of characters. | A positive integer. Example: `3`  | False. If not specified, a fixed sequence of characters will be generated. |
+
+</Tab>
+    <Tab title="Struct">
+The generator supports generating data in a [struct](/sql/data-types/struct). A column of `struct` type can contain multiple nested columns of different types.
+
+The following statement creates a load generator source which contains one column, `v1`. `v1` consists of two nested columns `v2` and `v3`.
+
+```
+CREATE TABLE s1 (v1 struct<v2 int, v3 double>)
+WITH (
+     connector = 'datagen',
+     fields.v1.v2.kind = 'sequence',
+     fields.v1.v2.start = '-10',
+     fields.v1.v3.kind = 'sequence',
+     fields.v1.v3.start = '1.5',
+     datagen.rows.per.second = '5'
+ ) FORMAT PLAIN ENCODE JSON;
+
+```
+
+<Note>
+You need to configure each nested column in the struct. Select other tabs according to the data type of the nested columns for information on column parameters.
+
+When you configure a nested column, use `column.nested_column` to specify it. For example, `v1.v2` and `v1.v3` in the `WITH` clause above.
+</Note>
+
+</Tab>
+<Tab title="Array">
+The generator supports generating data in an [array](/sql/data-types/array-type). An array is a list of elements of the same type. Append `[]` to the data type of the column when creating the source.
+
+The following statement creates a load generator source which contains one column, `c1`. `c1` is an array of `varchar`.
+
+```sql
+CREATE TABLE s1 (c1 varchar [])
+WITH (
+     connector = 'datagen',
+     fields.c1.length = '3',
+     fields.c1._.kind = 'random',
+     fields.c1._.length = '1',
+     fields.c1._.seed = '3',
+     datagen.rows.per.second = '10'
+ ) FORMAT PLAIN ENCODE JSON;
+```
+
+<Note>
+You need to specify the number of elements in the array in the `WITH` clause. `fields.c1.length = '3'` in the example above means that `c1` is an array of three elements.
+
+When you configure the elements in an array, use `column._` to specify them. For example, `c1._` in the `WITH` clause above.
+Select other tabs according to the data type of the array for information on column parameters.
+
+</Note>
+If you want to generate an array of struct, your statement should look like the following.
+
+```sql
+CREATE TABLE s1 (v1 struct<v2 int> [])
+WITH (
+    connector = 'datagen',
+    fields.v1.length = '2',
+    fields.v1._.v2.kind = 'random',
+    fields.v1._.v2.min = '1',
+    fields.v1._.v2.max = '2',
+    fields.v1._.v2.seed = '1',
+    datagen.rows.per.second = '10'
+) FORMAT PLAIN ENCODE JSON;
+```
+
+</Tab>
+
+</Tabs>
+
+
+
+
+
+## Example
+
+Here is an example of connecting RisingWave to the built-in load generator.
+
+The following statement creates a source `s1` with five columns:
+
+* `i1` — An array of three integers starting from 1 and incrementing by 1
+* `v1` — Structs that contain random integers `v2` ranging from -10 to 10 and random floating-point numbers `v3` ranging from 15 to 55
+* `t1` — Random timestamps from as early as 2 hours as 37 minutes prior to the generator execution time
+* `z1` \- Random timestamps with timezones from as early as 2 hours as 37 minutes prior to the generator execution time
+* `c1` — Random strings with each consists of 16 characters
+
+```sql
+CREATE TABLE s1 (i1 int [], v1 struct<v2 int, v3 double>, t1 timestamp, z1 timestamptz, c1 varchar)
+WITH (
+     connector = 'datagen',
+
+     fields.i1.length = '3',
+     fields.i1._.kind = 'sequence',
+     fields.i1._.start = '1',
+
+     fields.v1.v2.kind = 'random',
+     fields.v1.v2.min = '-10',
+     fields.v1.v2.max = '10',
+     fields.v1.v2.seed = '1',
+
+     fields.v1.v3.kind = 'random',
+     fields.v1.v3.min = '15',
+     fields.v1.v3.max = '55',
+     fields.v1.v3.seed = '1',
+
+     fields.t1.kind = 'random',
+     fields.t1.max_past = '2h 37min',
+     fields.t1.max_past_mode = 'relative',
+     fields.t1.seed = '3',
+
+     fields.z1.kind = 'random',
+     fields.z1.max_past = '2h 37min',
+     fields.z1.max_past_mode = 'relative',
+     fields.z1.seed = '3',
+
+     fields.c1.kind = 'random',
+     fields.c1.length = '16',
+     fields.c1.seed = '3',
+
+     datagen.rows.per.second = '10'
+ ) FORMAT PLAIN ENCODE JSON;
+```
+Now that you are connected to the data generator you can run the agent with:
+
+```bash
+python risingwave-agent.py
+```
+
+You are now connected to the RisingWave agent! Now let's do some basic data analysis with the example above.
+
+1. Give me the database version
+
+2. Show me the schema of the table s1.
+
+3. Show me the first 20 rows from the s1 table, ordered by the i1 array column.
+
+Feel free to experiment with more prompts and try out with your own data! Similarly, you can use any of the [demos](https://github.com/risingwavelabs/awesome-stream-processing/tree/main/02-simple-demos) in the and test the streaming data in those directories.
+
+When you are done you can have the agent drop the s1 table or just close the terminal.
+
