@@ -1,375 +1,457 @@
 #!/bin/bash
 
-# Exit on any error
 set -e
 
-# Wait for Superset to be ready
-echo "⏳ Waiting for Superset API..."
-until curl -s http://localhost:8088/api/v1/ping > /dev/null; do
+# --- Configuration ---
+SUPERSET_URL="${SUPERSET_URL:-http://localhost:8088}"
+SUPERSET_USERNAME="${SUPERSET_USERNAME:-admin}"
+SUPERSET_PASSWORD="${SUPERSET_PASSWORD:-admin}"
+
+DB_NAME="Postgres_Market_Data"
+SQLALCHEMY_URI="postgresql://pguser:pgpass@postgres:5432/pgdb"
+
+DATASET_TABLE_NAME="avg_price_bid_ask_spread" # Your materialized view name
+DATASET_NAME="Avg Price Bid Ask Spread Data" # Friendly name for Superset Dataset
+
+CHART_1_NAME="Average Price and Bid-Ask Spread Over Time" # Line chart
+CHART_2_NAME="Bid-Ask Spread Distribution" # Bar chart
+
+DASHBOARD_TITLE="Market Data Analysis Dashboard"
+
+# --- Pre-requisite Checks ---
+if ! command -v curl &> /dev/null; then
+    echo "Error: 'curl' is not installed. Please install it to run this script."
+    exit 1
+fi
+if ! command -v jq &> /dev/null; then
+    echo "Error: 'jq' is not installed. Please install it to run this script (e.g., sudo apt-get install jq)."
+    exit 1
+fi
+
+# --- 1. Wait for Superset to be ready ---
+echo "⏳ Waiting for Superset API to be responsive at $SUPERSET_URL..."
+until curl -s "$SUPERSET_URL/api/v1/ping" &> /dev/null; do
+  printf "."
   sleep 5
 done
-echo "✅ Superset API is up!"
+echo -e "\n✅ Superset API is up!"
 
-# Log in to Superset and get the access token
-echo "🔐 Logging in to Superset..."
-LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8088/api/v1/security/login \
+# --- 2. Log in to Superset and get the access token and CSRF token ---
+echo "🔐 Logging in to Superset as $SUPERSET_USERNAME..."
+LOGIN_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/security/login" \
   -H 'Content-Type: application/json' \
-  -d '{"username": "admin", "password": "admin", "provider": "db"}')
+  -d '{
+    "username": "'"$SUPERSET_USERNAME"'",
+    "password": "'"$SUPERSET_PASSWORD"'",
+    "provider": "db"
+  }')
 
-TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.access_token')
+TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.access_token // empty')
 
-if [[ "$TOKEN" == "null" || -z "$TOKEN" ]]; then
+if [[ -z "$TOKEN" ]]; then
   echo "❌ Failed to authenticate with Superset."
   echo "Login response: $LOGIN_RESPONSE"
   exit 1
 fi
+echo "🔑 Successfully logged in and got access token."
 
-echo "🔑 Got access token."
-
-# Check for existing databases
-DB_RESPONSE=$(curl -s -X GET http://localhost:8088/api/v1/database/ \
+# Get CSRF token for subsequent POST/PUT requests
+echo "🔑 Getting CSRF token..."
+CSRF_RESPONSE=$(curl -s "$SUPERSET_URL/api/v1/security/csrf_token/" \
   -H "Authorization: Bearer $TOKEN")
-DB_COUNT=$(echo "$DB_RESPONSE" | jq '.count')
+CSRF_TOKEN=$(echo "$CSRF_RESPONSE" | jq -r '.result // empty')
 
-if [[ "$DB_COUNT" == "0" ]]; then
-  echo "🗄️ Creating PostgreSQL database connection..."
-  CREATE_DB_RESPONSE=$(curl -s -X POST http://localhost:8088/api/v1/database/ \
-    -H "Authorization: Bearer $TOKEN" \
-    -H "Content-Type: application/json" \
-    -d '{
-      "database_name": "postgres_db",
-      "sqlalchemy_uri": "postgresql://pguser:pgpass@postgres:5432/pgdb"
-    }')
-  DB_ID=$(echo "$CREATE_DB_RESPONSE" | jq -r '.id // empty')
-else
-  # Use the ID of the first existing database
-  DB_ID=$(echo "$DB_RESPONSE" | jq -r '.result[0].id')
-fi
-
-if [[ -z "$DB_ID" || "$DB_ID" == "null" ]]; then
-  echo "❌ Failed to find or create a database ID."
-  echo "Database response: $DB_RESPONSE"
+if [[ -z "$CSRF_TOKEN" ]]; then
+  echo "❌ Failed to get CSRF token."
+  echo "CSRF response: $CSRF_RESPONSE"
   exit 1
 fi
+echo "✅ Got CSRF token."
 
-echo "🗃️ Using database ID: $DB_ID"
 
-# --- START: Dataset Creation/Lookup ---
-DATASET_NAME="avg_price_sink"
-echo "📊 Checking for existing dataset '$DATASET_NAME'..."
+# --- 3. Add/Get Database Connection ---
+echo "--- Managing Database Connection ---"
+DB_ID=""
+DATABASES_RESPONSE=$(curl -s -X GET "$SUPERSET_URL/api/v1/database/" \
+  -H "Authorization: Bearer $TOKEN")
 
-# Construct the filter for the dataset lookup
-DATASET_FILTER=$(jq -n \
-  --arg db_id "$DB_ID" \
-  --arg table_name "$DATASET_NAME" \
+# Check if the database already exists
+DB_ID=$(echo "$DATABASES_RESPONSE" | jq -r '.result[] | select(.database_name == "'"$DB_NAME"'") | .id // empty')
+
+if [[ -z "$DB_ID" ]]; then
+  echo "🗄️ Database '$DB_NAME' not found. Creating it..."
+  CREATE_DB_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/database/" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "X-CSRFToken: $CSRF_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "database_name": "'"$DB_NAME"'",
+      "sqlalchemy_uri": "'"$SQLALCHEMY_URI"'",
+      "expose_in_sqllab": true,
+      "allow_run_as_db_user": false,
+      "allow_ctas": false,
+      "allow_cvas": false,
+      "extra": "{\"engine_params\": {\"connect_args\": {\"options\": \"-csearch_path=public\"}}}"
+    }')
+  DB_ID=$(echo "$CREATE_DB_RESPONSE" | jq -r '.id // empty')
+  if [[ -z "$DB_ID" ]]; then
+    echo "❌ Failed to create database '$DB_NAME'. Response: $CREATE_DB_RESPONSE"
+    exit 1
+  fi
+  echo "✅ Database '$DB_NAME' created with ID: $DB_ID"
+else
+  echo "✅ Database '$DB_NAME' already exists with ID: $DB_ID"
+fi
+
+# --- 4. Add/Get Dataset ---
+echo "--- Managing Dataset '$DATASET_NAME' ---"
+DATASET_ID=""
+# Filter query for dataset lookup
+DATASET_FILTER_Q=$(jq -n \
+  --arg table_name "$DATASET_TABLE_NAME" \
+  --argjson db_id "$DB_ID" \
   '{ "filters": [
       { "col": "table_name", "opr": "eq", "value": $table_name },
       { "col": "database_id", "opr": "eq", "value": ($db_id | tonumber) }
     ]
   }' | jq -Rs '{"q": .}' ) # Wrap in {"q": ...} and stringify for the query parameter
 
-GET_DATASET_RESPONSE=$(curl -s -G "http://localhost:8088/api/v1/dataset/" \
+GET_DATASET_RESPONSE=$(curl -s -G "$SUPERSET_URL/api/v1/dataset/" \
   -H "Authorization: Bearer $TOKEN" \
-  --data-urlencode "$DATASET_FILTER")
+  --data-urlencode "$DATASET_FILTER_Q")
 
 DATASET_ID=$(echo "$GET_DATASET_RESPONSE" | jq -r '.result[0].id // empty')
 
-if [[ -z "$DATASET_ID" || "$DATASET_ID" == "null" ]]; then
+if [[ -z "$DATASET_ID" ]]; then
   echo "➡️ Dataset '$DATASET_NAME' not found, creating it..."
-  CREATE_DATASET_RESPONSE=$(curl -s -X POST http://localhost:8088/api/v1/dataset/ \
-    -H "Authorization: Bearer $TOKEN" \
-    -H "Content-Type: application/json" \
-    -d '{
-      "database": '"$DB_ID"',
-      "schema": "public",
-      "table_name": "'"$DATASET_NAME"'"
+  CREATE_DATASET_PAYLOAD=$(jq -n \
+    --argjson db_id "$DB_ID" \
+    --arg table_name "$DATASET_TABLE_NAME" \
+    '{
+      database_id: ($db_id | tonumber),
+      table_name: $table_name,
+      schema: "public",
+      explore: false,
+      owners: [1] # Assuming admin user ID is 1
     }')
+  CREATE_DATASET_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/dataset/" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "X-CSRFToken: $CSRF_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "$CREATE_DATASET_PAYLOAD")
   DATASET_ID=$(echo "$CREATE_DATASET_RESPONSE" | jq -r '.id // empty')
-  if [[ -z "$DATASET_ID" || "$DATASET_ID" == "null" ]]; then
-    echo "❌ Failed to create dataset. Response:"
-    echo "$CREATE_DATASET_RESPONSE"
+  if [[ -z "$DATASET_ID" ]]; then
+    echo "❌ Failed to create dataset '$DATASET_NAME'. Response: $CREATE_DATASET_RESPONSE"
     exit 1
   fi
-  echo "📈 Created dataset with ID: $DATASET_ID"
+  echo "✅ Dataset '$DATASET_NAME' created with ID: $DATASET_ID"
 else
   echo "✅ Dataset '$DATASET_NAME' already exists with ID: $DATASET_ID"
 fi
-# --- END: Dataset Creation/Lookup ---
 
+# --- 5. Add Metrics to Dataset ---
+echo "--- Checking and adding necessary metrics to dataset '$DATASET_NAME' ---"
 
-# --- START: Add Metrics to Dataset ---
-echo "➕ Checking and adding necessary metrics to dataset..."
-
-# Get current dataset details including columns and existing metrics
-CURRENT_DATASET_DETAILS=$(curl -s -X GET "http://localhost:8088/api/v1/dataset/$DATASET_ID" \
+CURRENT_DATASET_DETAILS=$(curl -s -X GET "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" \
   -H "Authorization: Bearer $TOKEN")
 
 # Extract existing column names
-EXISTING_COLUMN_NAMES=$(echo "$CURRENT_DATASET_DETAILS" | jq -r '.result.columns[]?.column_name // empty')
+EXISTING_COLUMN_NAMES=$(echo "$CURRENT_DATASET_DETAILS" | jq -r '.result.columns[]?.column_name // empty' | tr '\n' ' ')
 
-# Initialize the array that will hold the *final* set of metrics to send in the PUT request
-# Start with existing metrics. Default to empty array if none exist, or if metrics_dict is null.
+# Initialize the array that will hold the *final* set of metrics
 FINAL_METRICS_PAYLOAD=$(echo "$CURRENT_DATASET_DETAILS" | jq -r '(.result.metrics_dict // {}) | to_entries | map(.value)')
-
 METRICS_ADDED_THIS_RUN=0
 
-# Helper function to check if a metric name already exists in the FINAL_METRICS_PAYLOAD array
-metric_exists_in_final_payload() {
+# Helper function to check if a column exists
+column_exists() {
+  local col_name="$1"
+  [[ " $EXISTING_COLUMN_NAMES " =~ " $col_name " ]]
+}
+
+# Helper function to check if a metric exists in the current payload
+metric_exists_in_payload() {
   local metric_name_to_check="$1"
-  # Use -e flag for jq to return non-zero exit code if no match is found
-  echo "$FINAL_METRICS_PAYLOAD" | jq -e ".[] | select(.metric_name == \"$metric_name_to_check\")" > /dev/null
+  echo "$FINAL_METRICS_PAYLOAD" | jq -e ".[] | select(.metric_name == \"$metric_name_to_check\")" &> /dev/null
 }
 
-# Helper function to check if a column exists in the dataset
-column_exists_in_dataset() {
-  local column_name_to_check="$1"
-  echo "$EXISTING_COLUMN_NAMES" | grep -q "^$column_name_to_check$"
-}
+# Define desired metrics and add if missing
+declare -A DESIRED_METRICS
+DESIRED_METRICS["average_price"]="AVG(average_price)"
+DESIRED_METRICS["bid_ask_spread"]="AVG(bid_ask_spread)" # Changed to AVG for consistency in comparison
+DESIRED_METRICS["count"]="COUNT(*)" # Default 'count' metric
 
-# Check and add 'average_price' metric
-if column_exists_in_dataset "average_price"; then
-  if ! metric_exists_in_final_payload "average_price"; then
-    echo "    - 'average_price' metric not found, adding it."
-    FINAL_METRICS_PAYLOAD=$(echo "$FINAL_METRICS_PAYLOAD" | jq '. + [{"metric_name": "average_price", "expression": "AVG(average_price)", "verbose_name": "Average Price"}]')
+for metric_name in "${!DESIRED_METRICS[@]}"; do
+  metric_expression="${DESIRED_METRICS[$metric_name]}"
+  
+  if ! column_exists "$metric_name" && [[ "$metric_name" != "count" ]]; then
+    echo "    ⚠️ Warning: Column '$metric_name' not found in dataset. Skipping '$metric_name' metric creation."
+    continue
+  fi
+
+  if ! metric_exists_in_payload "$metric_name"; then
+    echo "    - Metric '$metric_name' not found, adding it."
+    # Use a case statement or if-elif for verbose_name if needed, otherwise default to metric_name
+    local_verbose_name=""
+    if [[ "$metric_name" == "average_price" ]]; then
+        local_verbose_name="Average Price"
+    elif [[ "$metric_name" == "bid_ask_spread" ]]; then
+        local_verbose_name="Bid Ask Spread"
+    elif [[ "$metric_name" == "count" ]]; then
+        local_verbose_name="Count"
+    fi
+
+    FINAL_METRICS_PAYLOAD=$(echo "$FINAL_METRICS_PAYLOAD" | jq \
+      --arg name "$metric_name" \
+      --arg expr "$metric_expression" \
+      --arg vname "$local_verbose_name" \
+      '. + [{"metric_name": $name, "expression": $expr, "verbose_name": $vname}]')
     METRICS_ADDED_THIS_RUN=$((METRICS_ADDED_THIS_RUN + 1))
   else
-    echo "    - 'average_price' metric already exists."
+    echo "    - Metric '$metric_name' already exists."
   fi
-else
-  echo "    ⚠️ Warning: Column 'average_price' not found in dataset. Skipping 'average_price' metric creation."
-fi
+done
 
-# Check and add 'bid_ask_spread' metric
-if column_exists_in_dataset "bid_ask_spread"; then
-  if ! metric_exists_in_final_payload "bid_ask_spread"; then
-    echo "    - 'bid_ask_spread' metric not found, adding it (as SUM for flexibility)."
-    FINAL_METRICS_PAYLOAD=$(echo "$FINAL_METRICS_PAYLOAD" | jq '. + [{"metric_name": "bid_ask_spread", "expression": "SUM(bid_ask_spread)", "verbose_name": "Bid Ask Spread Sum"}]')
-    METRICS_ADDED_THIS_RUN=$((METRICS_ADDED_THIS_RUN + 1))
-  else
-    echo "    - 'bid_ask_spread' metric already exists."
-  fi
-else
-  echo "    ⚠️ Warning: Column 'bid_ask_spread' not found in dataset. Skipping 'bid_ask_spread' metric creation."
-fi
-
-# Check and add 'count' metric (COUNT(*))
-if ! metric_exists_in_final_payload "count"; then
-  echo "    - 'count' metric not found, adding it."
-  FINAL_METRICS_PAYLOAD=$(echo "$FINAL_METRICS_PAYLOAD" | jq '. + [{"metric_name": "count", "expression": "COUNT(*)", "verbose_name": "Count"}]')
-  METRICS_ADDED_THIS_RUN=$((METRICS_ADDED_THIS_RUN + 1))
-else
-  echo "    - 'count' metric already exists."
-fi
-
-# Prepare the payload to update the dataset with the *complete and de-duplicated* list of metrics
-UPDATE_DATASET_PAYLOAD=$(jq -n \
-  --argjson metrics "$FINAL_METRICS_PAYLOAD" \
-  '{ metrics: $metrics }')
-
-# Only send update request if new metrics were identified to add in this run,
-# or if it's the first run and we're setting up the initial metrics.
-# This prevents unnecessary PUT requests if metrics are already correctly set.
+# Only send update request if new metrics were added or if it's the initial setup
 if [[ "$METRICS_ADDED_THIS_RUN" -gt 0 || $(echo "$CURRENT_DATASET_DETAILS" | jq -r '.result.metrics_dict // {} | length') == 0 ]]; then
   echo "Attempting to update dataset with merged metrics payload..."
-  UPDATE_DATASET_RESPONSE=$(curl -s -X PUT "http://localhost:8088/api/v1/dataset/$DATASET_ID" \
+  UPDATE_DATASET_PAYLOAD=$(jq -n \
+    --argjson metrics "$FINAL_METRICS_PAYLOAD" \
+    '{ metrics: $metrics }')
+
+  UPDATE_DATASET_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" \
     -H "Authorization: Bearer $TOKEN" \
+    -H "X-CSRFToken: $CSRF_TOKEN" \
     -H "Content-Type: application/json" \
     -d "$UPDATE_DATASET_PAYLOAD")
 
-  if echo "$UPDATE_DATASET_RESPONSE" | jq -e '.id' > /dev/null; then
+  if echo "$UPDATE_DATASET_RESPONSE" | jq -e '.id' &> /dev/null; then
     echo "✅ Dataset updated successfully with new metrics."
   else
-    echo "❌ Failed to update dataset with metrics. Response:"
-    echo "$UPDATE_DATASET_RESPONSE"
+    echo "❌ Failed to update dataset with metrics. Response: $UPDATE_DATASET_RESPONSE"
     exit 1
   fi
 else
-  echo "ℹ️ No new metrics were identified to add to the dataset in this run, and existing metrics are present."
+  echo "ℹ️ No new metrics were identified to add to the dataset, or existing metrics are present."
 fi
-# --- END: Add Metrics to Dataset ---
 
 
-# First, let's get the dataset columns to identify the datetime column
-echo "🔍 Fetching dataset columns..."
-COLUMNS_RESPONSE=$(curl -s -X GET "http://localhost:8088/api/v1/dataset/$DATASET_ID" \
+# --- 6. Prepare for Chart Creation: Determine Datetime Column ---
+echo "--- Preparing Charts ---"
+DATETIME_COLUMN=""
+COLUMNS_RESPONSE=$(curl -s -X GET "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" \
   -H "Authorization: Bearer $TOKEN")
 
-# Extract datetime column (common names: timestamp, created_at, updated_at, time, date)
 DATETIME_COLUMN=$(echo "$COLUMNS_RESPONSE" | jq -r '
   .result.columns[]? |
   select(.type_generic == 2 or (.column_name // "" | test("timestamp|time|date|created_at|updated_at"; "i"))) |
   .column_name // empty' | head -1)
 
-# Determine chart type and parameters based on datetime column existence
 if [[ -z "$DATETIME_COLUMN" || "$DATETIME_COLUMN" == "null" ]]; then
-  echo "⚠️ No datetime column found. Using bar chart instead of line chart..."
-  VIZ_TYPE="dist_bar"
-  # Construct the JSON object for params directly
-  CHART_PARAMS_OBJECT='{"metrics": ["average_price"], "groupby": ["bid_ask_spread"], "adhoc_filters": []}'
-  CHART_NAME="Bid-Ask Spread vs Average Price (Bar Chart)"
+  echo "⚠️ No suitable datetime column found. Line chart might not function correctly without it."
+  echo "   Using 'timestamp' as a fallback, ensure it's a valid datetime type in your database."
+  DATETIME_COLUMN="timestamp" # Fallback
 else
-  echo "📅 Found datetime column: $DATETIME_COLUMN"
-  VIZ_TYPE="line"
-  # Construct the JSON object for params, using jq's --argjson for variables
-  CHART_PARAMS_OBJECT=$(jq -n \
-    --arg dt_col "$DATETIME_COLUMN" \
-    '{"metrics": ["average_price"], "groupby": [$dt_col], "adhoc_filters": [], "time_range": "No filter", "granularity_sqla": $dt_col}')
-  CHART_NAME="Average Price Over Time"
+  echo "✅ Found datetime column: '$DATETIME_COLUMN'"
 fi
 
-# --- START: Chart 1 Creation/Lookup ---
-echo "📉 Checking for existing chart '$CHART_NAME'..."
-CHART_1_FILTER=$(jq -n \
-  --arg slice_name "$CHART_NAME" \
+
+# --- 7. Add/Get Chart 1 (Line Chart: Average Price and Bid-Ask Spread) ---
+echo "--- Managing Chart 1: '$CHART_1_NAME' ---"
+CHART_1_ID=""
+CHART_1_FILTER_Q=$(jq -n \
+  --arg slice_name "$CHART_1_NAME" \
   --argjson ds_id "$DATASET_ID" \
   '{ "filters": [
       { "col": "slice_name", "opr": "eq", "value": $slice_name },
       { "col": "datasource_id", "opr": "eq", "value": $ds_id },
       { "col": "datasource_type", "opr": "eq", "value": "table" }
     ]
-  }' | jq -Rs '{"q": .}' )
+  }' | jq -Rs '{"q": .}')
 
-GET_CHART_1_RESPONSE=$(curl -s -G "http://localhost:8088/api/v1/chart/" \
+GET_CHART_1_RESPONSE=$(curl -s -G "$SUPERSET_URL/api/v1/chart/" \
   -H "Authorization: Bearer $TOKEN" \
-  --data-urlencode "$CHART_1_FILTER")
+  --data-urlencode "$CHART_1_FILTER_Q")
 
-CHART_ID=$(echo "$GET_CHART_1_RESPONSE" | jq -r '.result[0].id // empty')
+CHART_1_ID=$(echo "$GET_CHART_1_RESPONSE" | jq -r '.result[0].id // empty')
 
-if [[ -z "$CHART_ID" || "$CHART_ID" == "null" ]]; then
-  echo "➡️ Chart '$CHART_NAME' not found, creating it..."
-  CHART_PAYLOAD=$(jq -n \
-    --arg slice_name "$CHART_NAME" \
-    --arg viz_type "$VIZ_TYPE" \
+if [[ -z "$CHART_1_ID" ]]; then
+  echo "➡️ Chart '$CHART_1_NAME' not found, creating it..."
+  # Construct the form_data JSON for the line chart
+  CHART_1_FORM_DATA=$(jq -n \
+    --arg dt_col "$DATETIME_COLUMN" \
+    '{
+      "viz_type": "line",
+      "datasource": "'"$DATASET_ID"'__table", # Superset expects this format
+      "granularity_sqla": $dt_col,
+      "time_range": "No filter",
+      "metrics": ["average_price", "bid_ask_spread"], # Use the metric names defined above
+      "groupby": ["asset_id"], # Group by asset_id to show separate lines for each asset
+      "line_interpolation": "linear",
+      "y_axis_format": ".2f",
+      "x_axis_label": "Timestamp",
+      "y_axis_label": "Value",
+      "show_brush": "on",
+      "show_legend": true,
+      "zoomable": true,
+      "stack": false,
+      "row_limit": 10000,
+      "url_params": {},
+      "extra_form_data": {}
+    }' | tostring) # Must be a string for 'params' field
+
+  CHART_1_PAYLOAD=$(jq -n \
+    --arg slice_name "$CHART_1_NAME" \
+    --arg viz_type "line" \
     --argjson datasource_id "$DATASET_ID" \
-    --argjson params_obj "$CHART_PARAMS_OBJECT" \
+    --arg params_str "$CHART_1_FORM_DATA" \
     '{
       slice_name: $slice_name,
       viz_type: $viz_type,
       datasource_id: $datasource_id,
       datasource_type: "table",
-      params: ($params_obj | tostring)
+      params: $params_str,
+      owners: [1]
     }')
-  CHART_RESPONSE=$(curl -s -X POST http://localhost:8088/api/v1/chart/ \
+  
+  CREATE_CHART_1_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/chart/" \
     -H "Authorization: Bearer $TOKEN" \
+    -H "X-CSRFToken: $CSRF_TOKEN" \
     -H "Content-Type: application/json" \
-    -d "$CHART_PAYLOAD")
-  CHART_ID=$(echo "$CHART_RESPONSE" | jq -r '.id // empty')
-
-  if [[ -z "$CHART_ID" || "$CHART_ID" == "null" ]]; then
-    echo "❌ Failed to create chart. Response:"
-    echo "$CHART_RESPONSE"
+    -d "$CHART_1_PAYLOAD")
+  
+  CHART_1_ID=$(echo "$CREATE_CHART_1_RESPONSE" | jq -r '.id // empty')
+  if [[ -z "$CHART_1_ID" ]]; then
+    echo "❌ Failed to create chart '$CHART_1_NAME'. Response: $CREATE_CHART_1_RESPONSE"
     exit 1
   fi
-  echo "📊 Created chart with ID: $CHART_ID"
+  echo "✅ Chart '$CHART_1_NAME' created with ID: $CHART_1_ID"
 else
-  echo "✅ Chart '$CHART_NAME' already exists with ID: $CHART_ID"
+  echo "✅ Chart '$CHART_1_NAME' already exists with ID: $CHART_1_ID"
 fi
-# --- END: Chart 1 Creation/Lookup ---
 
-# --- START: Chart 2 Creation/Lookup ---
-SPREAD_CHART_NAME="Bid-Ask Spread Distribution"
-echo "📊 Checking for existing chart '$SPREAD_CHART_NAME'..."
 
-CHART_2_FILTER=$(jq -n \
-  --arg slice_name "$SPREAD_CHART_NAME" \
+# --- 8. Add/Get Chart 2 (Bar Chart: Bid-Ask Spread Distribution) ---
+echo "--- Managing Chart 2: '$CHART_2_NAME' ---"
+CHART_2_ID=""
+CHART_2_FILTER_Q=$(jq -n \
+  --arg slice_name "$CHART_2_NAME" \
   --argjson ds_id "$DATASET_ID" \
   '{ "filters": [
       { "col": "slice_name", "opr": "eq", "value": $slice_name },
       { "col": "datasource_id", "opr": "eq", "value": $ds_id },
       { "col": "datasource_type", "opr": "eq", "value": "table" }
     ]
-  }' | jq -Rs '{"q": .}' )
+  }' | jq -Rs '{"q": .}')
 
-GET_CHART_2_RESPONSE=$(curl -s -G "http://localhost:8088/api/v1/chart/" \
+GET_CHART_2_RESPONSE=$(curl -s -G "$SUPERSET_URL/api/v1/chart/" \
   -H "Authorization: Bearer $TOKEN" \
-  --data-urlencode "$CHART_2_FILTER")
+  --data-urlencode "$CHART_2_FILTER_Q")
 
-SPREAD_CHART_ID=$(echo "$GET_CHART_2_RESPONSE" | jq -r '.result[0].id // empty')
+CHART_2_ID=$(echo "$GET_CHART_2_RESPONSE" | jq -r '.result[0].id // empty')
 
-if [[ -z "$SPREAD_CHART_ID" || "$SPREAD_CHART_ID" == "null" ]]; then
-  echo "➡️ Chart '$SPREAD_CHART_NAME' not found, creating it..."
-  SPREAD_CHART_PAYLOAD=$(jq -n \
-    --argjson datasource_id "$DATASET_ID" \
+if [[ -z "$CHART_2_ID" ]]; then
+  echo "➡️ Chart '$CHART_2_NAME' not found, creating it..."
+  # Construct the form_data JSON for the bar chart
+  CHART_2_FORM_DATA=$(jq -n \
     '{
-      slice_name: "Bid-Ask Spread Distribution",
-      viz_type: "dist_bar",
+      "viz_type": "dist_bar",
+      "datasource": "'"$DATASET_ID"'__table",
+      "metrics": ["count"], # Using the 'count' metric
+      "groupby": ["bid_ask_spread"], # Group by bid_ask_spread for distribution
+      "x_axis_label": "Bid-Ask Spread",
+      "y_axis_label": "Count of Records",
+      "show_legend": false,
+      "row_limit": 50,
+      "url_params": {},
+      "extra_form_data": {}
+    }' | tostring) # Must be a string for 'params' field
+
+  CHART_2_PAYLOAD=$(jq -n \
+    --arg slice_name "$CHART_2_NAME" \
+    --arg viz_type "dist_bar" \
+    --argjson datasource_id "$DATASET_ID" \
+    --arg params_str "$CHART_2_FORM_DATA" \
+    '{
+      slice_name: $slice_name,
+      viz_type: $viz_type,
       datasource_id: $datasource_id,
       datasource_type: "table",
-      params: ("{\"metrics\": [\"count\"], \"groupby\": [\"bid_ask_spread\"], \"adhoc_filters\": []}" | fromjson | tostring)
+      params: $params_str,
+      owners: [1]
     }')
-
-  SPREAD_CHART_RESPONSE=$(curl -s -X POST http://localhost:8088/api/v1/chart/ \
+  
+  CREATE_CHART_2_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/chart/" \
     -H "Authorization: Bearer $TOKEN" \
+    -H "X-CSRFToken: $CSRF_TOKEN" \
     -H "Content-Type: application/json" \
-    -d "$SPREAD_CHART_PAYLOAD")
-  SPREAD_CHART_ID=$(echo "$SPREAD_CHART_RESPONSE" | jq -r '.id // empty')
-
-  if [[ -z "$SPREAD_CHART_ID" || "$SPREAD_CHART_ID" == "null" ]]; then
-    echo "❌ Failed to create spread chart. Response:"
-    echo "$SPREAD_CHART_RESPONSE"
+    -d "$CHART_2_PAYLOAD")
+  
+  CHART_2_ID=$(echo "$CREATE_CHART_2_RESPONSE" | jq -r '.id // empty')
+  if [[ -z "$CHART_2_ID" ]]; then
+    echo "❌ Failed to create chart '$CHART_2_NAME'. Response: $CREATE_CHART_2_RESPONSE"
     exit 1
   fi
-  echo "📊 Created spread chart with ID: $SPREAD_CHART_ID"
+  echo "✅ Chart '$CHART_2_NAME' created with ID: $CHART_2_ID"
 else
-  echo "✅ Chart '$SPREAD_CHART_NAME' already exists with ID: $SPREAD_CHART_ID"
+  echo "✅ Chart '$CHART_2_NAME' already exists with ID: $CHART_2_ID"
 fi
-# --- END: Chart 2 Creation/Lookup ---
 
-# --- START: Dashboard Creation/Lookup ---
-DASHBOARD_TITLE="Market Enrichment Dashboard"
-echo "🧩 Checking for existing dashboard '$DASHBOARD_TITLE'..."
 
-DASHBOARD_FILTER=$(jq -n \
+# --- 9. Add/Get Dashboard and Add Charts to it ---
+echo "--- Managing Dashboard '$DASHBOARD_TITLE' ---"
+DASHBOARD_ID=""
+DASHBOARD_FILTER_Q=$(jq -n \
   --arg title "$DASHBOARD_TITLE" \
   '{ "filters": [ { "col": "dashboard_title", "opr": "eq", "value": $title } ] }' \
   | jq -Rs '{"q": .}')
 
-GET_DASHBOARD_RESPONSE=$(curl -s -G "http://localhost:8088/api/v1/dashboard/" \
+GET_DASHBOARD_RESPONSE=$(curl -s -G "$SUPERSET_URL/api/v1/dashboard/" \
   -H "Authorization: Bearer $TOKEN" \
-  --data-urlencode "$DASHBOARD_FILTER")
+  --data-urlencode "$DASHBOARD_FILTER_Q")
 
 DASHBOARD_ID=$(echo "$GET_DASHBOARD_RESPONSE" | jq -r '.result[0].id // empty')
 
-if [[ -z "$DASHBOARD_ID" || "$DASHBOARD_ID" == "null" ]]; then
+if [[ -z "$DASHBOARD_ID" ]]; then
   echo "➡️ Dashboard '$DASHBOARD_TITLE' not found, creating it..."
   DASHBOARD_PAYLOAD=$(jq -n \
-    --arg chart_id "$CHART_ID" \
-    --arg spread_chart_id "$SPREAD_CHART_ID" \
-    --arg chart_name "$CHART_NAME" \
+    --arg chart_1_id "$CHART_1_ID" \
+    --arg chart_2_id "$CHART_2_ID" \
+    --arg chart_1_name "$CHART_1_NAME" \
+    --arg chart_2_name "$CHART_2_NAME" \
     --arg title "$DASHBOARD_TITLE" \
     '
     {
       dashboard_title: $title,
       position_json: (
         {
-          "CHART-1": {
+          "CHART-'"$CHART_1_ID"'": {
             children: [],
-            id: "CHART-1",
+            id: "CHART-'"$CHART_1_ID"'",
             meta: {
-              chartId: ($chart_id | tonumber),
+              chartId: ($chart_1_id | tonumber),
               height: 50,
-              sliceName: $chart_name,
+              sliceName: $chart_1_name,
               uuid: "chart-1-uuid",
               width: 6
             },
-            parents: ["ROOT_ID", "GRID_ID", "ROW_ID"],
+            parents: ["ROOT_ID", "GRID_ID", "ROW_ID_1"],
             type: "CHART"
           },
-          "CHART-2": {
+          "CHART-'"$CHART_2_ID"'": {
             children: [],
-            id: "CHART-2",
+            id: "CHART-'"$CHART_2_ID"'",
             meta: {
-              chartId: ($spread_chart_id | tonumber),
+              chartId: ($chart_2_id | tonumber),
               height: 50,
-              sliceName: "Bid-Ask Spread Distribution",
+              sliceName: $chart_2_name,
               uuid: "chart-2-uuid",
               width: 6
             },
-            parents: ["ROOT_ID", "GRID_ID", "ROW_ID"],
+            parents: ["ROOT_ID", "GRID_ID", "ROW_ID_1"],
             type: "CHART"
           },
           "GRID_ID": {
-            children: ["ROW_ID"],
+            children: ["HEADER_ID", "ROW_ID_1"],
             id: "GRID_ID",
             meta: {},
             type: "GRID",
@@ -382,70 +464,79 @@ if [[ -z "$DASHBOARD_ID" || "$DASHBOARD_ID" == "null" ]]; then
             type: "ROOT",
             parents: []
           },
-          "ROW_ID": {
-            children: ["CHART-1", "CHART-2"],
-            id: "ROW_ID",
+          "ROW_ID_1": {
+            children: ["CHART-'"$CHART_1_ID"'", "CHART-'"$CHART_2_ID"'"],
+            id: "ROW_ID_1",
             meta: {
               background: "BACKGROUND_TRANSPARENT"
             },
             type: "ROW",
             parents: ["ROOT_ID", "GRID_ID"]
+          },
+          "HEADER_ID": {
+             children: [],
+             id: "HEADER_ID",
+             meta: {
+                text: $title
+             },
+             type: "HEADER",
+             parents: ["ROOT_ID", "GRID_ID"]
           }
         } | tostring
       ),
       json_metadata: "{}",
-      css: ""
+      css: "",
+      published: true,
+      owners: [1]
     }')
-
-  DASHBOARD_RESPONSE=$(curl -s -X POST http://localhost:8088/api/v1/dashboard/ \
+  
+  CREATE_DASHBOARD_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/dashboard/" \
     -H "Authorization: Bearer $TOKEN" \
+    -H "X-CSRFToken: $CSRF_TOKEN" \
     -H "Content-Type: application/json" \
     -d "$DASHBOARD_PAYLOAD")
-  DASHBOARD_ID=$(echo "$DASHBOARD_RESPONSE" | jq -r '.id // empty')
-
-  if [[ -z "$DASHBOARD_ID" || "$DASHBOARD_ID" == "null" ]]; then
-    echo "❌ Failed to create dashboard. Response:"
-    echo "$DASHBOARD_RESPONSE"
+  
+  DASHBOARD_ID=$(echo "$CREATE_DASHBOARD_RESPONSE" | jq -r '.id // empty')
+  if [[ -z "$DASHBOARD_ID" ]]; then
+    echo "❌ Failed to create dashboard '$DASHBOARD_TITLE'. Response: $CREATE_DASHBOARD_RESPONSE"
     exit 1
   fi
-  echo "🎉 Created dashboard with ID: $DASHBOARD_ID"
+  echo "✅ Created dashboard with ID: $DASHBOARD_ID"
 else
   echo "✅ Dashboard '$DASHBOARD_TITLE' already exists with ID: $DASHBOARD_ID"
 fi
-# --- END: Dashboard Creation/Lookup ---
 
-
-# Attach charts to dashboard (this is an idempotent operation - setting dashboards array)
-echo "🔗 Attaching charts to dashboard..."
-PATCH_RESPONSE1=$(curl -s -X PUT http://localhost:8088/api/v1/chart/$CHART_ID \
+# --- 10. Attach Charts to Dashboard (Idempotent: update chart's dashboards array) ---
+echo "--- Attaching charts to dashboard ---"
+PATCH_RESPONSE_CHART_1=$(curl -s -X PUT "$SUPERSET_URL/api/v1/chart/$CHART_1_ID" \
   -H "Authorization: Bearer $TOKEN" \
+  -H "X-CSRFToken: $CSRF_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "dashboards": ['"$DASHBOARD_ID"']
-  }')
+  -d '{ "dashboards": ['"$DASHBOARD_ID"'] }')
 
-PATCH_RESPONSE2=$(curl -s -X PUT http://localhost:8088/api/v1/chart/$SPREAD_CHART_ID \
+PATCH_RESPONSE_CHART_2=$(curl -s -X PUT "$SUPERSET_URL/api/v1/chart/$CHART_2_ID" \
   -H "Authorization: Bearer $TOKEN" \
+  -H "X-CSRFToken: $CSRF_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "dashboards": ['"$DASHBOARD_ID"']
-  }')
+  -d '{ "dashboards": ['"$DASHBOARD_ID"'] }')
 
-if echo "$PATCH_RESPONSE1" | jq -e '.id' > /dev/null && echo "$PATCH_RESPONSE2" | jq -e '.id' > /dev/null; then
+if echo "$PATCH_RESPONSE_CHART_1" | jq -e '.id' &> /dev/null && \
+   echo "$PATCH_RESPONSE_CHART_2" | jq -e '.id' &> /dev/null; then
   echo "✅ Charts successfully attached to dashboard!"
 else
   echo "❌ Failed to attach charts. Responses:"
-  echo "Chart 1: $PATCH_RESPONSE1"
-  echo "Chart 2: $PATCH_RESPONSE2"
+  echo "Chart 1: $PATCH_RESPONSE_CHART_1"
+  echo "Chart 2: $PATCH_RESPONSE_CHART_2"
+  exit 1
 fi
 
 echo ""
-echo "🎉 SUCCESS! Setup complete!"
+echo "🎉 SUCCESS! Superset setup complete!"
 echo "📌 Dashboard created with ID: $DASHBOARD_ID"
-echo "📊 Main chart created with ID: $CHART_ID"
-echo "📊 Spread chart created with ID: $SPREAD_CHART_ID"
-echo "📈 Dataset created with ID: $DATASET_ID"
+echo "📊 Line Chart (Average Price & Bid-Ask Spread) ID: $CHART_1_ID"
+echo "📊 Bar Chart (Bid-Ask Spread Distribution) ID: $CHART_2_ID"
+echo "📈 Dataset ID: $DATASET_ID"
 echo "🗃️ Database ID: $DB_ID"
 echo ""
-echo "🌐 Visit your dashboard:"
-echo "   http://localhost:8088/superset/dashboard/$DASHBOARD_ID/"
+echo "🌐 Visit your new dashboard:"
+echo "   $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/"
