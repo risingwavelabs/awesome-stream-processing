@@ -74,6 +74,76 @@ fi
 
 echo "📈 Created dataset with ID: $DATASET_ID"
 
+
+# --- START: Add Metrics to Dataset ---
+echo "➕ Checking and adding necessary metrics to dataset..."
+
+# Get current dataset details to check existing metrics
+CURRENT_DATASET_DETAILS=$(curl -s -X GET "http://localhost:8088/api/v1/dataset/$DATASET_ID" \
+  -H "Authorization: Bearer $TOKEN")
+
+# Initialize an array for metrics to update
+METRICS_TO_ADD='[]'
+
+# Check for 'average_price' metric
+if ! echo "$CURRENT_DATASET_DETAILS" | jq -e '.result.metrics_dict.average_price' > /dev/null; then
+  echo "    - 'average_price' metric not found, adding it."
+  METRICS_TO_ADD=$(echo "$METRICS_TO_ADD" | jq '. + [{"metric_name": "average_price", "expression": "AVG(average_price)", "verbose_name": "Average Price"}]')
+else
+  echo "    - 'average_price' metric already exists."
+fi
+
+# Check for 'bid_ask_spread' metric (though it's usually used as a dimension, sometimes needed as metric for specific charts)
+# For simplicity, let's also add it as a "SUM" metric, although it's primarily a dimension.
+# If bid_ask_spread is truly a dimension/groupby field, this specific metric might not be strictly necessary,
+# but it won't hurt to have it for flexibility.
+if ! echo "$CURRENT_DATASET_DETAILS" | jq -e '.result.metrics_dict.bid_ask_spread' > /dev/null; then
+  echo "    - 'bid_ask_spread' metric not found, adding it (as SUM for flexibility)."
+  METRICS_TO_ADD=$(echo "$METRICS_TO_ADD" | jq '. + [{"metric_name": "bid_ask_spread", "expression": "SUM(bid_ask_spread)", "verbose_name": "Bid Ask Spread Sum"}]')
+else
+  echo "    - 'bid_ask_spread' metric already exists."
+fi
+
+
+# Check for 'count' metric (COUNT(*))
+if ! echo "$CURRENT_DATASET_DETAILS" | jq -e '.result.metrics_dict.count' > /dev/null; then
+  echo "    - 'count' metric not found, adding it."
+  METRICS_TO_ADD=$(echo "$METRICS_TO_ADD" | jq '. + [{"metric_name": "count", "expression": "COUNT(*)", "verbose_name": "Count"}]')
+else
+  echo "    - 'count' metric already exists."
+fi
+
+# Prepare the payload to update the dataset with new metrics
+# We need to get existing metrics and merge with new ones
+EXISTING_METRICS=$(echo "$CURRENT_DATASET_DETAILS" | jq -r '.result.metrics_dict | to_entries | map(.value)')
+
+# Merge existing metrics with new ones, ensuring no duplicates on metric_name
+MERGED_METRICS=$(echo "$EXISTING_METRICS $METRICS_TO_ADD" | jq -s 'flatten | unique_by(.metric_name)')
+
+UPDATE_DATASET_PAYLOAD=$(jq -n \
+  --argjson metrics "$MERGED_METRICS" \
+  '{ metrics: $metrics }')
+
+# Only send update request if there are metrics to add or update
+if [[ $(echo "$METRICS_TO_ADD" | jq 'length') -gt 0 ]]; then
+  UPDATE_DATASET_RESPONSE=$(curl -s -X PUT "http://localhost:8088/api/v1/dataset/$DATASET_ID" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "$UPDATE_DATASET_PAYLOAD")
+
+  if echo "$UPDATE_DATASET_RESPONSE" | jq -e '.id' > /dev/null; then
+    echo "✅ Dataset updated successfully with new metrics."
+  else
+    echo "❌ Failed to update dataset with metrics. Response:"
+    echo "$UPDATE_DATASET_RESPONSE"
+    exit 1
+  fi
+else
+  echo "ℹ️ No new metrics to add or update for the dataset."
+fi
+# --- END: Add Metrics to Dataset ---
+
+
 # First, let's get the dataset columns to identify the datetime column
 echo "🔍 Fetching dataset columns..."
 COLUMNS_RESPONSE=$(curl -s -X GET "http://localhost:8088/api/v1/dataset/$DATASET_ID" \
@@ -141,7 +211,9 @@ SPREAD_CHART_PAYLOAD=$(jq -n \
     viz_type: "dist_bar",
     datasource_id: $datasource_id,
     datasource_type: "table",
-    params: ("{\"metrics\": [\"COUNT(*)\"], \"groupby\": [\"bid_ask_spread\"], \"adhoc_filters\": []}" | fromjson | tostring)
+    # Ensure params are stringified JSON. Here, we directly use fromjson to parse the string
+    # and then tostring to turn it back into a JSON string for the 'params' field.
+    params: ("{\"metrics\": [\"count\"], \"groupby\": [\"bid_ask_spread\"], \"adhoc_filters\": []}" | fromjson | tostring)
   }')
 
 echo "📊 Creating additional chart for bid-ask spread analysis..."
