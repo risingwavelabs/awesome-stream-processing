@@ -128,10 +128,9 @@ if [[ -z "$DATASET_ID" ]]; then
     --argjson db_id "$DB_ID" \
     --arg table_name "$DATASET_TABLE_NAME" \
     '{
-      database_id: ($db_id | tonumber),
+      database: { "id": ($db_id | tonumber) }, # Corrected: database as an object with id
       table_name: $table_name,
       schema: "public",
-      explore: false,
       owners: [1] # Assuming admin user ID is 1
     }')
   CREATE_DATASET_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/dataset/" \
