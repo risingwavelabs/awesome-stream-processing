@@ -26,8 +26,6 @@ if ! command -v curl &> /dev/null || ! command -v jq &> /dev/null; then
 fi
 
 # --- Helper Function for Idempotent Asset Creation ---
-# Usage: ID=$(get_or_create_asset "asset_type" "Asset Name" "filter_query" "create_payload_json")
-# Example: DB_ID=$(get_or_create_asset "database" "$DB_NAME" "$DB_FILTER_Q" "$CREATE_DB_PAYLOAD")
 get_or_create_asset() {
     local asset_type="$1"
     local asset_name="$2"
@@ -37,7 +35,6 @@ get_or_create_asset() {
 
     echo "--- Managing ${asset_type^}: '$asset_name' ---"
 
-    # Check if asset exists
     local get_response
     get_response=$(curl -s -G "$SUPERSET_URL/api/v1/$asset_type/" \
       -H "Authorization: Bearer $TOKEN" \
@@ -51,7 +48,6 @@ get_or_create_asset() {
         return
     fi
 
-    # If not, create it
     echo "➡️ ${asset_type^} '$asset_name' not found, creating it..."
     local create_response
     create_response=$(curl -s -X POST "$SUPERSET_URL/api/v1/$asset_type/" \
@@ -103,32 +99,27 @@ DB_ID=$(get_or_create_asset "database" "$DB_NAME" "$DB_FILTER_Q" "$CREATE_DB_PAY
 
 
 # --- 3. Create Dataset ---
+# MOVED: Filter and Payload are now defined just-in-time, ensuring $DB_ID has a value.
 DATASET_FILTER_Q="q=$(jq -n --arg name "$DATASET_TABLE_NAME" --argjson db_id "$DB_ID" '{filters:[{col:"table_name",opr:"eq",value:$name},{col:"database_id",opr:"eq",value:($db_id | tonumber)}] }')"
-# *** THIS IS THE FIX: "database" is now a direct integer, not an object. ***
 CREATE_DATASET_PAYLOAD=$(jq -n \
     --argjson db_id "$DB_ID" \
     --arg table_name "$DATASET_TABLE_NAME" \
-    --arg schema "public" \
-    '{database: ($db_id | tonumber), table_name: $table_name, schema: $schema, owners: [1]}')
+    '{database: ($db_id | tonumber), table_name: $table_name, schema: "public", owners: [1]}')
 DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD")
 
 
 # --- 4. Synchronize Dataset Columns & Add Metrics ---
 echo "--- Synchronizing columns and metrics for dataset '$DATASET_NAME' ---"
-# Trigger a column refresh to ensure metrics can be added to new columns.
 curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" > /dev/null
 
-# Define desired metrics as a JSON object for easier processing with jq
 DESIRED_METRICS=$(jq -n '{
     "average_price": "AVG(average_price)",
     "bid_ask_spread": "AVG(bid_ask_spread)",
     "count": "COUNT(*)"
 }')
-
 CURRENT_DATASET_DETAILS=$(curl -s -X GET "$SUPERSET_URL/api/v1/dataset/$DATASET_ID?q=\{\"columns\":[\"metrics\"]}" -H "Authorization: Bearer $TOKEN")
 FINAL_METRICS=$(echo "$CURRENT_DATASET_DETAILS" | jq -r '.result.metrics')
 
-# Loop through desired metrics and add them if they don't already exist
 METRICS_ADDED=0
 for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
     if ! echo "$FINAL_METRICS" | jq -e ".[] | select(.metric_name == \"$metric_name\")" > /dev/null; then
@@ -148,7 +139,7 @@ if [[ "$METRICS_ADDED" -eq 1 ]]; then
     UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" \
         -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" \
         -H "Content-Type: application/json" -d "$UPDATE_PAYLOAD")
-    if echo "$UPDATE_RESPONSE" | jq -e '.id' > /dev/null; then
+    if echo "$UPDATE_RESPONSE" | jq -e '.result.id' > /dev/null; then
         echo "✅ Dataset metrics updated successfully."
     else
         echo "❌ Failed to update dataset metrics. Response: $UPDATE_RESPONSE"
@@ -189,7 +180,6 @@ CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$C
 
 # --- 6. Create Dashboard and Add Charts ---
 DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
-# Using static UUIDs for idempotency
 POSITION_JSON=$(jq -n \
     --argjson c1_id "$CHART_1_ID" --argjson c2_id "$CHART_2_ID" \
     '{
