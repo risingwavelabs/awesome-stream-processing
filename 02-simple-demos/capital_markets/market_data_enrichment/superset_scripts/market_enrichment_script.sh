@@ -41,7 +41,7 @@ echo "📈 Created dataset with ID: $DATASET_ID"
 
 # Create chart: Bid-Ask Spread vs Average Price
 echo "📉 Creating line chart: Bid-Ask Spread vs Average Price..."
-CHART_ID=$(curl -s -X POST http://localhost:8088/api/v1/chart/ \
+CHART_RESPONSE=$(curl -s -X POST http://localhost:8088/api/v1/chart/ \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -49,10 +49,20 @@ CHART_ID=$(curl -s -X POST http://localhost:8088/api/v1/chart/ \
     "viz_type": "line",
     "datasource_id": '"$DATASET_ID"',
     "datasource_type": "table",
-    "params": "{\"metrics\": [\"average_price\"], \"x_axis\": \"bid_ask_spread\", \"row_limit\": 1000, \"time_range\": \"No filter\", \"show_legend\": true, \"show_markers\": true, \"rich_tooltip\": true, \"y_axis_format\": \".2f\", \"x_axis_format\": \".2f\"}"
-  }' | jq '.id')
+    "params": "{\"metrics\": [\"average_price\"], \"x_axis\": \"bid_ask_spread\"}"
+  }')
+
+echo "Chart creation response:"
+echo "$CHART_RESPONSE"
+
+CHART_ID=$(echo "$CHART_RESPONSE" | jq '.id')
+
 
 echo "📊 Created chart with ID: $CHART_ID"
+
+if [[ "$CHART_ID" == "null" || -z "$CHART_ID" ]]; then
+  echo "❌ Failed to create chart. Aborting."
+fi
 
 # Create dashboard with chart auto-positioned
 echo "🧩 Creating dashboard with auto-layout..."
