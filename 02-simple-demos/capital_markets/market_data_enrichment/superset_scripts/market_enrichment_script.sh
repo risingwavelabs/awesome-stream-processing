@@ -84,10 +84,18 @@ TEST_RESPONSE=$(curl -s -X POST http://localhost:8088/api/v1/database/test_conne
     "sqlalchemy_uri": "postgresql://pguser:pgpass@postgres:5432/pgdb"
   }')
 
-CONNECTION_OK=$(echo "$TEST_RESPONSE" | jq -r '.message // empty')
-if [[ "$CONNECTION_OK" != "OK" ]]; then
-  echo "⚠️ Database connection test failed: $TEST_RESPONSE"
-  echo "Continuing anyway - the table might not exist yet..."
+# Handle potential JSON parsing issues
+if echo "$TEST_RESPONSE" | jq empty 2>/dev/null; then
+  CONNECTION_OK=$(echo "$TEST_RESPONSE" | jq -r '.message // empty')
+  if [[ "$CONNECTION_OK" != "OK" ]]; then
+    echo "⚠️ Database connection test failed: $TEST_RESPONSE"
+    echo "Continuing anyway - the connection might still work..."
+  else
+    echo "✅ Database connection test passed!"
+  fi
+else
+  echo "⚠️ Database connection test returned invalid JSON: $TEST_RESPONSE"
+  echo "Continuing anyway - the connection might still work..."
 fi
 
 # Check if table exists
