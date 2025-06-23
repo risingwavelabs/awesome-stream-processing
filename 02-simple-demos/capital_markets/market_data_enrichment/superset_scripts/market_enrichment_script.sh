@@ -161,7 +161,7 @@ CHART_1_FILTER_Q="q=$(jq -n --arg name "$CHART_1_NAME" '{filters:[{col:"slice_na
 # Fixed chart parameters with proper structure
 CHART_1_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
     "viz_type": "line",
-    "datasource": ($ds_id|tostring) + "__table",
+    "datasource": "\($ds_id)__table",
     "granularity_sqla": "timestamp",
     "time_range": "No filter",
     "metrics": ["avg_price_change", "avg_rolling_volatility"],
@@ -202,7 +202,7 @@ CHART_2_FILTER_Q="q=$(jq -n --arg name "$CHART_2_NAME" '{filters:[{col:"slice_na
 
 CHART_2_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
     "viz_type": "line",
-    "datasource": ($ds_id|tostring) + "__table",
+    "datasource": "\($ds_id)__table",
     "granularity_sqla": "timestamp",
     "time_range": "No filter",
     "metrics": ["avg_sentiment", "avg_sector_performance"],
