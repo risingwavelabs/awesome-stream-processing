@@ -92,7 +92,7 @@ DATASET_FILTER_Q="q=$(jq -n --arg name "$DATASET_TABLE_NAME" --argjson db_id "$D
 CREATE_DATASET_PAYLOAD=$(jq -n --argjson db_id "$DB_ID" --arg table_name "$DATASET_TABLE_NAME" '{database: ($db_id | tonumber), table_name: $table_name, schema: "public", owners: [1]}')
 DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD")
 
-# --- 4. Add Metrics to Dataset (FINAL ATOMIC VERSION) ---
+# --- 4. Add Metrics to Dataset (FINAL DEBUGGING VERSION) ---
 echo "--- Synchronizing columns and metrics for dataset '$DATASET_NAME' ---" >&2
 
 # Trigger the refresh and then poll until columns are available.
@@ -119,33 +119,34 @@ done
 if [[ $COLUMNS_COUNT -eq 0 ]]; then echo "❌ ERROR: Dataset columns were not found after waiting." >&2; exit 1; fi
 echo "✅ Columns discovered successfully." >&2
 
-
-# --- FINAL FIX: ADD METRICS ONE BY ONE ---
+# --- ADD METRICS ONE BY ONE WITH ENHANCED DEBUGGING ---
 echo "--- Ensuring all metrics are present in dataset ---" >&2
 DESIRED_METRICS=$(jq -n '{"avg_price":"AVG(average_price)","avg_price_change":"AVG(price_change)","avg_bid_ask_spread":"AVG(bid_ask_spread)","avg_rolling_volatility":"AVG(rolling_volatility)","avg_sector_performance":"AVG(sector_performance)","avg_sentiment":"AVG(sentiment_score)"}')
 
 for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
     echo "  - Checking for metric: '$metric_name'..." >&2
     
-    # Get the CURRENT list of metrics from the server right before our check
     EXISTING_METRICS=$(curl -s -G "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" --data-urlencode 'q={"columns":["metrics"]}' -H "Authorization: Bearer $TOKEN" | jq '.result.metrics // []')
     metric_exists=$(echo "$EXISTING_METRICS" | jq --arg name "$metric_name" 'any(.metric_name == $name)')
 
     if [[ "$metric_exists" == "false" ]]; then
-        echo "    - Metric not found. Adding it now..." >&2
+        echo "    - Metric not found. Preparing to add it..." >&2
         
-        # Prepare the definition for the single new metric
         expression=$(echo "$DESIRED_METRICS" | jq -r ".${metric_name}")
         verbose_name=$(echo "$metric_name" | tr '_' ' ' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1')
         new_metric_object=$(jq -n --arg name "$metric_name" --arg expr "$expression" --arg vname "$verbose_name" '{"metric_name": $name, "expression": $expr, "verbose_name": $vname}')
         
-        # Create the new final list by adding our one new metric to the existing ones
         metrics_to_upload=$(echo "$EXISTING_METRICS" | jq --argjson new_metric "$new_metric_object" '. + [$new_metric]')
         
-        # Clean the payload to only include writeable fields, then create the final payload
         UPDATE_PAYLOAD=$(echo "$metrics_to_upload" | jq 'map({metric_name, expression, verbose_name}) | {metrics: .}')
         
-        # Perform the PUT request to add the metric
+        # --- NEW DEBUG STATEMENTS ---
+        echo "    - DEBUG: List of existing metrics fetched from API:"
+        echo "$EXISTING_METRICS" | jq .
+        echo "    - DEBUG: Final JSON payload being sent to the API:"
+        echo "$UPDATE_PAYLOAD" | jq .
+        # --- END DEBUG STATEMENTS ---
+        
         UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" -H "Content-Type: application/json" -d "$UPDATE_PAYLOAD")
         
         if echo "$UPDATE_RESPONSE" | jq -e '.result' > /dev/null; then
