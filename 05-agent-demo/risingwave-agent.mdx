@@ -17,7 +17,7 @@ If you want a reference to the full project you can clone [this](https://github.
 * Ensure that the [PostgreSQL](https://www.postgresql.org/docs/current/app-psql.html) interactive terminal, `psql`, is installed in your environment. For detailed instructions, see [Download PostgreSQL](https://www.postgresql.org/download/).
 * Ensure that a Python environment is set up and install the [psycopg2](https://pypi.org/project/psycopg2/) library. 
 
-## Step 1: Create the file 'agent.py', this will serve as a dataclass for your RisingWave agent.
+## Step 1: Create the file 'agent.py'
 
 ```python
 """Agent implementation with Claude API and MCP tools."""
@@ -466,7 +466,7 @@ class Agent:
         return asyncio.run(self.run_async(user_input))
 ```
 
-## Step 2: Create the file 'risingwave-agent.py', this will actually instance of the Agent
+## Step 2: Create the file 'risingwave-agent.py'
 
 ```python
 from agents.agent import Agent
