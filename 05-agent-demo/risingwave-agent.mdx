@@ -283,7 +283,7 @@ async def setup_mcp_connections(
     return mcp_tools, tool_functions
 ```
 
-- The above class is responsible for starting and maintaining a connection to the RisingWave MCP Server
+- This class is responsible for starting and maintaining a connection to the RisingWave MCP Server
 
 ```python
 @dataclass
@@ -294,7 +294,7 @@ class ModelConfig:
     context_window_tokens: int = 180000
 ```
 
-- Above you can edit the different configurations settings for the model
+- Here you can edit the different configurations settings for the model
 
 ```python
 class Agent:
@@ -354,7 +354,7 @@ class Agent:
         }
 ```
 
-- Above is called when you instantialize an agent. It creates the actual agent and also prepares the prior established message history.
+- This section is called when you instantialize an agent. It creates the actual agent and also prepares the prior established message history.
 
 ```python
     async def _agent_loop(self, user_input: str, tools: list[dict[str, Any]], tool_functions: dict[str, Callable]) -> list[dict[str, Any]]:
