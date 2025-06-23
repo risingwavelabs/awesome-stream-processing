@@ -93,6 +93,7 @@ CREATE_DATASET_PAYLOAD=$(jq -n --argjson db_id "$DB_ID" --arg table_name "$DATAS
 DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD")
 
 # --- 4. Add Metrics to Dataset (FINAL DEBUGGING VERSION) ---
+# --- 4. Add Metrics to Dataset (FINAL ID PRESERVATION FIX) ---
 echo "--- Synchronizing columns and metrics for dataset '$DATASET_NAME' ---" >&2
 
 # Trigger the refresh and then poll until columns are available.
@@ -115,11 +116,11 @@ until [[ $COLUMNS_COUNT -gt 0 || $POLL_ATTEMPTS -ge $MAX_POLL_ATTEMPTS ]]; do
     COLUMNS_COUNT=$(echo "$DATASET_DETAILS" | jq '.result.columns | length')
     if [[ $COLUMNS_COUNT -gt 0 ]]; then echo " Found $COLUMNS_COUNT columns."; else echo " No columns found yet in response. Retrying in 5 seconds."; sleep 5; fi
 done
-
 if [[ $COLUMNS_COUNT -eq 0 ]]; then echo "❌ ERROR: Dataset columns were not found after waiting." >&2; exit 1; fi
 echo "✅ Columns discovered successfully." >&2
 
-# --- ADD METRICS ONE BY ONE WITH ENHANCED DEBUGGING ---
+
+# --- ADD METRICS ONE BY ONE (FINAL LOGIC) ---
 echo "--- Ensuring all metrics are present in dataset ---" >&2
 DESIRED_METRICS=$(jq -n '{"avg_price":"AVG(average_price)","avg_price_change":"AVG(price_change)","avg_bid_ask_spread":"AVG(bid_ask_spread)","avg_rolling_volatility":"AVG(rolling_volatility)","avg_sector_performance":"AVG(sector_performance)","avg_sentiment":"AVG(sentiment_score)"}')
 
@@ -130,7 +131,7 @@ for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
     metric_exists=$(echo "$EXISTING_METRICS" | jq --arg name "$metric_name" 'any(.metric_name == $name)')
 
     if [[ "$metric_exists" == "false" ]]; then
-        echo "    - Metric not found. Preparing to add it..." >&2
+        echo "    - Metric not found. Adding it now..." >&2
         
         expression=$(echo "$DESIRED_METRICS" | jq -r ".${metric_name}")
         verbose_name=$(echo "$metric_name" | tr '_' ' ' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1')
@@ -138,14 +139,7 @@ for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
         
         metrics_to_upload=$(echo "$EXISTING_METRICS" | jq --argjson new_metric "$new_metric_object" '. + [$new_metric]')
         
-        UPDATE_PAYLOAD=$(echo "$metrics_to_upload" | jq 'map({metric_name, expression, verbose_name}) | {metrics: .}')
-        
-        # --- NEW DEBUG STATEMENTS ---
-        echo "    - DEBUG: List of existing metrics fetched from API:"
-        echo "$EXISTING_METRICS" | jq .
-        echo "    - DEBUG: Final JSON payload being sent to the API:"
-        echo "$UPDATE_PAYLOAD" | jq .
-        # --- END DEBUG STATEMENTS ---
+        UPDATE_PAYLOAD=$(echo "$metrics_to_upload" | jq 'map({id: .id, metric_name, expression, verbose_name}) | {metrics: .}')
         
         UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" -H "Content-Type: application/json" -d "$UPDATE_PAYLOAD")
         
