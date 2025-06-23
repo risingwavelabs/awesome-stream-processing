@@ -57,9 +57,7 @@ RISINGWAVE_TIMEOUT=30
 
 ## 🚀 Run the Agent
 
-Start your RisingWave MCP server (e.g. `python risingwave-mcp/src/main.py`) in a terminal.
-
-In another terminal, run:
+In a terminal, run:
 
 ```bash
 python risingwave-agent.py
@@ -81,7 +79,7 @@ Try entering:
 ```
 Give me the database version
 Show me the s1 table structure and create an mv for tracking highest values
-Display that newly created mv
+Display the newly created mv
 ```
 
 ---
