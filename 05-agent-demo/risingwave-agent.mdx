@@ -20,6 +20,8 @@ If you want a reference to the full project you can clone [this](https://github.
 
 ## Step 1: Create the file 'agent.py'
 
+- This first class is dedicated to creating a message history for the agent. Without this class the agent would lack the ability to contextualize user queries and would require specific details for every continuous query.
+
 ```python
 import asyncio
 import os
@@ -154,7 +156,8 @@ class MessageHistory:
             ]
         return result
 ```
-- This first class is dedicated to creating a message history for the agent. Without this class the agent would lack the ability to contextualize user queries and would require specific details for every continuous query.
+
+- This class is responsible for starting and maintaining a connection to the RisingWave MCP Server
 
 ```python
 class MCPConnection(ABC):
@@ -283,7 +286,7 @@ async def setup_mcp_connections(
     return mcp_tools, tool_functions
 ```
 
-- This class is responsible for starting and maintaining a connection to the RisingWave MCP Server
+- Here you can edit the different configurations settings for the model
 
 ```python
 @dataclass
@@ -294,7 +297,7 @@ class ModelConfig:
     context_window_tokens: int = 180000
 ```
 
-- Here you can edit the different configurations settings for the model
+- This section is called when you instantialize an agent. It creates the actual agent and also prepares the prior established message history.
 
 ```python
 class Agent:
@@ -354,7 +357,7 @@ class Agent:
         }
 ```
 
-- This section is called when you instantialize an agent. It creates the actual agent and also prepares the prior established message history.
+- Finally this last section is to allow the agent to process queries and give it to ability to loop itself in the occassion of a complex query or for error handling to ensure the users request is completed.
 
 ```python
     async def _agent_loop(self, user_input: str, tools: list[dict[str, Any]], tool_functions: dict[str, Callable]) -> list[dict[str, Any]]:
@@ -443,7 +446,7 @@ class Agent:
 
 
 ```
-- Finally this last section is to allow the agent to process queries and give it to ability to loop itself in the occassion of a complex query or for error handling to ensure the users request is completed.
+
 
 ## Step 2: Create the file 'risingwave-agent.py'
 
