@@ -94,9 +94,28 @@ DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "
 
 # --- 4. Add Metrics to Dataset ---
 echo "--- Synchronizing columns and metrics for dataset '$DATASET_NAME' ---" >&2
-curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" > /dev/null
+
+# Add a small delay to allow Superset to register the new dataset
+echo "    - Pausing for 5 seconds before refreshing columns..." >&2
+sleep 5
+
+echo "    - Triggering column refresh..." >&2
+# We remove -s and the output redirection for now to see the response
+REFRESH_RESPONSE=$(curl --write-out '%{http_code}' -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN")
+HTTP_CODE=$(tail -n1 <<< "$REFRESH_RESPONSE") # Get HTTP code from the last line
+
+# Check if the refresh was accepted (202) or successful (200)
+if [[ "$HTTP_CODE" != "200" && "$HTTP_CODE" != "202" ]]; then
+    echo "❌ ERROR: Failed to refresh dataset columns. HTTP Status: $HTTP_CODE" >&2
+    echo "API Response: $REFRESH_RESPONSE" >&2
+    echo "This might indicate a problem with your Celery worker configuration." >&2
+    exit 1
+fi
+echo "✅ Columns refresh triggered successfully." >&2
+
 
 # Define all the useful metrics from the enriched_market_data_sink table
+echo "    - Defining desired metrics..." >&2
 DESIRED_METRICS=$(jq -n '{
     "avg_price": "AVG(average_price)",
     "avg_price_change": "AVG(price_change)",
@@ -123,6 +142,8 @@ if [[ "$METRICS_WERE_MODIFIED" -eq 1 ]]; then
     UPDATE_PAYLOAD=$(jq -n --argjson metrics "$FINAL_METRICS" '{metrics: $metrics}')
     UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" -H "Content-Type: application/json" -d "$UPDATE_PAYLOAD")
     if echo "$UPDATE_RESPONSE" | jq -e '.result' > /dev/null; then echo "✅ Dataset metrics updated successfully." >&2; else echo "❌ Failed to update dataset metrics. Response: $UPDATE_RESPONSE" >&2; exit 1; fi
+else
+    echo "✅ All required metrics are present." >&2
 fi
 
 # --- 5. Create Charts ---
