@@ -175,20 +175,21 @@ CHART_2_PARAMS=$(jq -n '{viz_type:"line", datasource:($ARGS.positional[0]+"__tab
 CREATE_CHART_2_PAYLOAD=$(jq -n --arg name "$CHART_2_NAME" --argjson ds_id "$DATASET_ID" --arg params "$CHART_2_PARAMS" '{slice_name:$name, viz_type:"line", datasource_id:$ds_id, datasource_type:"table", params:$params, owners:[1]}')
 CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$CREATE_CHART_2_PAYLOAD")
 
-# --- 6. Create Dashboard and Add Charts (FINAL LAYOUT FIX) ---
+# --- 6. Create Dashboard and Add Charts (FINAL UUID FIX) ---
 echo "--- Managing Dashboard: '$DASHBOARD_TITLE' ---" >&2
 
 DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
 
-# THE FINAL FIX: Added "children": [] to the HEADER component, as the UI expects it.
+# THE FINAL FIX: Added a unique "uuid" field inside the "meta" object for each chart.
+# This is a required field for the UI rendering logic.
 POSITION_JSON=$(jq -n --argjson c1_id "$CHART_1_ID" --argjson c2_id "$CHART_2_ID" --arg title "$DASHBOARD_TITLE" '
 {
     "uuid-root": { "type": "ROOT", "id": "uuid-root", "children": ["uuid-grid"] },
     "uuid-grid": { "type": "GRID", "id": "uuid-grid", "children": ["uuid-header", "uuid-row-1"], "meta": {} },
     "uuid-header": { "type": "HEADER", "id": "uuid-header", "children": [], "meta": { "text": $title } },
-    "uuid-row-1": { "type": "ROW", "id": "uuid-row-1", "children": ["uuid-chart-1", "uuid-chart-2"], "meta": { "background": "BACKGROUND_TRANSPARENT" } },
-    "uuid-chart-1": { "type": "CHART", "id": "uuid-chart-1", "children": [], "meta": { "width": 6, "height": 50, "chartId": $c1_id } },
-    "uuid-chart-2": { "type": "CHART", "id": "uuid-chart-2", "children": [], "meta": { "width": 6, "height": 50, "chartId": $c2_id } }
+    "uuid-row-1": { "type": "ROW",  "id": "uuid-row-1", "children": ["uuid-chart-1", "uuid-chart-2"], "meta": { "background": "BACKGROUND_TRANSPARENT" } },
+    "uuid-chart-1": { "type": "CHART", "id": "uuid-chart-1", "children": [], "meta": { "width": 6, "height": 50, "chartId": $c1_id, "uuid": "chart-uuid-1" } },
+    "uuid-chart-2": { "type": "CHART", "id": "uuid-chart-2", "children": [], "meta": { "width": 6, "height": 50, "chartId": $c2_id, "uuid": "chart-uuid-2" } }
 }' | jq -c . | jq -Rs .)
 
 CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" --arg position "$POSITION_JSON" '{dashboard_title: $title, position_json: $position, published: true, owners: [1]}')
