@@ -95,26 +95,40 @@ DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "
 # --- 4. Add Metrics to Dataset ---
 echo "--- Synchronizing columns and metrics for dataset '$DATASET_NAME' ---" >&2
 
-# Add a small delay to allow Superset to register the new dataset
-echo "    - Pausing for 5 seconds before refreshing columns..." >&2
-sleep 5
-
+# Trigger the refresh and then poll until columns are available.
 echo "    - Triggering column refresh..." >&2
-# We remove -s and the output redirection for now to see the response
-REFRESH_RESPONSE=$(curl --write-out '%{http_code}' -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN")
-HTTP_CODE=$(tail -n1 <<< "$REFRESH_RESPONSE") # Get HTTP code from the last line
+curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" > /dev/null
 
-# Check if the refresh was accepted (202) or successful (200)
-if [[ "$HTTP_CODE" != "200" && "$HTTP_CODE" != "202" ]]; then
-    echo "❌ ERROR: Failed to refresh dataset columns. HTTP Status: $HTTP_CODE" >&2
-    echo "API Response: $REFRESH_RESPONSE" >&2
-    echo "This might indicate a problem with your Celery worker configuration." >&2
+echo "    - Waiting for Superset to discover table columns..." >&2
+POLL_ATTEMPTS=0
+MAX_POLL_ATTEMPTS=12 # Wait for a maximum of 60 seconds (12 * 5s)
+COLUMNS_COUNT=0
+until [[ $COLUMNS_COUNT -gt 0 || $POLL_ATTEMPTS -ge $MAX_POLL_ATTEMPTS ]]; do
+    POLL_ATTEMPTS=$((POLL_ATTEMPTS + 1))
+    printf "      Attempt %s/%s..." "$POLL_ATTEMPTS" "$MAX_POLL_ATTEMPTS"
+    
+    # Query for the dataset details, specifically asking for the columns
+    DATASET_DETAILS=$(curl -s -X GET "$SUPERSET_URL/api/v1/dataset/$DATASET_ID?q=\{\"columns\":[\"columns\"]}" -H "Authorization: Bearer $TOKEN")
+    
+    # Count how many columns are in the response
+    COLUMNS_COUNT=$(echo "$DATASET_DETAILS" | jq '.result.columns | length')
+
+    if [[ $COLUMNS_COUNT -gt 0 ]]; then
+        echo " Found $COLUMNS_COUNT columns."
+    else
+        echo " No columns found yet. Retrying in 5 seconds."
+        sleep 5
+    fi
+done
+
+if [[ $COLUMNS_COUNT -eq 0 ]]; then
+    echo "❌ ERROR: Dataset columns were not found after waiting. Cannot proceed." >&2
     exit 1
 fi
-echo "✅ Columns refresh triggered successfully." >&2
+echo "✅ Columns discovered successfully." >&2
 
 
-# Define all the useful metrics from the enriched_market_data_sink table
+# Now that columns exist, we can safely manage metrics.
 echo "    - Defining desired metrics..." >&2
 DESIRED_METRICS=$(jq -n '{
     "avg_price": "AVG(average_price)",
@@ -124,8 +138,9 @@ DESIRED_METRICS=$(jq -n '{
     "avg_sector_performance": "AVG(sector_performance)",
     "avg_sentiment": "AVG(sentiment_score)"
 }')
-CURRENT_DATASET_DETAILS=$(curl -s -X GET "$SUPERSET_URL/api/v1/dataset/$DATASET_ID?q=\{\"columns\":[\"metrics\"]}" -H "Authorization: Bearer $TOKEN")
-FINAL_METRICS=$(echo "$CURRENT_DATASET_DETAILS" | jq '.result.metrics // []')
+
+# We already fetched the details, let's just get the metrics from it
+FINAL_METRICS=$(curl -s -X GET "$SUPERSET_URL/api/v1/dataset/$DATASET_ID?q=\{\"columns\":[\"metrics\"]}" -H "Authorization: Bearer $TOKEN" | jq '.result.metrics // []')
 METRICS_WERE_MODIFIED=0
 for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
     metric_exists=$(echo "$FINAL_METRICS" | jq --arg name "$metric_name" 'any(.metric_name == $name)')
