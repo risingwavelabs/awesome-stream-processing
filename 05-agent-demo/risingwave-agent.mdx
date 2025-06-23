@@ -21,20 +21,17 @@ If you want a reference to the full project you can clone [this](https://github.
 ## Step 1: Create the file 'agent.py'
 
 ```python
-"""Agent implementation with Claude API and MCP tools."""
-
 import asyncio
 import os
 from contextlib import AsyncExitStack
 from dataclasses import dataclass
-from typing import Any, Callable
-
 from anthropic import Anthropic
 from fastmcp import FastMCP
-
-"""Message history with token tracking and prompt caching."""
-
-from typing import Any
+from abc import ABC, abstractmethod
+from typing import Any, Callable, Tuple
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.sse import sse_client
+from mcp.client.stdio import stdio_client
 
 
 class MessageHistory:
@@ -156,19 +153,10 @@ class MessageHistory:
                 for block in self.messages[-1]["content"]
             ]
         return result
+```
+This first class is dedicated to creating a message history for the agent. Without this class the agnet would lack the ability to contextualize user queries and would require specific details for every continuous query.
 
-
-"""Connection handling for MCP servers."""
-
-from abc import ABC, abstractmethod
-from contextlib import AsyncExitStack
-from typing import Any, Callable, Tuple
-
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.sse import sse_client
-from mcp.client.stdio import stdio_client
-
-
+```python
 class MCPConnection(ABC):
     """Base class for MCP server connections."""
 
@@ -235,19 +223,6 @@ class MCPConnectionStdio(MCPConnection):
             )
         )
 
-
-class MCPConnectionSSE(MCPConnection):
-    """MCP connection using Server-Sent Events."""
-
-    def __init__(self, url: str, headers: dict[str, str] = None):
-        super().__init__()
-        self.url = url
-        self.headers = headers or {}
-
-    async def _create_rw_context(self):
-        return sse_client(url=self.url, headers=self.headers)
-
-
 def create_mcp_connection(config: dict[str, Any]) -> MCPConnection:
     """Factory function to create the appropriate MCP connection."""
     conn_type = config.get("type", "stdio").lower()
@@ -259,13 +234,6 @@ def create_mcp_connection(config: dict[str, Any]) -> MCPConnection:
             command=config["command"],
             args=config.get("args"),
             env=config.get("env"),
-        )
-
-    elif conn_type == "sse":
-        if not config.get("url"):
-            raise ValueError("URL is required for SSE connections")
-        return MCPConnectionSSE(
-            url=config["url"], headers=config.get("headers")
         )
 
     else:
@@ -313,18 +281,20 @@ async def setup_mcp_connections(
         f"Loaded {len(mcp_tools)} MCP tools from {len(mcp_servers)} servers."
     )
     return mcp_tools, tool_functions
+```
 
+- The above class is responsible for starting and maintaining a connection to the RisingWave MCP Server
 
-
+```python
 @dataclass
 class ModelConfig:
-    """Configuration settings for Claude model parameters."""
-
     model: str = "claude-sonnet-4-20250514"
     max_tokens: int = 4096
     temperature: float = 1.0
     context_window_tokens: int = 180000
+```
 
+- Above you can edit the different configurations settings for the Claude model's parameters
 
 class Agent:
     """Claude-powered agent with MCP tool capabilities."""
@@ -381,7 +351,11 @@ class Agent:
             "tools": tools,
             **self.message_params,
         }
+```
 
+- Above is called when you instantialize an agent. It creates the actual agent and also prepares the prior established message history.
+
+```python
     async def _agent_loop(self, user_input: str, tools: list[dict[str, Any]], tool_functions: dict[str, Callable]) -> list[dict[str, Any]]:
         """Process user input and handle tool calls in a loop"""
         if self.verbose:
@@ -465,7 +439,10 @@ class Agent:
     def run(self, user_input: str) -> list[dict[str, Any]]:
         """Run agent synchronously"""
         return asyncio.run(self.run_async(user_input))
+
+
 ```
+- Finally this last section is to allow the agent to process queries and give it to ability to loop itself in the occassion of a complex query or for error handling to ensure the users request is completed.
 
 ## Step 2: Create the file 'risingwave-agent.py'
 
