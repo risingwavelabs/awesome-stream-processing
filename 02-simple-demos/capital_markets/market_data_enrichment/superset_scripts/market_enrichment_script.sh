@@ -92,8 +92,7 @@ DATASET_FILTER_Q="q=$(jq -n --arg name "$DATASET_TABLE_NAME" --argjson db_id "$D
 CREATE_DATASET_PAYLOAD=$(jq -n --argjson db_id "$DB_ID" --arg table_name "$DATASET_TABLE_NAME" '{database: ($db_id | tonumber), table_name: $table_name, schema: "public", owners: [1]}')
 DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD")
 
-# --- 4. Add Metrics to Dataset (FINAL DEBUGGING VERSION) ---
-# --- 4. Add Metrics to Dataset (FINAL ID PRESERVATION FIX) ---
+# --- 4. Add Metrics to Dataset (FINAL DEFINITIVE VERSION) ---
 echo "--- Synchronizing columns and metrics for dataset '$DATASET_NAME' ---" >&2
 
 # Trigger the refresh and then poll until columns are available.
@@ -120,7 +119,7 @@ if [[ $COLUMNS_COUNT -eq 0 ]]; then echo "❌ ERROR: Dataset columns were not fo
 echo "✅ Columns discovered successfully." >&2
 
 
-# --- ADD METRICS ONE BY ONE (FINAL LOGIC) ---
+# --- ADD METRICS ONE BY ONE WITH CORRECT PAYLOAD LOGIC ---
 echo "--- Ensuring all metrics are present in dataset ---" >&2
 DESIRED_METRICS=$(jq -n '{"avg_price":"AVG(average_price)","avg_price_change":"AVG(price_change)","avg_bid_ask_spread":"AVG(bid_ask_spread)","avg_rolling_volatility":"AVG(rolling_volatility)","avg_sector_performance":"AVG(sector_performance)","avg_sentiment":"AVG(sentiment_score)"}')
 
@@ -139,7 +138,16 @@ for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
         
         metrics_to_upload=$(echo "$EXISTING_METRICS" | jq --argjson new_metric "$new_metric_object" '. + [$new_metric]')
         
-        UPDATE_PAYLOAD=$(echo "$metrics_to_upload" | jq 'map({id: .id, metric_name, expression, verbose_name}) | {metrics: .}')
+        # THE FINAL FIX: This jq command now conditionally includes the 'id' field
+        # ONLY if it exists in the source, otherwise it is omitted entirely.
+        # This creates the exact payload structure the API requires.
+        UPDATE_PAYLOAD=$(echo "$metrics_to_upload" | jq '
+          map(
+            if .id then {id, metric_name, expression, verbose_name} 
+            else {metric_name, expression, verbose_name} 
+            end
+          ) | {metrics: .}
+        ')
         
         UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" -H "Content-Type: application/json" -d "$UPDATE_PAYLOAD")
         
@@ -155,7 +163,6 @@ for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
 done
 
 echo "✅ All required metrics are present in the dataset." >&2
-
 # --- 5. Create Charts ---
 # Chart 1: Price Change and Volatility
 CHART_1_FILTER_Q="q=$(jq -n --arg name "$CHART_1_NAME" --argjson ds_id "$DATASET_ID" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
