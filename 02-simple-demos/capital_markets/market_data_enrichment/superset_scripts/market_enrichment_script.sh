@@ -92,7 +92,7 @@ DATASET_FILTER_Q="q=$(jq -n --arg name "$DATASET_TABLE_NAME" --argjson db_id "$D
 CREATE_DATASET_PAYLOAD=$(jq -n --argjson db_id "$DB_ID" --arg table_name "$DATASET_TABLE_NAME" '{database: ($db_id | tonumber), table_name: $table_name, schema: "public", owners: [1]}')
 DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD")
 
-# --- 4. Add Metrics to Dataset (FINAL METRICS PAYLOAD FIX) ---
+# --- 4. Add Metrics to Dataset (FINAL ATOMIC VERSION) ---
 echo "--- Synchronizing columns and metrics for dataset '$DATASET_NAME' ---" >&2
 
 # Trigger the refresh and then poll until columns are available.
@@ -101,53 +101,65 @@ curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" -H "Authorizat
 
 echo "    - Waiting for Superset to discover table columns..." >&2
 POLL_ATTEMPTS=0
-MAX_POLL_ATTEMPTS=12 # Wait for a maximum of 60 seconds (12 * 5s)
+MAX_POLL_ATTEMPTS=12
 COLUMNS_COUNT=0
 until [[ $COLUMNS_COUNT -gt 0 || $POLL_ATTEMPTS -ge $MAX_POLL_ATTEMPTS ]]; do
     POLL_ATTEMPTS=$((POLL_ATTEMPTS + 1))
     printf "      Attempt %s/%s..." "$POLL_ATTEMPTS" "$MAX_POLL_ATTEMPTS"
     QUERY_PARAM='q={"columns":["columns"]}'
-    set +e # Temporarily disable 'exit on error'
+    set +e
     DATASET_DETAILS=$(curl -s -f -G "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" --data-urlencode "$QUERY_PARAM" -H "Authorization: Bearer $TOKEN")
     CURL_EXIT_CODE=$?
-    set -e # Re-enable 'exit on error'
+    set -e
     if [[ $CURL_EXIT_CODE -ne 0 ]]; then echo " Curl command failed with exit code $CURL_EXIT_CODE. Retrying in 5 seconds."; sleep 5; continue; fi
     COLUMNS_COUNT=$(echo "$DATASET_DETAILS" | jq '.result.columns | length')
     if [[ $COLUMNS_COUNT -gt 0 ]]; then echo " Found $COLUMNS_COUNT columns."; else echo " No columns found yet in response. Retrying in 5 seconds."; sleep 5; fi
 done
-if [[ $COLUMNS_COUNT -eq 0 ]]; then echo "❌ ERROR: Dataset columns were not found after waiting. Cannot proceed." >&2; exit 1; fi
+
+if [[ $COLUMNS_COUNT -eq 0 ]]; then echo "❌ ERROR: Dataset columns were not found after waiting." >&2; exit 1; fi
 echo "✅ Columns discovered successfully." >&2
 
-# Now that columns exist, we can safely manage metrics.
-echo "    - Defining desired metrics..." >&2
+
+# --- FINAL FIX: ADD METRICS ONE BY ONE ---
+echo "--- Ensuring all metrics are present in dataset ---" >&2
 DESIRED_METRICS=$(jq -n '{"avg_price":"AVG(average_price)","avg_price_change":"AVG(price_change)","avg_bid_ask_spread":"AVG(bid_ask_spread)","avg_rolling_volatility":"AVG(rolling_volatility)","avg_sector_performance":"AVG(sector_performance)","avg_sentiment":"AVG(sentiment_score)"}')
-FINAL_METRICS=$(curl -s -G "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" --data-urlencode 'q={"columns":["metrics"]}' -H "Authorization: Bearer $TOKEN" | jq '.result.metrics // []')
-METRICS_WERE_MODIFIED=0
+
 for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
-    metric_exists=$(echo "$FINAL_METRICS" | jq --arg name "$metric_name" 'any(.metric_name == $name)')
+    echo "  - Checking for metric: '$metric_name'..." >&2
+    
+    # Get the CURRENT list of metrics from the server right before our check
+    EXISTING_METRICS=$(curl -s -G "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" --data-urlencode 'q={"columns":["metrics"]}' -H "Authorization: Bearer $TOKEN" | jq '.result.metrics // []')
+    metric_exists=$(echo "$EXISTING_METRICS" | jq --arg name "$metric_name" 'any(.metric_name == $name)')
+
     if [[ "$metric_exists" == "false" ]]; then
-        echo "    - Metric '$metric_name' not found, adding it." >&2
+        echo "    - Metric not found. Adding it now..." >&2
+        
+        # Prepare the definition for the single new metric
         expression=$(echo "$DESIRED_METRICS" | jq -r ".${metric_name}")
         verbose_name=$(echo "$metric_name" | tr '_' ' ' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1')
-        FINAL_METRICS=$(echo "$FINAL_METRICS" | jq --arg name "$metric_name" --arg expr "$expression" --arg vname "$verbose_name" '. + [{"metric_name": $name, "expression": $expr, "verbose_name": $vname}]')
-        METRICS_WERE_MODIFIED=1
+        new_metric_object=$(jq -n --arg name "$metric_name" --arg expr "$expression" --arg vname "$verbose_name" '{"metric_name": $name, "expression": $expr, "verbose_name": $vname}')
+        
+        # Create the new final list by adding our one new metric to the existing ones
+        metrics_to_upload=$(echo "$EXISTING_METRICS" | jq --argjson new_metric "$new_metric_object" '. + [$new_metric]')
+        
+        # Clean the payload to only include writeable fields, then create the final payload
+        UPDATE_PAYLOAD=$(echo "$metrics_to_upload" | jq 'map({metric_name, expression, verbose_name}) | {metrics: .}')
+        
+        # Perform the PUT request to add the metric
+        UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" -H "Content-Type: application/json" -d "$UPDATE_PAYLOAD")
+        
+        if echo "$UPDATE_RESPONSE" | jq -e '.result' > /dev/null; then
+            echo "    ✅ Successfully added metric '$metric_name'." >&2
+        else
+            echo "    ❌ Failed to add metric '$metric_name'. Response: $UPDATE_RESPONSE" >&2
+            exit 1
+        fi
     else
-        echo "    - Metric '$metric_name' already exists." >&2
+        echo "    - Metric already exists. Skipping." >&2
     fi
 done
 
-if [[ "$METRICS_WERE_MODIFIED" -eq 1 ]]; then
-    echo "    - Updating dataset with new metrics..." >&2
-    
-    # THE FIX IS HERE: We use jq's `map` function to create a "clean" array,
-    # sending only the fields the API allows us to write.
-    UPDATE_PAYLOAD=$(echo "$FINAL_METRICS" | jq 'map({metric_name, expression, verbose_name}) | {metrics: .}')
-    
-    UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" -H "Content-Type: application/json" -d "$UPDATE_PAYLOAD")
-    if echo "$UPDATE_RESPONSE" | jq -e '.result' > /dev/null; then echo "✅ Dataset metrics updated successfully." >&2; else echo "❌ Failed to update dataset metrics. Response: $UPDATE_RESPONSE" >&2; exit 1; fi
-else
-    echo "✅ All required metrics are present." >&2
-fi
+echo "✅ All required metrics are present in the dataset." >&2
 
 # --- 5. Create Charts ---
 # Chart 1: Price Change and Volatility
