@@ -177,6 +177,8 @@ CREATE_CHART_2_PAYLOAD=$(jq -n --arg name "$CHART_2_NAME" --argjson ds_id "$DATA
 CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$CREATE_CHART_2_PAYLOAD")
 
 # --- 6. Create Dashboard and Add Charts ---
+echo "--- Managing Dashboard: '$DASHBOARD_TITLE' ---" >&2
+
 DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
 POSITION_JSON=$(jq -n --argjson c1_id "$CHART_1_ID" --argjson c2_id "$CHART_2_ID" --arg title "$DASHBOARD_TITLE" '
 {
@@ -187,7 +189,14 @@ POSITION_JSON=$(jq -n --argjson c1_id "$CHART_1_ID" --argjson c2_id "$CHART_2_ID
     "uuid-chart-1": { "type": "CHART", "id": "uuid-chart-1", "children": [], "meta": { "width": 6, "height": 50, "chartId": $c1_id } },
     "uuid-chart-2": { "type": "CHART", "id": "uuid-chart-2", "children": [], "meta": { "width": 6, "height": 50, "chartId": $c2_id } }
 }' | jq -c . | jq -Rs .)
-CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" --argjson charts "[$CHART_1_ID, $CHART_2_ID]" --arg position "$POSITION_JSON" '{dashboard_title: $title, charts: $charts, position_json: $position, published: true, owners: [1]}')
+
+# THE FINAL FIX: The "charts" key has been removed from the payload, as it is not allowed on creation.
+# The charts are already included correctly in the position_json above.
+CREATE_DASHBOARD_PAYLOAD=$(jq -n \
+    --arg title "$DASHBOARD_TITLE" \
+    --arg position "$POSITION_JSON" \
+    '{dashboard_title: $title, position_json: $position, published: true, owners: [1]}')
+
 DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
 
 # --- Final ---
