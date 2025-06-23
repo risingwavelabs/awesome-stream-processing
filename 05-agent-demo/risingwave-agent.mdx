@@ -8,6 +8,8 @@ title: "Use Agents to analyze data ingested into RisingWave"
 
 In this tutorial, you will learn how to implement a custom Anthropic Agent, integrate it with RisingWave MCP, to do simple stream processing with RisingWave.
 
+If you want a reference to the full project you can clone [this](https://github.com/risingwavelabs/awesome-stream-processing/) repository.
+
 ## Prerequisites
 
 * Install and run RisingWave. For detailed instructions on how to quickly get started, see the [Quick start](/get-started/quickstart/) guide.
@@ -15,50 +17,273 @@ In this tutorial, you will learn how to implement a custom Anthropic Agent, inte
 * Ensure that the [PostgreSQL](https://www.postgresql.org/docs/current/app-psql.html) interactive terminal, `psql`, is installed in your environment. For detailed instructions, see [Download PostgreSQL](https://www.postgresql.org/download/).
 * Ensure that a Python environment is set up and install the [psycopg2](https://pypi.org/project/psycopg2/) library. 
 
-## Step 1: Clone the RisingWave-Agent or create the file yourself
-
+## Step 1: Create the file 'risingwave-agent.py':
 
 ```python
+from agents.agent import Agent
 import os
-import sys
-import asyncio
-from contextlib import AsyncExitStack
-from dataclasses import dataclass
-from typing import Any
-from anthropic import Anthropic
 from dotenv import load_dotenv
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+
 
 load_dotenv()
 
-@dataclass
-class ModelConfig:
-    model: str = "claude-3-haiku-20240307" 
-    max_tokens: int = 1024
-    temperature: float = 1.0
-    context_window_tokens: int = 180000
+
+risingwave_env = {
+    "RISINGWAVE_HOST": os.getenv("RISINGWAVE_HOST", "0.0.0.0"),
+    "RISINGWAVE_PORT": os.getenv("RISINGWAVE_PORT", "4566"),
+    "RISINGWAVE_USER": os.getenv("RISINGWAVE_USER", "root"),
+    "RISINGWAVE_PASSWORD": os.getenv("RISINGWAVE_PASSWORD", "root"),
+    "RISINGWAVE_SSLMODE": os.getenv("RISINGWAVE_SSLMODE", "disable"),
+    "RISINGWAVE_TIMEOUT": os.getenv("RISINGWAVE_TIMEOUT", "30")
+}
+
+agent = Agent(
+    name="RisingWave Agent",
+    system="""You are an assistant to a Rising Wave MCP. Follow these rules:
+    1. Only use SELECT queries with LIMIT clauses (max 10 rows)
+    2. Keep responses under 100 words
+    3. Only show essential data
+    4. Avoid using unsupported functions (like STDDEV)
+    5. If an error occurs, try a simpler query
+    6. Focus on answering the user's specific question
+    7. Format tables in a clean, readable way:
+       - Use simple column names
+       - Align columns properly
+       - Include only necessary data
+    8. Never repeat the same information
+    9. If showing a table, show it only once with all needed data
+    10. Keep the final response concise and focused on the key information
+    11. Only give the response not the output
+    12. Make one comprehensive query instead of multiple smaller ones
+    13. Format numbers with proper currency symbols and decimal places
+    14. Use markdown tables for better readability
+    15. Skip intermediate steps and show only the final result
+    16. Keep tool calls visible but minimize other debug output""",
     
-class MCPConnection:
-    def __init__(self, command: str, args=None, env=None):
-        self.command = command
-        self.args = args or []
-        self.env = env
+    mcp_servers=[
+        {
+            "type": "stdio",
+            "command": "python",
+            "args": ["risingwave-mcp/src/main.py"],
+            "env": risingwave_env  # Pass environment variables to MCP server
+        },
+    ],
+    verbose=False  # Disable verbose mode to reduce noise
+)
+
+print("\nRisingWave Agent Interactive Mode")
+print("Type 'exit' or 'quit' to end the session")
+print("----------------------------------------")
+
+while True:
+    try:
+        # Get user input
+        user_input = input("\nEnter your query: ").strip()
+        
+        # Check for exit command
+        if user_input.lower() in ['exit', 'quit']:
+            print("\nEnding session. Goodbye!")
+            break
+            
+        # Skip empty inputs
+        if not user_input:
+            continue
+            
+        # Get response from agent
+        response = agent.run(user_input)
+        
+        # Clean up the response format
+        if hasattr(response, 'content'):
+            # Extract just the text content
+            clean_response = response.content[0].text if isinstance(response.content, list) else response.content
+            print("\n", clean_response)
+        else:
+            print("\n", response)
+            
+    except KeyboardInterrupt:
+        print("\n\nSession interrupted. Goodbye!")
+        break
+    except Exception as e:
+        print(f"\nAn error occurred: {str(e)}")
+        print("Please try again with a different query.")
+```
+
+
+## Step 2: Create the file 'agent.py'
+
+```python
+"""Agent implementation with Claude API and MCP tools."""
+
+import asyncio
+import os
+from contextlib import AsyncExitStack
+from dataclasses import dataclass
+from typing import Any, Callable
+
+from anthropic import Anthropic
+from fastmcp import FastMCP
+
+"""Message history with token tracking and prompt caching."""
+
+from typing import Any
+
+
+class MessageHistory:
+    """Manages chat history with token tracking and context management."""
+
+    def __init__(
+        self,
+        model: str,
+        system: str,
+        context_window_tokens: int,
+        client: Any,
+        enable_caching: bool = True,
+    ):
+        self.model = model
+        self.system = system
+        self.context_window_tokens = context_window_tokens
+        self.messages: list[dict[str, Any]] = []
+        self.total_tokens = 0
+        self.enable_caching = enable_caching
+        self.message_tokens: list[tuple[int, int]] = (
+            []
+        )  # List of (input_tokens, output_tokens) tuples
+        self.client = client
+
+        # set initial total tokens to system prompt
+        try:
+            system_token = (
+                self.client.messages.count_tokens(
+                    model=self.model,
+                    system=self.system,
+                    messages=[{"role": "user", "content": "test"}],
+                ).input_tokens
+                - 1
+            )
+
+        except Exception:
+            system_token = len(self.system) / 4
+
+        self.total_tokens = system_token
+
+    async def add_message(
+        self,
+        role: str,
+        content: str | list[dict[str, Any]],
+        usage: Any | None = None,
+    ):
+        """Add a message to the history and track token usage."""
+        if isinstance(content, str):
+            content = [{"type": "text", "text": content}]
+
+        message = {"role": role, "content": content}
+        self.messages.append(message)
+
+        if role == "assistant" and usage:
+            total_input = (
+                usage.input_tokens
+                + getattr(usage, "cache_read_input_tokens", 0)
+                + getattr(usage, "cache_creation_input_tokens", 0)
+            )
+            output_tokens = usage.output_tokens
+
+            current_turn_input = total_input - self.total_tokens
+            self.message_tokens.append((current_turn_input, output_tokens))
+            self.total_tokens += current_turn_input + output_tokens
+
+    def truncate(self) -> None:
+        """Remove oldest messages when context window limit is exceeded."""
+        if self.total_tokens <= self.context_window_tokens:
+            return
+
+        TRUNCATION_NOTICE_TOKENS = 25
+        TRUNCATION_MESSAGE = {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "[Earlier history has been truncated.]",
+                }
+            ],
+        }
+
+        def remove_message_pair():
+            self.messages.pop(0)
+            self.messages.pop(0)
+
+            if self.message_tokens:
+                input_tokens, output_tokens = self.message_tokens.pop(0)
+                self.total_tokens -= input_tokens + output_tokens
+
+        while (
+            self.message_tokens
+            and len(self.messages) >= 2
+            and self.total_tokens > self.context_window_tokens
+        ):
+            remove_message_pair()
+
+            if self.messages and self.message_tokens:
+                original_input_tokens, original_output_tokens = (
+                    self.message_tokens[0]
+                )
+                self.messages[0] = TRUNCATION_MESSAGE
+                self.message_tokens[0] = (
+                    TRUNCATION_NOTICE_TOKENS,
+                    original_output_tokens,
+                )
+                self.total_tokens += (
+                    TRUNCATION_NOTICE_TOKENS - original_input_tokens
+                )
+
+    def format_for_api(self) -> list[dict[str, Any]]:
+        """Format messages for Claude API with optional caching."""
+        result = [
+            {"role": m["role"], "content": m["content"]} for m in self.messages
+        ]
+
+        if self.enable_caching and self.messages:
+            result[-1]["content"] = [
+                {**block, "cache_control": {"type": "ephemeral"}}
+                for block in self.messages[-1]["content"]
+            ]
+        return result
+
+
+"""Connection handling for MCP servers."""
+
+from abc import ABC, abstractmethod
+from contextlib import AsyncExitStack
+from typing import Any, Callable, Tuple
+
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.sse import sse_client
+from mcp.client.stdio import stdio_client
+
+
+class MCPConnection(ABC):
+    """Base class for MCP server connections."""
+
+    def __init__(self):
         self.session = None
         self._rw_ctx = None
         self._session_ctx = None
 
+    @abstractmethod
+    async def _create_rw_context(self):
+        """Create the read/write context based on connection type."""
+
     async def __aenter__(self):
-        self._rw_ctx = stdio_client(StdioServerParameters(
-            command=self.command, args=self.args, env=self.env
-        ))
-        read, write = await self._rw_ctx.__aenter__()
+        """Initialize MCP server connection."""
+        self._rw_ctx = await self._create_rw_context()
+        read_write = await self._rw_ctx.__aenter__()
+        read, write = read_write
         self._session_ctx = ClientSession(read, write)
         self.session = await self._session_ctx.__aenter__()
         await self.session.initialize()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Clean up MCP server connection resources."""
         try:
             if self._session_ctx:
                 await self._session_ctx.__aexit__(exc_type, exc_val, exc_tb)
@@ -72,61 +297,232 @@ class MCPConnection:
             self._rw_ctx = None
 
     async def list_tools(self) -> Any:
+        """Retrieve available tools from the MCP server."""
         response = await self.session.list_tools()
         return response.tools
 
-    async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> Any:
+    async def call_tool(
+        self, tool_name: str, arguments: dict[str, Any]
+    ) -> Any:
+        """Call a tool on the MCP server with provided arguments."""
         return await self.session.call_tool(tool_name, arguments=arguments)
 
-class RisingWaveAgent:
-    def __init__(self, system: str, mcp_command: str, mcp_args=None, mcp_env=None, config: ModelConfig | None = None, verbose: bool = False):
+
+class MCPConnectionStdio(MCPConnection):
+    """MCP connection using standard input/output."""
+
+    def __init__(
+        self, command: str, args: list[str] = [], env: dict[str, str] = None
+    ):
+        super().__init__()
+        self.command = command
+        self.args = args
+        self.env = env
+
+    async def _create_rw_context(self):
+        return stdio_client(
+            StdioServerParameters(
+                command=self.command, args=self.args, env=self.env
+            )
+        )
+
+
+class MCPConnectionSSE(MCPConnection):
+    """MCP connection using Server-Sent Events."""
+
+    def __init__(self, url: str, headers: dict[str, str] = None):
+        super().__init__()
+        self.url = url
+        self.headers = headers or {}
+
+    async def _create_rw_context(self):
+        return sse_client(url=self.url, headers=self.headers)
+
+
+def create_mcp_connection(config: dict[str, Any]) -> MCPConnection:
+    """Factory function to create the appropriate MCP connection."""
+    conn_type = config.get("type", "stdio").lower()
+
+    if conn_type == "stdio":
+        if not config.get("command"):
+            raise ValueError("Command is required for STDIO connections")
+        return MCPConnectionStdio(
+            command=config["command"],
+            args=config.get("args"),
+            env=config.get("env"),
+        )
+
+    elif conn_type == "sse":
+        if not config.get("url"):
+            raise ValueError("URL is required for SSE connections")
+        return MCPConnectionSSE(
+            url=config["url"], headers=config.get("headers")
+        )
+
+    else:
+        raise ValueError(f"Unsupported connection type: {conn_type}")
+
+
+async def setup_mcp_connections(
+    mcp_servers: list[dict[str, Any]] | None,
+    stack: AsyncExitStack,
+) -> Tuple[list[dict[str, Any]], dict[str, Callable]]:
+    """Set up MCP server connections and create tool interfaces."""
+    if not mcp_servers:
+        return [], {}
+
+    mcp_tools = []
+    tool_functions = {}
+
+    for config in mcp_servers:
+        try:
+            connection = create_mcp_connection(config)
+            await stack.enter_async_context(connection)
+            tool_definitions = await connection.list_tools()
+
+            for tool_info in tool_definitions:
+                # Add tool definition to tools list
+                mcp_tools.append({
+                    "name": tool_info.name,
+                    "description": tool_info.description or f"MCP tool: {tool_info.name}",
+                    "input_schema": tool_info.inputSchema,
+                })
+                
+                # Create async wrapper for the tool function
+                async def create_tool_wrapper(tool_name: str):
+                    async def wrapper(**kwargs):
+                        return await connection.call_tool(tool_name, kwargs)
+                    return wrapper
+                
+                # Add tool function to dictionary
+                tool_functions[tool_info.name] = await create_tool_wrapper(tool_info.name)
+
+        except Exception as e:
+            print(f"Error setting up MCP server {config}: {e}")
+
+    print(
+        f"Loaded {len(mcp_tools)} MCP tools from {len(mcp_servers)} servers."
+    )
+    return mcp_tools, tool_functions
+
+
+
+@dataclass
+class ModelConfig:
+    """Configuration settings for Claude model parameters."""
+
+    model: str = "claude-sonnet-4-20250514"
+    max_tokens: int = 4096
+    temperature: float = 1.0
+    context_window_tokens: int = 180000
+
+
+class Agent:
+    """Claude-powered agent with MCP tool capabilities."""
+
+    def __init__(
+        self,
+        name: str,
+        system: str,
+        mcp_servers: list[dict[str, Any]] | None = None,
+        config: ModelConfig | None = None,
+        verbose: bool = False,
+        client: Anthropic | None = None,
+        message_params: dict[str, Any] | None = None,
+    ):
+        """Initialize an Agent.
+       
+        Args:
+            name: Agent identifier for logging
+            system: System prompt for the agent
+            mcp_servers: MCP server configurations
+            config: Model configuration with defaults
+            verbose: Enable detailed logging
+            client: Anthropic client instance
+            message_params: Additional parameters for client.messages.create().
+                           These override any conflicting parameters from config.
+        """
+        self.name = name
         self.system = system
-        self.config = config or ModelConfig()
         self.verbose = verbose
-        self.client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
-        self.mcp_command = mcp_command
-        self.mcp_args = mcp_args or []
-        self.mcp_env = mcp_env or None
+        self.config = config or ModelConfig()
+        self.mcp_servers = mcp_servers or []
+        self.message_params = message_params or {}
+        self.client = client or Anthropic(
+            api_key=os.environ.get("ANTHROPIC_API_KEY", "")
+        )
+        self.history = MessageHistory(
+            model=self.config.model,
+            system=self.system,
+            context_window_tokens=self.config.context_window_tokens,
+            client=self.client,
+        )
 
-    async def run_async(self, user_input: str) -> str:
-        async with AsyncExitStack() as stack:
-            mcp = await stack.enter_async_context(MCPConnection(
-                command=self.mcp_command,
-                args=self.mcp_args,
-                env=self.mcp_env
-            ))
-            # List available tools
-            tools = await mcp.list_tools()
-            tool_dict = {tool.name: tool for tool in tools}
+        if self.verbose:
+            print(f"\n[{self.name}] Agent initialized")
 
-            # Prepare the Claude messages API call
-            response = self.client.messages.create(
-                model=self.config.model,
-                max_tokens=self.config.max_tokens,
-                temperature=self.config.temperature,
-                system=self.system,
-                messages=[{"role": "user", "content": user_input}],
-                tools=[
-                    {
-                        "name": tool.name,
-                        "description": getattr(tool, "description", ""),
-                        "input_schema": getattr(tool, "inputSchema", {}),
-                    }
-                    for tool in tools
-]
+    def _prepare_message_params(self, tools: list[dict[str, Any]]) -> dict[str, Any]:
+        """Prepare parameters for client.messages.create() call."""
+        return {
+            "model": self.config.model,
+            "max_tokens": self.config.max_tokens,
+            "temperature": self.config.temperature,
+            "system": self.system,
+            "messages": self.history.format_for_api(),
+            "tools": tools,
+            **self.message_params,
+        }
+
+    async def _agent_loop(self, user_input: str, tools: list[dict[str, Any]], tool_functions: dict[str, Callable]) -> list[dict[str, Any]]:
+        """Process user input and handle tool calls in a loop"""
+        if self.verbose:
+            print(f"\n[{self.name}] Received: {user_input}")
+        await self.history.add_message("user", user_input, None)
+
+        while True:
+            self.history.truncate()
+            params = self._prepare_message_params(tools)
+
+            response = self.client.messages.create(**params)
+            tool_calls = [
+            block for block in response.content if block.type == "tool_use"
+        ]           
+
+            if self.verbose:
+                for block in response.content:
+                    if block.type == "text":
+                        print(f"\n[{self.name}] Output: {block.text}")
+                    elif block.type == "tool_use":
+                        params_str = ", ".join(
+                            [f"{k}={v}" for k, v in block.input.items()]
+                        )
+                        print(
+                            f"\n[{self.name}] Tool call: "
+                            f"{block.name}({params_str})"
+                        )
+
+            await self.history.add_message(
+                "assistant", response.content, response.usage
             )
 
-            tool_calls = [block for block in response.content if block.type == "tool_use"]
             if tool_calls:
                 tool_results = []
                 for call in tool_calls:
                     try:
-                        result = await mcp.call_tool(call.name, call.input)
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": call.id,
-                            "content": str(result)
-                        })
+                        if call.name in tool_functions:
+                            result = await tool_functions[call.name](**call.input)
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": call.id,
+                                "content": str(result)
+                            })
+                        else:
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": call.id,
+                                "content": f"Tool '{call.name}' not found",
+                                "is_error": True
+                            })
                     except Exception as e:
                         tool_results.append({
                             "type": "tool_result",
@@ -134,90 +530,45 @@ class RisingWaveAgent:
                             "content": f"Error executing tool: {str(e)}",
                             "is_error": True
                         })
-
-                final_response = self.client.messages.create(
-                    model=self.config.model,
-                    max_tokens=self.config.max_tokens,
-                    temperature=self.config.temperature,
-                    system=self.system,
-                    messages=[
-                        {"role": "user", "content": user_input},
-                        {"role": "assistant", "content": [
-                            {
-                                "type": "tool_use",
-                                "id": call.id,
-                                "name": call.name,
-                                "input": call.input
-                            } for call in tool_calls
-                        ]},
-                        {"role": "user", "content": [
-                            {
-                                "type": "tool_result",
-                                "tool_use_id": result["tool_use_id"],
-                                "content": result["content"]
-                            } for result in tool_results
-                        ]}
-                    ],
-                    tools=[
-                        {
-                            "name": tool.name,
-                            "description": getattr(tool, "description", ""),
-                            "input_schema": getattr(tool, "inputSchema", {}),
-                        }
-                        for tool in tools
-                    ]
-                )
-                final_text = "".join(block.text for block in final_response.content if hasattr(block, "text"))
-                tool_output = "\n".join(result["content"] for result in tool_results if result["content"].strip())
-                if tool_output and tool_output in final_text:
-                    return final_text
-               
-                if not final_text.strip() and tool_output:
-                    return f"Here is the result:\n{tool_output}"
-       
-                if tool_output:
-                    return f"{final_text}\n\nHere is the result you requested:\n{tool_output}"
-                return final_text
+                
+                if self.verbose:
+                    for block in tool_results:
+                        print(
+                            f"\n[{self.name}] Tool result: "
+                            f"{block.get('content')}"
+                        )
+                await self.history.add_message("user", tool_results)
             else:
-                return "".join(block.text for block in response.content if hasattr(block, "text"))
+                return response
 
-    def run(self, user_input: str) -> str:
+    async def run_async(self, user_input: str) -> list[dict[str, Any]]:
+        """Run agent with MCP tools asynchronously."""
+        async with AsyncExitStack() as stack:
+            try:
+                mcp_tools, tool_functions = await setup_mcp_connections(
+                    self.mcp_servers, stack
+                )
+                return await self._agent_loop(user_input, mcp_tools, tool_functions)
+            except Exception as e:
+                print(f"Error running agent: {e}")
+                return None
+
+    def run(self, user_input: str) -> list[dict[str, Any]]:
+        """Run agent synchronously"""
         return asyncio.run(self.run_async(user_input))
-
-if __name__ == "__main__":
-    system_prompt = """You are an assistant to a Rising Wave database. Use tools when needed to answer questions about the database.\nBe concise, accurate, and only use tools when necessary."""
-    mcp_command = "python"
-    mcp_args = [os.path.join("risingwave-mcp", "src", "main.py")]
-    agent = RisingWaveAgent(
-    system=system_prompt,
-    mcp_command=mcp_command,
-    mcp_args=mcp_args,
-    mcp_env=os.environ.copy(), 
-    verbose=False
-)
-    print("\nRisingWave Agent Interactive Mode")
-    print("Type 'exit' or 'quit' to end the session")
-    print("----------------------------------------")
-
-    while True:
-        try:
-            user_input = input("\nEnter your query: ").strip()
-            if user_input.lower() in ['exit', 'quit']:
-                print("\nEnding session. Goodbye!")
-                break
-            if not user_input:
-                continue
-            response = agent.run(user_input)
-            print("\n", response)
-        except KeyboardInterrupt:
-            print("\n\nSession interrupted. Goodbye!")
-            break
-        except Exception as e:
-            print(f"\nAn error occurred: {str(e)}")
-            print("Please try again with a different query.")
 ```
 
-Now that you have the script prepared, you must configure your .env file. Create one now and enter your Anthropic API key where needed
+## Step 3: Create the '__init__.py' file
+
+```python
+"""Core agent implementations."""
+
+from .agent import Agent, ModelConfig
+
+__all__ = ["Agent", "ModelConfig"]
+```
+
+## Step 4: Now that you have the script prepared, you must configure your .env file. Create one now and enter your Anthropic API key where needed
 ```python
 ANTHROPIC_API_KEY=<YOUR-API-KEY-HERE>
 RISINGWAVE_HOST=0.0.0.0
@@ -227,7 +578,8 @@ RISINGWAVE_PORT=4566
 RISINGWAVE_DATABASE=dev
 RISINGWAVE_SSLMODE=disable
 RISINGWAVE_TIMEOUT=30
-````
+```
+
 
 Follow the [tutorial](https://docs.risingwave.com/ingestion/advanced/generate-test-data) to create a load generator.
 
@@ -243,3 +595,16 @@ Feel free to experiment with more prompts and try out with your own data! Simila
 
 When you are done you can have the agent drop the s1 table or just close the terminal.
 
+
+
+Now that you have the script prepared, you must configure your .env file. Create one now and enter your Anthropic API key where needed
+```python
+ANTHROPIC_API_KEY=<YOUR-API-KEY-HERE>
+RISINGWAVE_HOST=0.0.0.0
+RISINGWAVE_USER=root
+RISINGWAVE_PASSWORD=root
+RISINGWAVE_PORT=4566
+RISINGWAVE_DATABASE=dev
+RISINGWAVE_SSLMODE=disable
+RISINGWAVE_TIMEOUT=30
+```
