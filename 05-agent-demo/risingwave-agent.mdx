@@ -560,7 +560,42 @@ RISINGWAVE_TIMEOUT=30
 ```
 
 
-Follow the [tutorial](https://docs.risingwave.com/ingestion/advanced/generate-test-data) to create a load generator.
+Follow the [tutorial](https://docs.risingwave.com/ingestion/advanced/generate-test-data) to create a load generator or use this:
+
+```psql
+CREATE TABLE users (
+  id int,
+  risk int,
+  cost int,
+  time timestamp
+)
+WITH (
+  connector = 'datagen',
+
+  fields.id.length = '1',
+  fields.id.kind = 'sequence',
+  fields.id.start = '1000',
+
+  fields.risk.length = '1',
+  fields.risk.kind = 'random',
+  fields.risk.min = '0',
+  fields.risk.max = '10',
+  fields.risk.seed = '5',
+
+  fields.cost.length = '1',
+  fields.cost.kind = 'random',
+  fields.cost.min = '1',
+  fields.cost.max = '10000',
+  fields.cost.seed = '8',
+
+  fields.time.kind = 'random',
+  fields.time.max_past = '5h',
+  fields.time.max_past_mode = 'relative',
+
+  datagen.rows.per.second = '10'
+)
+FORMAT PLAIN ENCODE JSON;
+```
 
 Now that you are connected to the RisingWave agent, Let's do some basic data analysis with the example above.
 
