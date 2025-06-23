@@ -17,99 +17,7 @@ If you want a reference to the full project you can clone [this](https://github.
 * Ensure that the [PostgreSQL](https://www.postgresql.org/docs/current/app-psql.html) interactive terminal, `psql`, is installed in your environment. For detailed instructions, see [Download PostgreSQL](https://www.postgresql.org/download/).
 * Ensure that a Python environment is set up and install the [psycopg2](https://pypi.org/project/psycopg2/) library. 
 
-## Step 1: Create the file 'risingwave-agent.py':
-
-```python
-from agents.agent import Agent
-import os
-from dotenv import load_dotenv
-
-
-load_dotenv()
-
-
-risingwave_env = {
-    "RISINGWAVE_HOST": os.getenv("RISINGWAVE_HOST", "0.0.0.0"),
-    "RISINGWAVE_PORT": os.getenv("RISINGWAVE_PORT", "4566"),
-    "RISINGWAVE_USER": os.getenv("RISINGWAVE_USER", "root"),
-    "RISINGWAVE_PASSWORD": os.getenv("RISINGWAVE_PASSWORD", "root"),
-    "RISINGWAVE_SSLMODE": os.getenv("RISINGWAVE_SSLMODE", "disable"),
-    "RISINGWAVE_TIMEOUT": os.getenv("RISINGWAVE_TIMEOUT", "30")
-}
-
-agent = Agent(
-    name="RisingWave Agent",
-    system="""You are an assistant to a Rising Wave MCP. Follow these rules:
-    1. Only use SELECT queries with LIMIT clauses (max 10 rows)
-    2. Keep responses under 100 words
-    3. Only show essential data
-    4. Avoid using unsupported functions (like STDDEV)
-    5. If an error occurs, try a simpler query
-    6. Focus on answering the user's specific question
-    7. Format tables in a clean, readable way:
-       - Use simple column names
-       - Align columns properly
-       - Include only necessary data
-    8. Never repeat the same information
-    9. If showing a table, show it only once with all needed data
-    10. Keep the final response concise and focused on the key information
-    11. Only give the response not the output
-    12. Make one comprehensive query instead of multiple smaller ones
-    13. Format numbers with proper currency symbols and decimal places
-    14. Use markdown tables for better readability
-    15. Skip intermediate steps and show only the final result
-    16. Keep tool calls visible but minimize other debug output""",
-    
-    mcp_servers=[
-        {
-            "type": "stdio",
-            "command": "python",
-            "args": ["risingwave-mcp/src/main.py"],
-            "env": risingwave_env  # Pass environment variables to MCP server
-        },
-    ],
-    verbose=False  # Disable verbose mode to reduce noise
-)
-
-print("\nRisingWave Agent Interactive Mode")
-print("Type 'exit' or 'quit' to end the session")
-print("----------------------------------------")
-
-while True:
-    try:
-        # Get user input
-        user_input = input("\nEnter your query: ").strip()
-        
-        # Check for exit command
-        if user_input.lower() in ['exit', 'quit']:
-            print("\nEnding session. Goodbye!")
-            break
-            
-        # Skip empty inputs
-        if not user_input:
-            continue
-            
-        # Get response from agent
-        response = agent.run(user_input)
-        
-        # Clean up the response format
-        if hasattr(response, 'content'):
-            # Extract just the text content
-            clean_response = response.content[0].text if isinstance(response.content, list) else response.content
-            print("\n", clean_response)
-        else:
-            print("\n", response)
-            
-    except KeyboardInterrupt:
-        print("\n\nSession interrupted. Goodbye!")
-        break
-    except Exception as e:
-        print(f"\nAn error occurred: {str(e)}")
-        print("Please try again with a different query.")
-```
-
-
-## Step 2: Create the file 'agent.py'
+## Step 1: Create the file 'agent.py', this will serve as a dataclass for your RisingWave agent.
 
 ```python
 """Agent implementation with Claude API and MCP tools."""
@@ -558,6 +466,98 @@ class Agent:
         return asyncio.run(self.run_async(user_input))
 ```
 
+## Step 2: Create the file 'risingwave-agent.py', this will actually instance of the Agent
+
+```python
+from agents.agent import Agent
+import os
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+
+risingwave_env = {
+    "RISINGWAVE_HOST": os.getenv("RISINGWAVE_HOST", "0.0.0.0"),
+    "RISINGWAVE_PORT": os.getenv("RISINGWAVE_PORT", "4566"),
+    "RISINGWAVE_USER": os.getenv("RISINGWAVE_USER", "root"),
+    "RISINGWAVE_PASSWORD": os.getenv("RISINGWAVE_PASSWORD", "root"),
+    "RISINGWAVE_SSLMODE": os.getenv("RISINGWAVE_SSLMODE", "disable"),
+    "RISINGWAVE_TIMEOUT": os.getenv("RISINGWAVE_TIMEOUT", "30")
+}
+
+agent = Agent(
+    name="RisingWave Agent",
+    system="""You are an assistant to a Rising Wave MCP. Follow these rules:
+    1. Only use SELECT queries with LIMIT clauses (max 10 rows)
+    2. Keep responses under 100 words
+    3. Only show essential data
+    4. Avoid using unsupported functions (like STDDEV)
+    5. If an error occurs, try a simpler query
+    6. Focus on answering the user's specific question
+    7. Format tables in a clean, readable way:
+       - Use simple column names
+       - Align columns properly
+       - Include only necessary data
+    8. Never repeat the same information
+    9. If showing a table, show it only once with all needed data
+    10. Keep the final response concise and focused on the key information
+    11. Only give the response not the output
+    12. Make one comprehensive query instead of multiple smaller ones
+    13. Format numbers with proper currency symbols and decimal places
+    14. Use markdown tables for better readability
+    15. Skip intermediate steps and show only the final result
+    16. Keep tool calls visible but minimize other debug output""",
+    
+    mcp_servers=[
+        {
+            "type": "stdio",
+            "command": "python",
+            "args": ["risingwave-mcp/src/main.py"],
+            "env": risingwave_env  # Pass environment variables to MCP server
+        },
+    ],
+    verbose=False  # Disable verbose mode to reduce noise
+)
+
+print("\nRisingWave Agent Interactive Mode")
+print("Type 'exit' or 'quit' to end the session")
+print("----------------------------------------")
+
+while True:
+    try:
+        # Get user input
+        user_input = input("\nEnter your query: ").strip()
+        
+        # Check for exit command
+        if user_input.lower() in ['exit', 'quit']:
+            print("\nEnding session. Goodbye!")
+            break
+            
+        # Skip empty inputs
+        if not user_input:
+            continue
+            
+        # Get response from agent
+        response = agent.run(user_input)
+        
+        # Clean up the response format
+        if hasattr(response, 'content'):
+            # Extract just the text content
+            clean_response = response.content[0].text if isinstance(response.content, list) else response.content
+            print("\n", clean_response)
+        else:
+            print("\n", response)
+            
+    except KeyboardInterrupt:
+        print("\n\nSession interrupted. Goodbye!")
+        break
+    except Exception as e:
+        print(f"\nAn error occurred: {str(e)}")
+        print("Please try again with a different query.")
+```
+
+
 ## Step 3: Create the '__init__.py' file
 
 ```python
@@ -587,24 +587,10 @@ Now that you are connected to the RisingWave agent, Let's do some basic data ana
 
 1. Give me the database version
 
-2. Show me the schema of the table s1.
+2. Show me the s1 table structure and create an mv for tracking highest values
 
-3. Show me the first 20 rows from the s1 table, ordered by the i1 array column.
+3. Display that newly created mv
 
-Feel free to experiment with more prompts and try out with your own data! Similarly, you can use any of the [demos](https://docs.risingwave.com/demos/overview) in the and test the streaming data in those directories.
+Feel free to experiment with more prompts and try out with your own data! Similarly, you can use any of the [demos](https://docs.risingwave.com/demos/overview) the and test the agent with that data.
 
 When you are done you can have the agent drop the s1 table or just close the terminal.
-
-
-
-Now that you have the script prepared, you must configure your .env file. Create one now and enter your Anthropic API key where needed
-```python
-ANTHROPIC_API_KEY=<YOUR-API-KEY-HERE>
-RISINGWAVE_HOST=0.0.0.0
-RISINGWAVE_USER=root
-RISINGWAVE_PASSWORD=root
-RISINGWAVE_PORT=4566
-RISINGWAVE_DATABASE=dev
-RISINGWAVE_SSLMODE=disable
-RISINGWAVE_TIMEOUT=30
-```
