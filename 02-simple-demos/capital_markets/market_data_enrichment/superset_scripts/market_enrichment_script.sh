@@ -93,6 +93,7 @@ CREATE_DATASET_PAYLOAD=$(jq -n --argjson db_id "$DB_ID" --arg table_name "$DATAS
 DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD")
 
 # --- 4. Add Metrics to Dataset (FINAL ROBUST POLLING VERSION) ---
+# --- 4. Add Metrics to Dataset (FINAL URL ENCODING FIX) ---
 echo "--- Synchronizing columns and metrics for dataset '$DATASET_NAME' ---" >&2
 
 # Trigger the refresh and then poll until columns are available.
@@ -107,20 +108,23 @@ until [[ $COLUMNS_COUNT -gt 0 || $POLL_ATTEMPTS -ge $MAX_POLL_ATTEMPTS ]]; do
     POLL_ATTEMPTS=$((POLL_ATTEMPTS + 1))
     printf "      Attempt %s/%s..." "$POLL_ATTEMPTS" "$MAX_POLL_ATTEMPTS"
     
-    # Temporarily disable 'exit on error' to handle curl failures gracefully
-    set +e
-    DATASET_DETAILS=$(curl -s -f -X GET "$SUPERSET_URL/api/v1/dataset/$DATASET_ID?q=\{\"columns\":[\"columns\"]}" -H "Authorization: Bearer $TOKEN")
-    CURL_EXIT_CODE=$? # Capture the exit code of the curl command
-    set -e # Re-enable 'exit on error' immediately
+    # THE FIX: Use --data-urlencode to let curl handle special characters safely.
+    # This prevents "malformed URL" (exit code 3) errors.
+    QUERY_PARAM='q={"columns":["columns"]}'
+    
+    set +e # Temporarily disable 'exit on error'
+    DATASET_DETAILS=$(curl -s -f -G "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" \
+        --data-urlencode "$QUERY_PARAM" \
+        -H "Authorization: Bearer $TOKEN")
+    CURL_EXIT_CODE=$? # Capture the exit code
+    set -e # Re-enable 'exit on error'
 
-    # Check if the curl command itself failed
     if [[ $CURL_EXIT_CODE -ne 0 ]]; then
         echo " Curl command failed with exit code $CURL_EXIT_CODE. Retrying in 5 seconds."
         sleep 5
-        continue # Skip to the next iteration of the loop
+        continue
     fi
     
-    # Now that we know curl succeeded, we can safely parse the JSON
     COLUMNS_COUNT=$(echo "$DATASET_DETAILS" | jq '.result.columns | length')
 
     if [[ $COLUMNS_COUNT -gt 0 ]]; then
@@ -149,7 +153,7 @@ DESIRED_METRICS=$(jq -n '{
     "avg_sentiment": "AVG(sentiment_score)"
 }')
 
-FINAL_METRICS=$(curl -s -X GET "$SUPERSET_URL/api/v1/dataset/$DATASET_ID?q=\{\"columns\":[\"metrics\"]}" -H "Authorization: Bearer $TOKEN" | jq '.result.metrics // []')
+FINAL_METRICS=$(curl -s -G "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" --data-urlencode 'q={"columns":["metrics"]}' -H "Authorization: Bearer $TOKEN" | jq '.result.metrics // []')
 METRICS_WERE_MODIFIED=0
 for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
     metric_exists=$(echo "$FINAL_METRICS" | jq --arg name "$metric_name" 'any(.metric_name == $name)')
