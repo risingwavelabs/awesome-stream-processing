@@ -92,7 +92,7 @@ DATASET_FILTER_Q="q=$(jq -n --arg name "$DATASET_TABLE_NAME" --argjson db_id "$D
 CREATE_DATASET_PAYLOAD=$(jq -n --argjson db_id "$DB_ID" --arg table_name "$DATASET_TABLE_NAME" '{database: ($db_id | tonumber), table_name: $table_name, schema: "public", owners: [1]}')
 DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD")
 
-# --- 4. Add Metrics to Dataset ---
+# --- 4. Add Metrics to Dataset (FINAL ROBUST POLLING VERSION) ---
 echo "--- Synchronizing columns and metrics for dataset '$DATASET_NAME' ---" >&2
 
 # Trigger the refresh and then poll until columns are available.
@@ -107,16 +107,26 @@ until [[ $COLUMNS_COUNT -gt 0 || $POLL_ATTEMPTS -ge $MAX_POLL_ATTEMPTS ]]; do
     POLL_ATTEMPTS=$((POLL_ATTEMPTS + 1))
     printf "      Attempt %s/%s..." "$POLL_ATTEMPTS" "$MAX_POLL_ATTEMPTS"
     
-    # Query for the dataset details, specifically asking for the columns
-    DATASET_DETAILS=$(curl -s -X GET "$SUPERSET_URL/api/v1/dataset/$DATASET_ID?q=\{\"columns\":[\"columns\"]}" -H "Authorization: Bearer $TOKEN")
+    # Temporarily disable 'exit on error' to handle curl failures gracefully
+    set +e
+    DATASET_DETAILS=$(curl -s -f -X GET "$SUPERSET_URL/api/v1/dataset/$DATASET_ID?q=\{\"columns\":[\"columns\"]}" -H "Authorization: Bearer $TOKEN")
+    CURL_EXIT_CODE=$? # Capture the exit code of the curl command
+    set -e # Re-enable 'exit on error' immediately
+
+    # Check if the curl command itself failed
+    if [[ $CURL_EXIT_CODE -ne 0 ]]; then
+        echo " Curl command failed with exit code $CURL_EXIT_CODE. Retrying in 5 seconds."
+        sleep 5
+        continue # Skip to the next iteration of the loop
+    fi
     
-    # Count how many columns are in the response
+    # Now that we know curl succeeded, we can safely parse the JSON
     COLUMNS_COUNT=$(echo "$DATASET_DETAILS" | jq '.result.columns | length')
 
     if [[ $COLUMNS_COUNT -gt 0 ]]; then
         echo " Found $COLUMNS_COUNT columns."
     else
-        echo " No columns found yet. Retrying in 5 seconds."
+        echo " No columns found yet in response. Retrying in 5 seconds."
         sleep 5
     fi
 done
@@ -139,7 +149,6 @@ DESIRED_METRICS=$(jq -n '{
     "avg_sentiment": "AVG(sentiment_score)"
 }')
 
-# We already fetched the details, let's just get the metrics from it
 FINAL_METRICS=$(curl -s -X GET "$SUPERSET_URL/api/v1/dataset/$DATASET_ID?q=\{\"columns\":[\"metrics\"]}" -H "Authorization: Bearer $TOKEN" | jq '.result.metrics // []')
 METRICS_WERE_MODIFIED=0
 for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
