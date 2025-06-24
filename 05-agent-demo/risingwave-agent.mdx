@@ -34,8 +34,11 @@ from typing import Any, Callable, Tuple
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
+```
 
+The MessageHistory class manages the conversation between the user and the agent. It keeps a list of messages, tracks the number of tokens used to stay within the model’s context window limit, and allows messages to be truncated when necessary. It also tracks token usage for each message exchange, formats messages in a structure suitable for Anthropic’s API, and optionally adds cache control headers to recent messages to optimize performance.
 
+```python
 class MessageHistory:
     """Manages chat history with token tracking and context management."""
 
@@ -157,7 +160,7 @@ class MessageHistory:
         return result
 ```
 
-- This class is responsible for starting and maintaining a connection to the RisingWave MCP Server
+The create_mcp_connection function serves as a factory to create either a stdio or sse MCP connection based on the configuration provided. The setup_mcp_connections async function loops through a list of server configs, creates connections, retrieves each server’s available tools, and dynamically generates async wrapper functions that the agent can later call. It collects both the tool definitions and their corresponding function wrappers into dictionaries for use in the agent loop
 
 ```python
 class MCPConnection(ABC):
@@ -286,7 +289,7 @@ async def setup_mcp_connections(
     return mcp_tools, tool_functions
 ```
 
-- Here you can edit the different configurations settings for the model
+This simple dataclass called ModelConfig defines the agent’s configurable model parameters. It sets defaults for which Claude model to use, how many tokens a response can contain, the model’s temperature (which controls response randomness), and the maximum number of tokens allowed in the conversation history window.
 
 ```python
 @dataclass
@@ -297,7 +300,7 @@ class ModelConfig:
     context_window_tokens: int = 180000
 ```
 
-- This section is called when you instantialize an agent. It creates the actual agent and also prepares the prior established message history.
+The Agent class is the core of this implementation. The constructor (__init__) initializes the agent’s name, system prompt, optional MCP servers and configuration, logging verbosity, the Anthropic API client, and message parameters. It also creates a new MessageHistory instance to track conversation state and token usage for each interaction.
 
 ```python
 class Agent:
@@ -343,7 +346,11 @@ class Agent:
 
         if self.verbose:
             print(f"\n[{self.name}] Agent initialized")
+```
 
+The _prepare_message_params method builds a dictionary of parameters to send with each call to Anthropic’s messages.create() API. This includes the model config, system prompt, formatted conversation history, any available tools, and any additional custom message parameters provided during initialization.
+
+```python
     def _prepare_message_params(self, tools: list[dict[str, Any]]) -> dict[str, Any]:
         """Prepare parameters for client.messages.create() call."""
         return {
@@ -357,7 +364,7 @@ class Agent:
         }
 ```
 
-- Finally this last section is to allow the agent to process queries and give it to ability to loop itself in the occassion of a complex query or for error handling to ensure the users request is completed.
+The _agent_loop method is the heart of the agent’s functionality. It begins by adding the user’s message to the history, then continuously calls the Anthropic API to get the agent’s next response. If the response includes tool calls (commands for the agent to run a tool hosted on an MCP server), it executes them asynchronously using the previously generated wrappers, appends the tool results to the history, and continues the loop. The loop only exits when the agent’s response no longer includes any tool calls, at which point it returns the final response.
 
 ```python
     async def _agent_loop(self, user_input: str, tools: list[dict[str, Any]], tool_functions: dict[str, Callable]) -> list[dict[str, Any]]:
@@ -427,7 +434,11 @@ class Agent:
                 await self.history.add_message("user", tool_results)
             else:
                 return response
+```
 
+Finally, the run_async method is the agent’s top-level asynchronous entry point. It opens all MCP server connections, retrieves tool definitions, and runs the _agent_loop with the given user input. The run method wraps this with asyncio.run so it can be used in synchronous contexts — useful for scripts, CLIs, or other programs without native async support.
+
+```python
     async def run_async(self, user_input: str) -> list[dict[str, Any]]:
         """Run agent with MCP tools asynchronously."""
         async with AsyncExitStack() as stack:
