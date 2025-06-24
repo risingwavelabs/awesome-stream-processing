@@ -1,6 +1,7 @@
-from agents.agent import Agent
+from agent import Agent
 import os
 from dotenv import load_dotenv
+import asyncio
 
 
 load_dotenv()
@@ -49,38 +50,47 @@ agent = Agent(
     verbose=False  # Disable verbose mode to reduce noise
 )
 
-print("\nRisingWave Agent Interactive Mode")
-print("Type 'exit' or 'quit' to end the session")
-print("----------------------------------------")
+async def main():
+    """Main function to run the agent in interactive mode."""
+    print("\nRisingWave Agent Interactive Mode")
+    print("Type 'exit' or 'quit' to end the session")
+    print("----------------------------------------")
 
-while True:
     try:
-        # Get user input
-        user_input = input("\nEnter your query: ").strip()
-        
-        # Check for exit command
-        if user_input.lower() in ['exit', 'quit']:
-            print("\nEnding session. Goodbye!")
-            break
-            
-        # Skip empty inputs
-        if not user_input:
-            continue
-            
-        # Get response from agent
-        response = agent.run(user_input)
-        
-        # Clean up the response format
-        if hasattr(response, 'content'):
-            # Extract just the text content
-            clean_response = response.content[0].text if isinstance(response.content, list) else response.content
-            print("\n", clean_response)
-        else:
-            print("\n", response)
-            
-    except KeyboardInterrupt:
-        print("\n\nSession interrupted. Goodbye!")
-        break
-    except Exception as e:
-        print(f"\nAn error occurred: {str(e)}")
-        print("Please try again with a different query.")
+        while True:
+            try:
+                # Get user input
+                user_input = input("\nEnter your query: ").strip()
+                
+                # Check for exit command
+                if user_input.lower() in ['exit', 'quit']:
+                    print("\nEnding session. Goodbye!")
+                    break
+                    
+                # Skip empty inputs
+                if not user_input:
+                    continue
+                    
+                # Get response from agent
+                response = await agent.run_async(user_input)
+                
+                # Clean up the response format
+                if hasattr(response, 'content'):
+                    # Extract just the text content
+                    clean_response = response.content[0].text if isinstance(response.content, list) else response.content
+                    print("\n", clean_response)
+                else:
+                    print("\n", response)
+                    
+            except KeyboardInterrupt:
+                print("\n\nSession interrupted. Goodbye!")
+                break
+            except Exception as e:
+                print(f"\nAn error occurred: {str(e)}")
+                print("Please try again with a different query.")
+    finally:
+        # Ensure connections are closed when session ends
+        await agent.close_connections()
+
+if __name__ == "__main__":
+    asyncio.run(main())
