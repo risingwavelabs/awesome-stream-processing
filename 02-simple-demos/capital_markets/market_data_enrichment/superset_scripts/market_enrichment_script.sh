@@ -165,10 +165,9 @@ CHART_1_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
     "granularity_sqla": "timestamp",
     "time_range": "No filter",
     "metrics": ["avg_price_change", "avg_rolling_volatility"],
-    "groupby": ["asset_id"],
     "show_legend": true,
     "row_limit": 10000,
-    "time_grain_sqla": "P1D",
+    "time_grain_sqla": "PT1S",
     "show_brush": "auto",
     "show_markers": false,
     "rich_tooltip": true,
@@ -195,6 +194,7 @@ CREATE_CHART_1_PAYLOAD=$(jq -n --arg name "$CHART_1_NAME" --argjson ds_id "$DATA
     "owners": [1]
 }')
 
+
 CHART_1_ID=$(get_or_create_asset "chart" "$CHART_1_NAME" "$CHART_1_FILTER_Q" "$CREATE_CHART_1_PAYLOAD")
 
 # Chart 2: Sentiment and Sector Performance
@@ -206,10 +206,9 @@ CHART_2_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
     "granularity_sqla": "timestamp",
     "time_range": "No filter",
     "metrics": ["avg_sentiment", "avg_sector_performance"],
-    "groupby": ["asset_id"],
     "show_legend": true,
     "row_limit": 10000,
-    "time_grain_sqla": "P1D",
+    "time_grain_sqla": "PT1S",
     "show_brush": "auto",
     "show_markers": false,
     "rich_tooltip": true,
