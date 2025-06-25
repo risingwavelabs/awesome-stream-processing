@@ -267,7 +267,7 @@ POSITION_JSON=$(jq -n \
       "meta": {"background": "BACKGROUND_TRANSPARENT"}
     },
     "ROW_ID_2": {
-      "type": "ROW", 
+      "type": "ROW",
       "id": "ROW_ID_2",
       "children": ["CHART_ID_2"],
       "meta": {"background": "BACKGROUND_TRANSPARENT"}
@@ -278,23 +278,24 @@ POSITION_JSON=$(jq -n \
       "children": [],
       "meta": {
         "width": 12,
-        "height": 50,
+        "height": 30,
         "chartId": $c1_id,
         "uuid": $c1_uuid
       }
     },
     "CHART_ID_2": {
       "type": "CHART",
-      "id": "CHART_ID_2", 
+      "id": "CHART_ID_2",
       "children": [],
       "meta": {
         "width": 12,
-        "height": 50,
+        "height": 30,
         "chartId": $c2_id,
         "uuid": $c2_uuid
       }
     }
 }')
+
 
 # --- Build dashboard creation payload (no "charts" field) ---
 CREATE_DASHBOARD_PAYLOAD=$(jq -n \
