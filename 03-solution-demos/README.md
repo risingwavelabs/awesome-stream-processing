@@ -1,6 +1,6 @@
 # Solution demonstrations
 
-The demos in this directory aim to demonstrate how to build a streaming data pipeline for real-world industry applications. All demos can be run using Docker Compose for ease of set up and include detailed deployment instructions.
+The demos in this directory aim to demonstrate how to build a streaming data pipeline for real-world industry applications. All demos can be run using Docker Compose for ease of setup and include detailed deployment instructions.
 
 Here are the runnable demos so far:
 
@@ -14,4 +14,7 @@ Here are the runnable demos so far:
 
 * [Spoofing detection with actual Market data](/03-solution-demos/spoofing_detection_with_live_market_data/readme.md): Detect spoofing in trading events in real-time by leveraging RisingWave and real-time market data from [Databento](https://databento.com/). Detailed explanations can be found in [this blog post](https://risingwave.com/blog/spoofing-detection-databento-risingwave/).
 
+* [Real-time PostgreSQL → Apache Iceberg CDC](/03-solution-demos/postgres_cdc_iceberg/readme.md): Stream PostgreSQL CDC into Apache Iceberg with RisingWave’s native connectors, query it through Spark, Trino, or Dremio, then loop the results back for a faster, simpler stack than Kafka and/or Flink.
+
 * [Traffic flow monitoring and predication](/03-solution-demos/traffic_prediction): Detect traffic flow by ingesting car speed events in real-time, and predict the traffic flow based historical data and a ML model.
+
