@@ -307,7 +307,7 @@ tasks:
 
 ports:
   - port: 8088
-    onOpen: ignore
+    onOpen: open-preview
   - port: 4566
     onOpen: ignore
   - port: 5432
