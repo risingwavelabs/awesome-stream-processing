@@ -25,38 +25,36 @@ get_or_create_asset() {
     echo "--- Managing ${asset_type^}: '$asset_name' ---" >&2
     local get_response; get_response=$(curl -s -G "$SUPERSET_URL/api/v1/$asset_type/" -H "Authorization: Bearer $TOKEN" --data-urlencode "$filter_q")
     existing_id=$(echo "$get_response" | jq -r '.result[0].id // empty')
-    if [[ -n "$existing_id" ]]; then echo "✅ ${asset_type^} '$asset_name' already exists with ID: $existing_id" >&2; echo "$existing_id"; return; fi
-    echo "➡️ ${asset_type^} '$asset_name' not found, creating it..." >&2
+    if [[ -n "$existing_id" ]]; then echo "${asset_type^} '$asset_name' already exists with ID: $existing_id" >&2; echo "$existing_id"; return; fi
+    echo "${asset_type^} '$asset_name' not found, creating it..." >&2
     local create_response; create_response=$(curl -s -X POST "$SUPERSET_URL/api/v1/$asset_type/" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" -H "Content-Type: application/json" -d "$create_payload")
     local new_id; new_id=$(echo "$create_response" | jq -r '.id // empty')
-    if [[ -z "$new_id" ]]; then echo "❌ Failed to create ${asset_type} '$asset_name'. Response: $create_response" >&2; exit 1; fi
-    echo "✅ ${asset_type^} '$asset_name' created with ID: $new_id" >&2; echo "$new_id"
+    if [[ -z "$new_id" ]]; then echo "Failed to create ${asset_type} '$asset_name'. Response: $create_response" >&2; exit 1; fi
+    echo "${asset_type^} '$asset_name' created with ID: $new_id" >&2; echo "$new_id"
 }
 
 # --- 1. Authentication ---
-echo "⏳ Waiting for Superset API..." >&2
+echo "Waiting for Superset API..." >&2
 until curl -s "$SUPERSET_URL/api/v1/ping" &> /dev/null; do sleep 1 && printf "."; done
-echo -e "\n✅ Superset is up." >&2
+echo -e "\nSuperset is up." >&2
 
-# Add longer delay to ensure Superset is fully initialized
-echo "⏳ Waiting for Superset to fully initialize..." >&2
+echo "Waiting for Superset to fully initialize..." >&2
 sleep 10
 
 LOGIN_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/security/login" -H 'Content-Type: application/json' -d "{\"username\": \"$SUPERSET_USERNAME\", \"password\": \"$SUPERSET_PASSWORD\", \"provider\": \"db\"}")
 TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.access_token // empty')
-[[ -z "$TOKEN" ]] && echo "❌ Login failed. Response: $LOGIN_RESPONSE" >&2 && exit 1
-echo "🔑 Login successful." >&2
+[[ -z "$TOKEN" ]] && echo "Login failed. Response: $LOGIN_RESPONSE" >&2 && exit 1
+echo "Login successful." >&2
 CSRF_TOKEN=$(curl -s -H "Authorization: Bearer $TOKEN" "$SUPERSET_URL/api/v1/security/csrf_token/" | jq -r '.result // empty')
-[[ -z "$CSRF_TOKEN" ]] && echo "❌ Failed to get CSRF token." >&2 && exit 1
-echo "✅ Got CSRF token." >&2
+[[ -z "$CSRF_TOKEN" ]] && echo "Failed to get CSRF token." >&2 && exit 1
+echo "Got CSRF token." >&2
 
 # --- 2. Get or Create Database ---
 DB_FILTER_Q="q=$(jq -n --arg name "$DB_NAME" '{filters:[{col:"database_name",opr:"eq",value:$name}]}')"
 CREATE_DB_PAYLOAD=$(jq -n --arg name "$DB_NAME" --arg uri "$SQLALCHEMY_URI" '{database_name: $name, sqlalchemy_uri: $uri, expose_in_sqllab: true}')
 DB_ID=$(get_or_create_asset "database" "$DB_NAME" "$DB_FILTER_Q" "$CREATE_DB_PAYLOAD")
 
-# Test database connection
-echo "🔍 Testing database connection..." >&2
+echo "Testing database connection..." >&2
 TEST_DB_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/database/test_connection" \
     -H "Authorization: Bearer $TOKEN" \
     -H "X-CSRFToken: $CSRF_TOKEN" \
@@ -64,17 +62,20 @@ TEST_DB_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/database/test_connectio
     -d "{\"sqlalchemy_uri\": \"$SQLALCHEMY_URI\", \"database_name\": \"$DB_NAME\"}")
 
 if echo "$TEST_DB_RESPONSE" | jq -e '.message // empty' | grep -q "OK"; then
-    echo "✅ Database connection successful." >&2
+    echo "Database connection successful." >&2
 else
-    echo "⚠️ Database connection test failed: $TEST_DB_RESPONSE" >&2
+    echo "Database connection test failed: $TEST_DB_RESPONSE" >&2
 fi
 
-# --- 3. Get or Create Dataset ---
+# (rest of the script remains unchanged)
+
+
+#get / create dataset
 DATASET_FILTER_Q="q=$(jq -n --arg name "$DATASET_TABLE_NAME" --argjson db_id "$DB_ID" '{filters:[{col:"table_name",opr:"eq",value:$name},{col:"database_id",opr:"eq",value:($db_id|tonumber)}]}')"
 CREATE_DATASET_PAYLOAD=$(jq -n --argjson db_id "$DB_ID" --arg table_name "$DATASET_TABLE_NAME" '{database:($db_id|tonumber), table_name:$table_name, schema:"public", owners:[1]}')
 DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD")
 
-# --- 4. Wait for Columns and Set Main Time Column ---
+#wait and set main time
 echo "--- Configuring dataset properties ---" >&2
 curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" > /dev/null
 
@@ -89,15 +90,15 @@ until [[ $COLUMNS_COUNT -gt 0 || $POLL_ATTEMPTS -ge $MAX_POLL_ATTEMPTS ]]; do
 done
 
 if [[ $COLUMNS_COUNT -eq 0 ]]; then 
-    echo "❌ ERROR: Dataset columns not found after $MAX_POLL_ATTEMPTS attempts." >&2
+    echo "ERROR: Dataset columns not found after $MAX_POLL_ATTEMPTS attempts." >&2
     echo "Dataset details response: $DATASET_DETAILS" >&2
     exit 1
 fi
 
-# Check if timestamp column exists
+#check timestamp column
 TIMESTAMP_COLUMN=$(echo "$DATASET_DETAILS" | jq -r '.result.columns[] | select(.column_name=="timestamp") | .column_name // empty')
 if [[ -z "$TIMESTAMP_COLUMN" ]]; then
-    echo "❌ ERROR: 'timestamp' column not found in dataset. Available columns:" >&2
+    echo "ERROR: 'timestamp' column not found in dataset. Available columns:" >&2
     echo "$DATASET_DETAILS" | jq -r '.result.columns[].column_name' >&2
     exit 1
 fi
@@ -106,19 +107,19 @@ echo "    - Setting main datetime column to 'timestamp'..." >&2
 UPDATE_DATASET_PAYLOAD=$(jq -n '{"main_dttm_col":"timestamp"}')
 UPDATE_DATASET_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" -H "Content-Type: application/json" -d "$UPDATE_DATASET_PAYLOAD")
 if ! echo "$UPDATE_DATASET_RESPONSE" | jq -e '.result.main_dttm_col=="timestamp"' > /dev/null; then 
-    echo "❌ Failed to set datetime column. Response: $UPDATE_DATASET_RESPONSE" >&2
+    echo " Failed to set datetime column. Response: $UPDATE_DATASET_RESPONSE" >&2
     exit 1
 fi
 echo "✅ Dataset configured successfully." >&2
 
-# --- 5. Add Metrics ---
+#adding metrics
 echo "--- Ensuring all metrics are present in dataset ---" >&2
 
-# Check which columns actually exist first
+#check column existence
 EXISTING_COLUMNS=$(echo "$DATASET_DETAILS" | jq -r '.result.columns[].column_name')
 echo "Available columns: $EXISTING_COLUMNS" >&2
 
-# Define metrics based on actual column names (adjust these based on your actual schema)
+#define metrics
 DESIRED_METRICS=$(jq -n '{
     "avg_price":"AVG(average_price)",
     "avg_price_change":"AVG(price_change)",
@@ -141,24 +142,22 @@ for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
         UPDATE_PAYLOAD=$(echo "$metrics_to_upload"|jq 'map(if .id then {id,metric_name,expression,verbose_name} else {metric_name,expression,verbose_name} end)|{metrics:.}')
         UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" -H "Content-Type: application/json" -d "$UPDATE_PAYLOAD")
         if echo "$UPDATE_RESPONSE"|jq -e '.result'>/dev/null; then 
-            echo "    ✅ Successfully added metric '$metric_name'." >&2
+            echo "    Successfully added metric '$metric_name'." >&2
         else 
-            echo "    ❌ Failed to add metric '$metric_name'. Response: $UPDATE_RESPONSE" >&2
-            # Don't exit on metric failure, continue with available metrics
+            echo "    Failed to add metric '$metric_name'. Response: $UPDATE_RESPONSE" >&2
         fi
     else 
         echo "    - Metric already exists. Skipping." >&2
     fi
 done
-echo "✅ Metrics processing complete." >&2
+echo "Metrics processing complete." >&2
 
-# --- 6. Create Charts ---
-echo "--- Creating charts ---" >&2
+#chart creation
+echo "--- creating charts ---" >&2
 
-# Chart 1: Price Change and Volatility Over Time
+#Chart 1 - price change and volatility.
 CHART_1_FILTER_Q="q=$(jq -n --arg name "$CHART_1_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
 
-# Fixed chart parameters with proper structure
 CHART_1_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
     "viz_type": "line",
     "datasource": "\($ds_id)__table",
@@ -197,7 +196,6 @@ CREATE_CHART_1_PAYLOAD=$(jq -n --arg name "$CHART_1_NAME" --argjson ds_id "$DATA
 
 CHART_1_ID=$(get_or_create_asset "chart" "$CHART_1_NAME" "$CHART_1_FILTER_Q" "$CREATE_CHART_1_PAYLOAD")
 
-# Chart 2: Sentiment and Sector Performance
 CHART_2_FILTER_Q="q=$(jq -n --arg name "$CHART_2_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
 
 CHART_2_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
@@ -237,11 +235,9 @@ CREATE_CHART_2_PAYLOAD=$(jq -n --arg name "$CHART_2_NAME" --argjson ds_id "$DATA
 
 CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$CREATE_CHART_2_PAYLOAD")
 
-# --- 7. Create Dashboard ---
 echo "--- Creating dashboard ---" >&2
 DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
 
-# Fixed dashboard position JSON with both charts
 POSITION_JSON=$(jq -n --argjson c1_id "$CHART_1_ID" --argjson c2_id "$CHART_2_ID" '{
     "DASHBOARD_VERSION_KEY": "v2",
     "ROOT_ID": {
@@ -300,16 +296,9 @@ CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" --argjson positi
 
 DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
 
-# --- Final ---
 echo ""
-echo "🎉 SUCCESS! Superset setup complete!"
-echo "🌐 Visit your new dashboard: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/"
+echo "SUCCESS! Superset setup complete!"
+echo "Dash URL: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/"
 echo ""
-echo "📊 Charts created:"
-echo "  - Chart 1: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_1_ID"
+echo " - Chart 1: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_1_ID"
 echo "  - Chart 2: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_2_ID"
-echo ""
-echo "🔍 Troubleshooting tips:"
-echo "  - If charts show 'Empty Query', verify your metrics exist and data is present"
-echo "  - Check database connection in Superset UI: Data -> Databases"
-echo "  - Verify dataset columns: Data -> Datasets -> $DATASET_NAME"
