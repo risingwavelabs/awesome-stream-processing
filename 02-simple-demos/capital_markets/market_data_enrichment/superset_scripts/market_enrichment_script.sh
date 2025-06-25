@@ -238,77 +238,33 @@ CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$C
 echo "--- Creating dashboard ---" >&2
 DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
 
-# --- Fetch real chart UUIDs ---
-CHART_1_UUID=$(curl -s -H "Authorization: Bearer $TOKEN" "$SUPERSET_URL/api/v1/chart/$CHART_1_ID" | jq -r '.result.uuid')
-CHART_2_UUID=$(curl -s -H "Authorization: Bearer $TOKEN" "$SUPERSET_URL/api/v1/chart/$CHART_2_ID" | jq -r '.result.uuid')
-
-# --- Create dashboard layout JSON ---
-POSITION_JSON=$(jq -n \
-  --argjson c1_id "$CHART_1_ID" \
-  --argjson c2_id "$CHART_2_ID" \
-  --arg c1_uuid "$CHART_1_UUID" \
-  --arg c2_uuid "$CHART_2_UUID" '{
-    "DASHBOARD_VERSION_KEY": "v2",
-    "ROOT_ID": {
-      "type": "ROOT",
-      "id": "ROOT_ID",
-      "children": ["GRID_ID"]
-    },
-    "GRID_ID": {
-      "type": "GRID",
-      "id": "GRID_ID",
-      "children": ["ROW_ID_1", "ROW_ID_2"],
-      "meta": {}
-    },
-    "ROW_ID_1": {
-      "type": "ROW",
-      "id": "ROW_ID_1",
-      "children": ["CHART_ID_1"],
-      "meta": {"background": "BACKGROUND_TRANSPARENT"}
-    },
-    "ROW_ID_2": {
-      "type": "ROW",
-      "id": "ROW_ID_2",
-      "children": ["CHART_ID_2"],
-      "meta": {"background": "BACKGROUND_TRANSPARENT"}
-    },
-    "CHART_ID_1": {
-      "type": "CHART",
-      "id": "CHART_ID_1",
-      "children": [],
-      "meta": {
-        "width": 12,
-        "height": 30,
-        "chartId": $c1_id,
-        "uuid": $c1_uuid
-      }
-    },
-    "CHART_ID_2": {
-      "type": "CHART",
-      "id": "CHART_ID_2",
-      "children": [],
-      "meta": {
-        "width": 12,
-        "height": 30,
-        "chartId": $c2_id,
-        "uuid": $c2_uuid
-      }
-    }
+POSITION_JSON=$(jq -n '{
+  "DASHBOARD_VERSION_KEY": "v2",
+  "ROOT_ID": {
+    "type": "ROOT",
+    "id": "ROOT_ID",
+    "children": ["GRID_ID"]
+  },
+  "GRID_ID": {
+    "type": "GRID",
+    "id": "GRID_ID",
+    "children": [],
+    "meta": {}
+  }
 }')
 
-
-# --- Build dashboard creation payload (no "charts" field) ---
 CREATE_DASHBOARD_PAYLOAD=$(jq -n \
   --arg title "$DASHBOARD_TITLE" \
-  --argjson position "$POSITION_JSON" '{
+  --argjson position "$POSITION_JSON" \
+  --argjson c1_id "$CHART_1_ID" \
+  --argjson c2_id "$CHART_2_ID" '{
     "dashboard_title": $title,
     "position_json": ($position | tostring),
+    "charts": [$c1_id, $c2_id],
     "published": true,
     "owners": [1]
 }')
 
-# --- Create or retrieve dashboard ---
-DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
 DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
 
 echo ""
@@ -316,4 +272,4 @@ echo "SUCCESS! Superset setup complete!"
 echo "Dash URL: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/"
 echo ""
 echo " - Chart 1: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_1_ID"
-echo " - Chart 2: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_2_ID"
+echo "  - Chart 2: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_2_ID"
