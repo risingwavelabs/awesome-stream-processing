@@ -50,10 +50,8 @@ services:
     ports:
       - "8088:8088"
     volumes:
-      #mount config to disable auth
       - ./superset_config.py:/app/pythonpath/superset_config.py
     environment:
-      #point to config
       - SUPERSET_CONFIG_PATH=/app/pythonpath/superset_config.py
       - SUPERSET_SECRET_KEY=supersecret
       - ADMIN_USERNAME=admin
