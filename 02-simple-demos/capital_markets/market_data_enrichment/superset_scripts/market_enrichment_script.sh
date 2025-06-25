@@ -287,9 +287,14 @@ POSITION_JSON=$(jq -n --argjson c1_id "$CHART_1_ID" --argjson c2_id "$CHART_2_ID
     }
 }')
 
-CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" --argjson position "$POSITION_JSON" '{
+CREATE_DASHBOARD_PAYLOAD=$(jq -n \
+  --arg title "$DASHBOARD_TITLE" \
+  --argjson position "$POSITION_JSON" \
+  --argjson c1_id "$CHART_1_ID" \
+  --argjson c2_id "$CHART_2_ID" '{
     "dashboard_title": $title,
     "position_json": ($position | tostring),
+    "charts": [$c1_id, $c2_id],
     "published": true,
     "owners": [1]
 }')
