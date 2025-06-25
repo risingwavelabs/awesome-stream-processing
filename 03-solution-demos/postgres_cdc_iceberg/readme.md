@@ -2,8 +2,8 @@
 
 Stream change-data-capture (CDC) events from PostgreSQL into Apache Iceberg using RisingWave’s native PostgreSQL CDC source and Iceberg sink. Query the continuously updated Iceberg lakehouse table with Spark, Trino, or Dremio, and ingest the results back into RisingWave using its source connector.
 
+This setup is faster than existing CDC tools, eliminates the need for Kafka or Flink, simplifies your stack and reduces overhead, and smoothly handles schema changes, scalability, and streaming workloads.
 ## Real-world use cases
-
 This architecture is applicable across several industries for real-time and historical analytics:
 
 | Industry | Application |
