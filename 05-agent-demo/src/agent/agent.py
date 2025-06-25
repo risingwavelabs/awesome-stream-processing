@@ -1,7 +1,7 @@
 """Agent implementation with Claude API and MCP tools."""
 
 import asyncio
-import osz
+import os
 from contextlib import AsyncExitStack
 from dataclasses import dataclass
 from typing import Any, Callable
