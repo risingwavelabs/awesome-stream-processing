@@ -33,57 +33,29 @@ SELECT
     timestamp
 FROM raw_market_data;
 
--- CREATE MATERIALIZED VIEW enriched_market_data AS
--- SELECT
---     rmd.asset_id,
---     ap.average_price,
---     (rmd.price - ap.average_price) / ap.average_price * 100 AS price_change,
---     ap.bid_ask_spread,
---     rv.rolling_volatility,
---     ed.sector_performance,
---     ed.sentiment_score,
---     rmd.timestamp
--- FROM
---     raw_market_data AS rmd
--- JOIN 
---     avg_price_bid_ask_spread AS ap ON rmd.asset_id = ap.asset_id
---     AND rmd.timestamp BETWEEN ap.timestamp - INTERVAL '2 seconds' AND ap.timestamp + INTERVAL '2 seconds'
--- JOIN 
---     rolling_volatility AS rv ON rmd.asset_id = rv.asset_id
---     AND rmd.timestamp BETWEEN rv.timestamp - INTERVAL '2 seconds' AND rv.timestamp + INTERVAL '2 seconds'
--- JOIN 
---     enrichment_data AS ed ON rmd.asset_id = ed.asset_id
---     AND rmd.timestamp BETWEEN ed.timestamp - INTERVAL '2 seconds' AND ed.timestamp + INTERVAL '2 seconds';
-
 CREATE MATERIALIZED VIEW enriched_market_data AS
 SELECT
     rmd.asset_id,
-    avg_price_bid_ask_spread.average_price,
-    (rmd.price - avg_price_bid_ask_spread.average_price) / avg_price_bid_ask_spread.average_price * 100 AS price_change,
-    avg_price_bid_ask_spread.bid_ask_spread,
-    rolling_volatility.rolling_volatility,
+    ap.average_price,
+    (rmd.price - ap.average_price) / ap.average_price * 100 AS price_change,
+    ap.bid_ask_spread,
+    rv.rolling_volatility,
     ed.sector_performance,
     ed.sentiment_score,
     rmd.timestamp
 FROM
     raw_market_data AS rmd
-JOIN
-    avg_price_bid_ask_spread
-ON
-    rmd.asset_id = avg_price_bid_ask_spread.asset_id
-JOIN
-    rolling_volatility
-ON
-    rmd.asset_id = rolling_volatility.asset_id
-JOIN
-    enrichment_data AS ed
-ON
-    rmd.asset_id = ed.asset_id
-WHERE
-    rmd.timestamp = avg_price_bid_ask_spread.timestamp
-    AND rmd.timestamp = rolling_volatility.timestamp
-    AND rmd.timestamp = ed.timestamp;
+JOIN 
+    avg_price_bid_ask_spread AS ap ON rmd.asset_id = ap.asset_id
+    AND rmd.timestamp BETWEEN ap.timestamp - INTERVAL '2 seconds' AND ap.timestamp + INTERVAL '2 seconds'
+JOIN 
+    rolling_volatility AS rv ON rmd.asset_id = rv.asset_id
+    AND rmd.timestamp BETWEEN rv.timestamp - INTERVAL '2 seconds' AND rv.timestamp + INTERVAL '2 seconds'
+JOIN 
+    enrichment_data AS ed ON rmd.asset_id = ed.asset_id
+    AND rmd.timestamp BETWEEN ed.timestamp - INTERVAL '2 seconds' AND ed.timestamp + INTERVAL '2 seconds';
 
+-- Sinks
 CREATE SINK sink_avg_price
 FROM avg_price_bid_ask_spread
 WITH (
