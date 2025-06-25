@@ -158,7 +158,7 @@ class MessageHistory:
         return result
 ```
 
-The create_mcp_connection function serves as a factory to create either a stdio or sse MCP connection based on the configuration provided. The setup_mcp_connections async function loops through a list of server configs, creates connections, retrieves each server’s available tools, and dynamically generates async wrapper functions that the agent can later call. It collects both the tool definitions and their corresponding function wrappers into dictionaries for use in the agent loop
+The create_mcp_connection function serves as a factory to create either a stdio or sse MCP connection based on the configuration provided. The setup_mcp_connections async function loops through a list of server configs, creates connections, retrieves each server’s available tools, and dynamically generates async wrapper functions that the agent can later call. It collects both the tool definitions and their corresponding function wrappers into dictionaries for use in the agent loop.
 
 ```python
 class MCPConnection(ABC):
