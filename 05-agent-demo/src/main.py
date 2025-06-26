@@ -31,11 +31,23 @@ def extract_table_names(query):
     return re.findall(r"(?:from|in|of|table|view|into)\\s+([a-zA-Z0-9_]+)", query, re.IGNORECASE)
 
 
+
 class risingWaveMCPClient:
     def __init__(self, server_script_path: str):
         self.client = Client(server_script_path)
         self.anthropic = Anthropic()
         self.conversation = []
+        self._tools_cache = None  # Add this
+
+    async def list_tools(self):
+        if self._tools_cache is None:
+            tools = await self.client.list_tools()
+            self._tools_cache = [{
+                "name": tool.name,
+                "description": tool.description,
+                "input_schema": tool.inputSchema
+            } for tool in tools]
+        return self._tools_cache
 
     async def __aenter__(self):
         await self.client.__aenter__()
@@ -43,14 +55,6 @@ class risingWaveMCPClient:
 
     async def __aexit__(self, exc_type, exc, tb):
         await self.client.__aexit__(exc_type, exc, tb)
-
-    async def list_tools(self):
-        tools = await self.client.list_tools()
-        return [{
-            "name": tool.name,
-            "description": tool.description,
-            "input_schema": tool.inputSchema
-        } for tool in tools]
 
     async def call_tool(self, tool_name, args):
         return await self.client.call_tool(tool_name, args)
@@ -136,6 +140,6 @@ async def main():
     server_script_path = sys.argv[1]
     async with risingWaveMCPClient(server_script_path) as client:
         await client.chat_loop()
-
+        
 if __name__ == "__main__":
     asyncio.run(main())
