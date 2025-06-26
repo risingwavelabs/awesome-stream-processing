@@ -243,7 +243,7 @@ Metric: Average Price
 Click "Update Chart" and the Chart will generate. 
 
 ## Gitpod Alternative:
-Using the link below, the demo is automated in a cloud development environment and example charts are loaded for view.
+Using the link below, the demo is automated with scripts in a cloud development environment and example charts are ready for viewing.
 [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/tinytimcodes/awesome-stream-processing/tree/main/02-simple-demos/capital_markets/market_data_enrichment)
 
 
