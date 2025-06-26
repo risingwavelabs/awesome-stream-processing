@@ -4,7 +4,7 @@ Transform raw market data in real-time to provide insights into market trends, h
 
 Follow the instructions below to learn how to run this demo. 
 
-For more details about the process and the use case, see the [official documentation](https://docs.risingwave.com/demos/market-data-enrichment).
+For more details about the process and the use case, see the [official documentation](https://docs.risingwave.com/demos/market-data-enrichment). (Note: Automated Gitpod Setup at end of page)
 
 ## Step 1: Install and run a RisingWave instance
 
@@ -71,29 +71,141 @@ FROM
 CREATE MATERIALIZED VIEW enriched_market_data AS
 SELECT
     rmd.asset_id,
-    avg_price_bid_ask_spread.average_price,
-    (rmd.price - avg_price_bid_ask_spread.average_price) / avg_price_bid_ask_spread.average_price * 100 AS price_change,
-    avg_price_bid_ask_spread.bid_ask_spread,
-    rolling_volatility.rolling_volatility,
+    ap.average_price,
+    (rmd.price - ap.average_price) / ap.average_price * 100 AS price_change,
+    ap.bid_ask_spread,
+    rv.rolling_volatility,
     ed.sector_performance,
     ed.sentiment_score,
     rmd.timestamp
 FROM
     raw_market_data AS rmd
-JOIN
-    avg_price_bid_ask_spread
-ON
-    rmd.asset_id = avg_price_bid_ask_spread.asset_id
-JOIN
-    rolling_volatility
-ON
-    rmd.asset_id = rolling_volatility.asset_id
-JOIN
-    enrichment_data AS ed
-ON
-    rmd.asset_id = ed.asset_id
-WHERE
-    rmd.timestamp = avg_price_bid_ask_spread.timestamp
-    AND rmd.timestamp = rolling_volatility.timestamp
-    AND rmd.timestamp = ed.timestamp;
+JOIN 
+    avg_price_bid_ask_spread AS ap ON rmd.asset_id = ap.asset_id
+    AND rmd.timestamp BETWEEN ap.timestamp - INTERVAL '2 seconds' AND ap.timestamp + INTERVAL '2 seconds'
+JOIN 
+    rolling_volatility AS rv ON rmd.asset_id = rv.asset_id
+    AND rmd.timestamp BETWEEN rv.timestamp - INTERVAL '2 seconds' AND rv.timestamp + INTERVAL '2 seconds'
+JOIN 
+    enrichment_data AS ed ON rmd.asset_id = ed.asset_id
+    AND rmd.timestamp BETWEEN ed.timestamp - INTERVAL '2 seconds' AND ed.timestamp + INTERVAL '2 seconds';
 ```
+## Step 5: Visualization using Superset (optional)
+
+See the [Official Superset Quickstart guide](https://superset.apache.org/docs/quickstart/) for Superset installation and start up.
+```terminal
+#superset commands
+```
+
+## Step 6: Connect PostgreSQL to database
+
+```terminal
+# on Ubuntu
+psql -h localhost -p 5432 -d postgres -U postgres
+
+# on Mac the default user is the installing user
+psql -h localhost -p 5432 -d postgres -U $(whoami)
+```
+
+# Step 7: Create PostgreSQL Tables
+Run the following queries in PostgreSQL to create target tables for RisingWave to write to.
+
+```sql
+CREATE TABLE avg_price_sink (
+  asset_id INT,
+  average_price NUMERIC,
+  bid_ask_spread NUMERIC,
+  timestamp TIMESTAMPTZ
+);
+```
+
+```sql
+CREATE TABLE rolling_volatility_sink (
+  asset_id INT,
+  rolling_volatility NUMERIC,
+  timestamp TIMESTAMPTZ
+);
+```
+
+```sql
+CREATE TABLE enriched_market_data_sink (
+  asset_id INT,
+  average_price NUMERIC,
+  price_change NUMERIC,
+  bid_ask_spread NUMERIC,
+  rolling_volatility NUMERIC,
+  sector_performance NUMERIC,
+  sentiment_score NUMERIC,
+  timestamp TIMESTAMPTZ
+);
+```
+
+## Step 8: Create Sinks in RisingWave 
+Navigate back to RisingWave terminal and run these queries to create the sinks. (Note: Some parameters need to be changed depending on Operating System.)
+
+```sql
+# on Ubuntu
+user = 'postgres'
+
+# on Mac - set to macOS Username
+user = '$(whoami)'
+```
+
+```sql
+# on 
+
+
+```sql
+CREATE SINK sink_avg_price
+FROM avg_price_bid_ask_spread
+WITH (
+  connector = 'postgres',
+  type = 'append-only',
+  force_append_only = 'true',
+  host = 'localhost',
+  port = 5432,
+  user = 'postgres', #change to MacOS Username if on Mac
+  password = 'pgpass', #set to password for local user, or remove line if no password set.
+  database = 'postgres', #or set to the database name you created
+  table = 'avg_price_sink'
+);
+```
+
+```sql
+CREATE SINK sink_rolling_volatility
+FROM rolling_volatility
+WITH (
+  connector = 'postgres',
+  type = 'append-only',
+  force_append_only = 'true',
+  host = 'localhost',
+  port = 5432,
+  user = 'postgres', #change to MacOS Username if on Mac
+  password = 'pgpass', #set to password for local user, or remove line if no password set.
+  database = 'postgres', #or set to the database name you created
+  table = 'rolling_volatility_sink'
+);
+```
+
+```sql
+CREATE SINK sink_enriched
+FROM enriched_market_data
+WITH (
+  connector = 'postgres',
+  type = 'append-only',
+  force_append_only = 'true',
+  host = 'localhost',
+  port = 5432,
+  user = 'postgres', #change to MacOS Username if on Mac
+  password = 'pgpass', #set to password for local user, or remove line if no password set.
+  database = 'postgres', #or set to the database name you created
+  table = 'enriched_market_data_sink'
+);
+```
+
+
+
+
+
+
+
