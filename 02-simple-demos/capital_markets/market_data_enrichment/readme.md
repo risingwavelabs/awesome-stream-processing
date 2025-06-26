@@ -93,9 +93,6 @@ JOIN
 ## Step 5: Visualization using Superset (optional)
 
 See the [Official Superset Quickstart guide](https://superset.apache.org/docs/quickstart/) for Superset installation and start up.
-```terminal
-#superset commands
-```
 
 ## Step 6: Connect PostgreSQL to database
 
@@ -164,9 +161,9 @@ WITH (
   force_append_only = 'true',
   host = 'localhost',
   port = 5432,
-  user = 'postgres', #change to MacOS Username if on Mac
-  password = 'pgpass', #set to password for local user, or remove line if no password set.
-  database = 'postgres', #or set to the database name you created
+  user = 'postgres', 
+  password = 'pgpass',
+  database = 'postgres',
   table = 'avg_price_sink'
 );
 ```
@@ -180,9 +177,9 @@ WITH (
   force_append_only = 'true',
   host = 'localhost',
   port = 5432,
-  user = 'postgres', #change to MacOS Username if on Mac
-  password = 'pgpass', #set to password for local user, or remove line if no password set.
-  database = 'postgres', #or set to the database name you created
+  user = 'postgres',
+  password = 'pgpass',
+  database = 'postgres',
   table = 'rolling_volatility_sink'
 );
 ```
@@ -196,9 +193,9 @@ WITH (
   force_append_only = 'true',
   host = 'localhost',
   port = 5432,
-  user = 'postgres', #change to MacOS Username if on Mac
-  password = 'pgpass', #set to password for local user, or remove line if no password set.
-  database = 'postgres', #or set to the database name you created
+  user = 'postgres',
+  password = 'pgpass',
+  database = 'postgres',
   table = 'enriched_market_data_sink'
 );
 ```
