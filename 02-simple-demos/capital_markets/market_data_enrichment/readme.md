@@ -211,9 +211,9 @@ password = admin
 ```
 
 Next, follow Data -> Databases -> +Databases and use the SQLAlchemy URI replacing pguser and pgpass with your corresponding inputs. 
-If there is no password, remove ":pgpass"
+If there is no password, remove ":pgpass". On Mac, replace pguser with MacOS username.
 ```terminal
-postgresql://pguser:pgpass@localhost:5432/postgres
+postgresql://pguser:pgpass@host.docker.internal:5432/postgres
 ```
 Click test connection to ensure that the database can connect to Superset, and then click conenct. 
 
@@ -221,21 +221,21 @@ Now Superset is ready for chart creation.
 
 ## Step 10: Example Chart Creation 
 
-From the home page, head to Data -> Datasets -> +Datasets.
+From the home page, head to Data -> Create Dataset.
 
 Select
 ```terminal
 Database: postgres #or whatever chosen name for the database created in last step.
 Schema: public
-Table: enriched_market_data_sink
+Table: avg_price_sink
 ```
 Then, Click Add. 
 
-go to: Charts -> +Chart and select "Time Series Chart"
+go to: Charts -> +Chart and select "Line Chart"
 in Chart Editor: 
 ```terminal
-Time: Seconds
-Metric: Average Price
+x axis = Timestamp: Seconds
+Metric: AVG(average_price) under simple
 ```
 Click "Update Chart" and the Chart will generate. 
 
