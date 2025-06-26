@@ -107,7 +107,7 @@ psql -h localhost -p 5432 -d postgres -U postgres
 psql -h localhost -p 5432 -d postgres -U $(whoami)
 ```
 
-# Step 7: Create PostgreSQL Tables
+## Step 7: Create PostgreSQL Tables
 Run the following queries in PostgreSQL to create target tables for RisingWave to write to.
 
 ```sql
@@ -152,8 +152,8 @@ user = '$(whoami)'
 ```
 
 ```sql
-# on 
-
+# password = set password / remove line if no password set
+```
 
 ```sql
 CREATE SINK sink_avg_price
@@ -202,6 +202,56 @@ WITH (
   table = 'enriched_market_data_sink'
 );
 ```
+
+## Step 9: Using Superset
+
+launch superset at [http://localhost:8088](http://localhost:8088).
+
+if prompted,
+```terminal
+username = admin
+password = admin
+```
+
+Next, follow Data -> Databases -> +Databases and use the SQLAlchemy URI replacing pguser and pgpass with your corresponding inputs. 
+If there is no password, remove ":pgpass"
+```terminal
+postgresql://pguser:pgpass@localhost:5432/postgres
+```
+Click test connection to ensure that the database can connect to Superset, and then click conenct. 
+
+Now Superset is ready for chart creation. 
+
+## Step 10: Example Chart Creation 
+
+From the home page, head to Data -> Datasets -> +Datasets.
+
+Select
+```terminal
+Database: postgres #or whatever chosen name for the database created in last step.
+Schema: public
+Table: enriched_market_data_sink
+```
+Then, Click Add. 
+
+go to: Charts -> +Chart and select "Time Series Chart"
+in Chart Editor: 
+```terminal
+Time: Seconds
+Metric: Average Price
+```
+Click "Update Chart" and the Chart will generate. 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
