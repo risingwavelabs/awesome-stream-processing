@@ -67,7 +67,6 @@ else
     echo "Database connection test failed: $TEST_DB_RESPONSE" >&2
 fi
 
-# (rest of the script remains unchanged)
 
 
 #get / create dataset
@@ -234,8 +233,70 @@ CREATE_CHART_2_PAYLOAD=$(jq -n --arg name "$CHART_2_NAME" --argjson ds_id "$DATA
 
 CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$CREATE_CHART_2_PAYLOAD")
 
+echo "--- Creating Dashboard ---" >&2
 
-echo ""
+DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
+
+DASHBOARD_POSITION_JSON=$(jq -n --argjson chart1_id "$CHART_1_ID" --argjson chart2_id "$CHART_2_ID" '{
+    "DASHBOARD_VERSION_KEY": "v2",
+    "ROOT_ID": {
+        "children": ["GRID_ID"],
+        "id": "ROOT_ID",
+        "type": "ROOT"
+    },
+    "GRID_ID": {
+        "children": ["ROW-1"],
+        "id": "GRID_ID",
+        "type": "GRID"
+    },
+    "ROW-1": {
+        "children": ["CHART-\($chart1_id)", "CHART-\($chart2_id)"],
+        "id": "ROW-1",
+        "meta": {
+            "background": "BACKGROUND_TRANSPARENT"
+        },
+        "type": "ROW"
+    },
+    "CHART-\($chart1_id)": {
+        "children": [],
+        "id": "CHART-\($chart1_id)",
+        "meta": {
+            "chartId": $chart1_id,
+            "height": 50,
+            "sliceName": "Price Change and Volatility Over Time",
+            "uuid": "chart-\($chart1_id)",
+            "width": 6
+        },
+        "type": "CHART"
+    },
+    "CHART-\($chart2_id)": {
+        "children": [],
+        "id": "CHART-\($chart2_id)",
+        "meta": {
+            "chartId": $chart2_id,
+            "height": 50,
+            "sliceName": "Average Bid Ask Spread Over Time",
+            "uuid": "chart-\($chart2_id)",
+            "width": 6
+        },
+        "type": "CHART"
+    }
+}')
+
+CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" --argjson position_json "$DASHBOARD_POSITION_JSON" '{
+    "dashboard_title": $title,
+    "slug": null,
+    "owners": [1],
+    "position_json": ($position_json | tostring),
+    "css": "",
+    "json_metadata": "{\"refresh_frequency\":0,\"color_scheme\":\"\",\"label_colors\":{}}",
+    "published": true
+}')
+
+DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
+
+
+echo "Dashboard: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/"
 echo "SUCCESS! Superset setup complete!"
 echo ""
 echo " - Chart 1: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_1_ID"
