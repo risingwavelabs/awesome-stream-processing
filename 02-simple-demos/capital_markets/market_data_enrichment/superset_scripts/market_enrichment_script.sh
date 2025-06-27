@@ -202,7 +202,7 @@ CHART_2_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
     "datasource": "\($ds_id)__table",
     "granularity_sqla": "timestamp",
     "time_range": "No filter",
-    "metrics": ["avg_sentiment", "avg_sector_performance"],
+    "metrics": ["avg_bid_ask_spread"],
     "show_legend": true,
     "row_limit": 10000,
     "time_grain_sqla": "PT1S",
