@@ -110,7 +110,7 @@ if ! echo "$UPDATE_DATASET_RESPONSE" | jq -e '.result.main_dttm_col=="timestamp"
     echo " Failed to set datetime column. Response: $UPDATE_DATASET_RESPONSE" >&2
     exit 1
 fi
-echo "✅ Dataset configured successfully." >&2
+echo "Dataset configured successfully." >&2
 
 #adding metrics
 echo "--- Ensuring all metrics are present in dataset ---" >&2
@@ -134,7 +134,6 @@ for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
     EXISTING_METRICS=$(curl -s -G "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" --data-urlencode 'q={"columns":["metrics"]}' -H "Authorization: Bearer $TOKEN" | jq '.result.metrics // []')
     metric_exists=$(echo "$EXISTING_METRICS" | jq --arg name "$metric_name" 'any(.metric_name == $name)')
     if [[ "$metric_exists" == "false" ]]; then
-        echo "    - Metric not found. Adding it now..." >&2
         expression=$(echo "$DESIRED_METRICS" | jq -r ".${metric_name}")
         verbose_name=$(echo "$metric_name"|tr '_' ' '|awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1')
         new_metric_object=$(jq -n --arg name "$metric_name" --arg expr "$expression" --arg vname "$verbose_name" '{"metric_name":$name,"expression":$expr,"verbose_name":$vname}')
@@ -142,7 +141,7 @@ for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
         UPDATE_PAYLOAD=$(echo "$metrics_to_upload"|jq 'map(if .id then {id,metric_name,expression,verbose_name} else {metric_name,expression,verbose_name} end)|{metrics:.}')
         UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" -H "Content-Type: application/json" -d "$UPDATE_PAYLOAD")
         if echo "$UPDATE_RESPONSE"|jq -e '.result'>/dev/null; then 
-            echo "    Successfully added metric '$metric_name'." >&2
+            echo "Added metric '$metric_name'." >&2
         else 
             echo "    Failed to add metric '$metric_name'. Response: $UPDATE_RESPONSE" >&2
         fi
