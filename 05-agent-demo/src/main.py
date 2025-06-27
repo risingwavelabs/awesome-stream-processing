@@ -103,20 +103,27 @@ class risingWaveMCPClient:
 
         tools = await self.list_tools()
 
-        response = self.anthropic.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=4096,
-            messages=messages,
-            tools=tools
-        )
-
         final_text = []
-        for content in response.content:
-            if content.type == 'text':
-                final_text.append(content.text)
-                self.conversation.append({"role": "assistant", "content": content.text})
-            elif content.type == 'tool_use':
-                await self.handle_tool_use(content, final_text)
+        while True:
+            response = self.anthropic.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=4096,
+                messages=messages,
+                tools=tools
+            )
+
+            tool_used = False
+            for content in response.content:
+                if content.type == 'text':
+                    final_text.append(content.text)
+                    self.conversation.append({"role": "assistant", "content": content.text})
+                elif content.type == 'tool_use':
+                    tool_used = True
+                    await self.handle_tool_use(content, final_text)
+                    # After handling, update messages for the next round
+                    messages = self.conversation.copy()
+            if not tool_used:
+                break
 
         return "\n".join(final_text)
 
