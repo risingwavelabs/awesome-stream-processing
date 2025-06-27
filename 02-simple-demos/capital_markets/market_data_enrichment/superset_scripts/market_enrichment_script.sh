@@ -304,11 +304,47 @@ CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" '{
 
 DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
 
+
+echo "Adding charts to dashboard..." >&2
+
+echo "--- Creating Dashboard ---" >&2
+
+DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
+
+CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" '{
+    "dashboard_title": $title,
+    "slug": null,
+    "owners": [1],
+    "css": "",
+    "json_metadata": "{\"refresh_frequency\":0,\"color_scheme\":\"\",\"label_colors\":{}}",
+    "published": true
+}')
+
+DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
+
 # Now add charts to the dashboard using PUT endpoint
 echo "Adding charts to dashboard..." >&2
 
+# Get chart UUIDs for proper referencing
+echo "Retrieving chart details for UUID generation..." >&2
+CHART_1_DETAILS=$(curl -s "$SUPERSET_URL/api/v1/chart/$CHART_1_ID" -H "Authorization: Bearer $TOKEN")
+CHART_2_DETAILS=$(curl -s "$SUPERSET_URL/api/v1/chart/$CHART_2_ID" -H "Authorization: Bearer $TOKEN")
+
+CHART_1_UUID=$(echo "$CHART_1_DETAILS" | jq -r '.result.cache_key // empty')
+CHART_2_UUID=$(echo "$CHART_2_DETAILS" | jq -r '.result.cache_key // empty')
+
+# If cache_key is empty, generate UUIDs based on chart IDs
+if [[ -z "$CHART_1_UUID" ]]; then
+    CHART_1_UUID=$(echo "chart-$CHART_1_ID" | md5sum | cut -d' ' -f1)
+fi
+if [[ -z "$CHART_2_UUID" ]]; then
+    CHART_2_UUID=$(echo "chart-$CHART_2_ID" | md5sum | cut -d' ' -f1)
+fi
+
+echo "Chart 1 UUID: $CHART_1_UUID, Chart 2 UUID: $CHART_2_UUID" >&2
+
 # Define dashboard layout with charts
-DASHBOARD_POSITION_JSON=$(jq -n --argjson chart1_id "$CHART_1_ID" --argjson chart2_id "$CHART_2_ID" '{
+DASHBOARD_POSITION_JSON=$(jq -n --argjson chart1_id "$CHART_1_ID" --argjson chart2_id "$CHART_2_ID" --arg chart1_uuid "$CHART_1_UUID" --arg chart2_uuid "$CHART_2_UUID" '{
     "DASHBOARD_VERSION_KEY": "v2",
     "ROOT_ID": {
         "children": ["GRID_ID"],
@@ -321,40 +357,39 @@ DASHBOARD_POSITION_JSON=$(jq -n --argjson chart1_id "$CHART_1_ID" --argjson char
         "type": "GRID"
     },
     "ROW-1": {
-        "children": ["CHART-\($chart1_id)", "CHART-\($chart2_id)"],
+        "children": ["CHART-\($chart1_uuid)", "CHART-\($chart2_uuid)"],
         "id": "ROW-1",
         "meta": {
             "background": "BACKGROUND_TRANSPARENT"
         },
         "type": "ROW"
     },
-    "CHART-\($chart1_id)": {
+    "CHART-\($chart1_uuid)": {
         "children": [],
-        "id": "CHART-\($chart1_id)",
+        "id": "CHART-\($chart1_uuid)",
         "meta": {
             "chartId": $chart1_id,
             "height": 50,
             "sliceName": "Price Change and Volatility Over Time",
-            "uuid": "chart-\($chart1_id)",
+            "uuid": $chart1_uuid,
             "width": 6
         },
         "type": "CHART"
     },
-    "CHART-\($chart2_id)": {
+    "CHART-\($chart2_uuid)": {
         "children": [],
-        "id": "CHART-\($chart2_id)",
+        "id": "CHART-\($chart2_uuid)",
         "meta": {
             "chartId": $chart2_id,
             "height": 50,
             "sliceName": "Average Bid Ask Spread Over Time",
-            "uuid": "chart-\($chart2_id)",
+            "uuid": $chart2_uuid,
             "width": 6
         },
         "type": "CHART"
     }
 }')
 
-# Update dashboard with chart layout
 UPDATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" --argjson position_json "$DASHBOARD_POSITION_JSON" '{
     "dashboard_title": $title,
     "position_json": ($position_json | tostring),
@@ -375,8 +410,9 @@ else
     echo "Failed to update dashboard layout: $UPDATE_RESPONSE" >&2
 fi
 
-# Add charts to dashboard using the charts endpoint
 echo "Linking charts to dashboard..." >&2
+
+
 ADD_CHARTS_PAYLOAD=$(jq -n --argjson chart1_id "$CHART_1_ID" --argjson chart2_id "$CHART_2_ID" '{
     "chart_ids": [$chart1_id, $chart2_id]
 }')
@@ -387,10 +423,47 @@ ADD_CHARTS_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD
     -H "Content-Type: application/json" \
     -d "$ADD_CHARTS_PAYLOAD")
 
-if echo "$ADD_CHARTS_RESPONSE" | jq -e '.result' > /dev/null; then
-    echo "Charts linked to dashboard successfully." >&2
+if echo "$ADD_CHARTS_RESPONSE" | jq -e '.result' > /dev/null 2>&1; then
+    echo "Charts linked to dashboard successfully via /charts endpoint." >&2
 else
-    echo "Note: Chart linking response: $ADD_CHARTS_RESPONSE" >&2
+    echo "Charts endpoint response: $ADD_CHARTS_RESPONSE" >&2
+    
+    # Method 2: Update dashboard with slices in a separate call
+    echo "Trying alternative method to link charts..." >&2
+    
+    # Get current dashboard state
+    CURRENT_DASHBOARD=$(curl -s "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" -H "Authorization: Bearer $TOKEN")
+    
+    # Update with charts included
+    FULL_UPDATE_PAYLOAD=$(echo "$CURRENT_DASHBOARD" | jq --argjson chart1_id "$CHART_1_ID" --argjson chart2_id "$CHART_2_ID" --argjson position_json "$DASHBOARD_POSITION_JSON" '
+        .result | 
+        {
+            dashboard_title,
+            position_json: ($position_json | tostring),
+            css,
+            json_metadata,
+            published,
+            roles,
+            owners
+        } + {
+            slices: [
+                {id: $chart1_id},
+                {id: $chart2_id}
+            ]
+        }
+    ')
+    
+    FULL_UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "X-CSRFToken: $CSRF_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "$FULL_UPDATE_PAYLOAD")
+    
+    if echo "$FULL_UPDATE_RESPONSE" | jq -e '.result' > /dev/null; then
+        echo "Charts linked via dashboard update method." >&2
+    else
+        echo "Full update response: $FULL_UPDATE_RESPONSE" >&2
+    fi
 fi
 
 echo "Dashboard: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/"
