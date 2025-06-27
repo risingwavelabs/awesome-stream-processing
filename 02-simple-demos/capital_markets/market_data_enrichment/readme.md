@@ -138,7 +138,7 @@ CREATE TABLE enriched_market_data_sink (
 ```
 
 ## Step 8: Create Sinks in RisingWave 
-Navigate back to RisingWave terminal and run these queries to create the sinks. (Note: Some parameters need to be changed depending on Operating System.)
+Navigate back to the RisingWave terminal and run these queries to create the sinks. (Note: some parameters need to be changed depending on Operating System.)
 
 ```sql
 # on Ubuntu
@@ -202,9 +202,9 @@ WITH (
 
 ## Step 9: Using Superset
 
-launch superset at [http://localhost:8088](http://localhost:8088).
+Launch superset at [http://localhost:8088](http://localhost:8088).
 
-if prompted,
+If prompted,
 ```terminal
 username = admin
 password = admin
@@ -231,13 +231,13 @@ Table: avg_price_sink
 ```
 Then, Click Add. 
 
-go to: Charts -> +Chart and select "Line Chart"
-in Chart Editor: 
+Go to: Charts -> +Chart and select "Line Chart"
+In Chart Editor: 
 ```terminal
 x axis = Timestamp: Seconds
 Metric: AVG(average_price) under simple
 ```
-Click "Update Chart" and the Chart will generate. 
+Click "Update Chart" and the chart will generate. 
 
 ## Gitpod Alternative:
 Using the link below, the demo is automated with scripts in a cloud development environment and example charts are ready for viewing.
