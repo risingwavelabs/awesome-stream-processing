@@ -233,10 +233,14 @@ CREATE_CHART_2_PAYLOAD=$(jq -n --arg name "$CHART_2_NAME" --argjson ds_id "$DATA
 
 CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$CREATE_CHART_2_PAYLOAD")
 
+# Add this section after your chart creation and before the final SUCCESS message
+
+# --- 4. Create or Update Dashboard ---
 echo "--- Creating Dashboard ---" >&2
 
 DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
 
+# Define dashboard layout - positioning charts in a 2x1 grid
 DASHBOARD_POSITION_JSON=$(jq -n --argjson chart1_id "$CHART_1_ID" --argjson chart2_id "$CHART_2_ID" '{
     "DASHBOARD_VERSION_KEY": "v2",
     "ROOT_ID": {
@@ -283,18 +287,61 @@ DASHBOARD_POSITION_JSON=$(jq -n --argjson chart1_id "$CHART_1_ID" --argjson char
     }
 }')
 
-CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" --argjson position_json "$DASHBOARD_POSITION_JSON" '{
-    "dashboard_title": $title,
-    "slug": null,
-    "owners": [1],
-    "position_json": ($position_json | tostring),
-    "css": "",
-    "json_metadata": "{\"refresh_frequency\":0,\"color_scheme\":\"\",\"label_colors\":{}}",
-    "published": true
-}')
+# Check if dashboard already exists
+echo "Checking if dashboard exists..." >&2
+EXISTING_DASHBOARD_RESPONSE=$(curl -s -G "$SUPERSET_URL/api/v1/dashboard/" -H "Authorization: Bearer $TOKEN" --data-urlencode "$DASHBOARD_FILTER_Q")
+DASHBOARD_ID=$(echo "$EXISTING_DASHBOARD_RESPONSE" | jq -r '.result[0].id // empty')
 
-DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
-
+if [[ -n "$DASHBOARD_ID" ]]; then
+    echo "Dashboard '$DASHBOARD_TITLE' already exists with ID: $DASHBOARD_ID. Updating it..." >&2
+    # Update existing dashboard
+    UPDATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" --argjson position_json "$DASHBOARD_POSITION_JSON" --argjson chart1_id "$CHART_1_ID" --argjson chart2_id "$CHART_2_ID" '{
+        "dashboard_title": $title,
+        "position_json": ($position_json | tostring),
+        "css": "",
+        "json_metadata": "{\"refresh_frequency\":0,\"color_scheme\":\"\",\"label_colors\":{}}",
+        "published": true,
+        "slices": [$chart1_id, $chart2_id]
+    }')
+    
+    UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "X-CSRFToken: $CSRF_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "$UPDATE_DASHBOARD_PAYLOAD")
+    
+    if echo "$UPDATE_RESPONSE" | jq -e '.result' > /dev/null; then
+        echo "Dashboard updated successfully." >&2
+    else
+        echo "Failed to update dashboard. Response: $UPDATE_RESPONSE" >&2
+    fi
+else
+    echo "Dashboard '$DASHBOARD_TITLE' not found, creating it..." >&2
+    # Create new dashboard
+    CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" --argjson position_json "$DASHBOARD_POSITION_JSON" --argjson chart1_id "$CHART_1_ID" --argjson chart2_id "$CHART_2_ID" '{
+        "dashboard_title": $title,
+        "slug": null,
+        "owners": [1],
+        "position_json": ($position_json | tostring),
+        "css": "",
+        "json_metadata": "{\"refresh_frequency\":0,\"color_scheme\":\"\",\"label_colors\":{}}",
+        "published": true,
+        "slices": [$chart1_id, $chart2_id]
+    }')
+    
+    CREATE_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/dashboard/" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "X-CSRFToken: $CSRF_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "$CREATE_DASHBOARD_PAYLOAD")
+    
+    DASHBOARD_ID=$(echo "$CREATE_RESPONSE" | jq -r '.id // empty')
+    if [[ -z "$DASHBOARD_ID" ]]; then
+        echo "Failed to create dashboard '$DASHBOARD_TITLE'. Response: $CREATE_RESPONSE" >&2
+        exit 1
+    fi
+    echo "Dashboard '$DASHBOARD_TITLE' created with ID: $DASHBOARD_ID" >&2
+fi
 
 echo "Dashboard: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/"
 echo "SUCCESS! Superset setup complete!"
