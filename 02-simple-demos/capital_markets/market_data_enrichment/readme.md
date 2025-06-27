@@ -94,7 +94,7 @@ JOIN
 
 See the [Official Superset Quickstart guide](https://superset.apache.org/docs/quickstart/) for Superset installation and start up.
 
-## Step 6: Connect PostgreSQL to database
+## Step 6: Connect PostgreSQL to Database
 
 ```terminal
 # on Ubuntu
@@ -211,11 +211,11 @@ password = admin
 ```
 
 Next, follow Data -> Databases -> +Databases and use the SQLAlchemy URI replacing pguser and pgpass with your corresponding inputs. 
-If there is no password, remove ":pgpass". On Mac, replace pguser with MacOS username.
+If there is no password, remove ":pgpass". On Mac, replace pguser with MacOS username. On Ubuntu, replace "host.docker.internal" with "localhost".
 ```terminal
 postgresql://pguser:pgpass@host.docker.internal:5432/postgres
 ```
-Click test connection to ensure that the database can connect to Superset, and then click conenct. 
+Click test connection to ensure that the database can connect to Superset, and then click connect. 
 
 Now Superset is ready for chart creation. 
 
