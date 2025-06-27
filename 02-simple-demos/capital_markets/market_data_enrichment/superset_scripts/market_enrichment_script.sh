@@ -235,70 +235,9 @@ CREATE_CHART_2_PAYLOAD=$(jq -n --arg name "$CHART_2_NAME" --argjson ds_id "$DATA
 
 CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$CREATE_CHART_2_PAYLOAD")
 
-echo "--- Creating dashboard ---" >&2
-DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
-
-POSITION_JSON=$(jq -n --argjson c1_id "$CHART_1_ID" --argjson c2_id "$CHART_2_ID" '{
-    "DASHBOARD_VERSION_KEY": "v2",
-    "ROOT_ID": {
-        "type": "ROOT",
-        "id": "ROOT_ID",
-        "children": ["GRID_ID"]
-    },
-    "GRID_ID": {
-        "type": "GRID",
-        "id": "GRID_ID",
-        "children": ["ROW_ID_1", "ROW_ID_2"],
-        "meta": {}
-    },
-    "ROW_ID_1": {
-        "type": "ROW",
-        "id": "ROW_ID_1",
-        "children": ["CHART_ID_1"],
-        "meta": {"background": "BACKGROUND_TRANSPARENT"}
-    },
-    "ROW_ID_2": {
-        "type": "ROW", 
-        "id": "ROW_ID_2",
-        "children": ["CHART_ID_2"],
-        "meta": {"background": "BACKGROUND_TRANSPARENT"}
-    },
-    "CHART_ID_1": {
-        "type": "CHART",
-        "id": "CHART_ID_1",
-        "children": [],
-        "meta": {
-            "width": 12,
-            "height": 50,
-            "chartId": $c1_id,
-            "uuid": "chart-uuid-1"
-        }
-    },
-    "CHART_ID_2": {
-        "type": "CHART",
-        "id": "CHART_ID_2", 
-        "children": [],
-        "meta": {
-            "width": 12,
-            "height": 50,
-            "chartId": $c2_id,
-            "uuid": "chart-uuid-2"
-        }
-    }
-}')
-
-CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" --argjson position "$POSITION_JSON" '{
-    "dashboard_title": $title,
-    "position_json": ($position | tostring),
-    "published": true,
-    "owners": [1]
-}')
-
-DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
 
 echo ""
 echo "SUCCESS! Superset setup complete!"
-echo "Dash URL: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/"
 echo ""
 echo " - Chart 1: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_1_ID"
 echo "  - Chart 2: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_2_ID"
