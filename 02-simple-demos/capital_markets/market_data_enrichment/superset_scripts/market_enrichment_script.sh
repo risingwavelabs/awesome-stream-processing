@@ -330,15 +330,17 @@ echo "Retrieving chart details for UUID generation..." >&2
 CHART_1_DETAILS=$(curl -s "$SUPERSET_URL/api/v1/chart/$CHART_1_ID" -H "Authorization: Bearer $TOKEN")
 CHART_2_DETAILS=$(curl -s "$SUPERSET_URL/api/v1/chart/$CHART_2_ID" -H "Authorization: Bearer $TOKEN")
 
-CHART_1_UUID=$(echo "$CHART_1_DETAILS" | jq -r '.result.cache_key // empty')
-CHART_2_UUID=$(echo "$CHART_2_DETAILS" | jq -r '.result.cache_key // empty')
+CHART_1_UUID=$(echo "$CHART_1_DETAILS" | jq -r '.result.uuid // empty')
+CHART_2_UUID=$(echo "$CHART_2_DETAILS" | jq -r '.result.uuid // empty')
 
-# If cache_key is empty, generate UUIDs based on chart IDs
+# Fallback (rarely needed)
 if [[ -z "$CHART_1_UUID" ]]; then
-    CHART_1_UUID=$(echo "chart-$CHART_1_ID" | md5sum | cut -d' ' -f1)
+    CHART_1_UUID=$(uuidgen)
+    echo "Warning: CHART_1_UUID was empty, generated: $CHART_1_UUID" >&2
 fi
 if [[ -z "$CHART_2_UUID" ]]; then
-    CHART_2_UUID=$(echo "chart-$CHART_2_ID" | md5sum | cut -d' ' -f1)
+    CHART_2_UUID=$(uuidgen)
+    echo "Warning: CHART_2_UUID was empty, generated: $CHART_2_UUID" >&2
 fi
 
 echo "Chart 1 UUID: $CHART_1_UUID, Chart 2 UUID: $CHART_2_UUID" >&2
