@@ -39,7 +39,7 @@ try:
 
         # Insert enrichment data
         for asset_id in asset_ids:
-            timestamp = datetime.now()
+            timestamp = datetime.utcnow()
             sector = random.choice(sectors)
             historical_volatility = round(random.uniform(0.1, 0.5), 2)
             sector_performance = round(random.uniform(-0.05, 0.05), 2)
