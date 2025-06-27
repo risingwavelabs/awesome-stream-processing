@@ -12,7 +12,7 @@ SQLALCHEMY_URI="postgresql://pguser:pgpass@postgres:5432/pgdb"
 DATASET_TABLE_NAME="enriched_market_data_sink"
 DATASET_NAME="Enriched Market Data"
 CHART_1_NAME="Price Change and Volatility Over Time"
-CHART_2_NAME="Sentiment and Sector Performance"
+CHART_2_NAME="Average Bid Ask Spread Over Time"
 DASHBOARD_TITLE="Enriched Market Analysis Dashboard"
 
 # --- Pre-requisite Checks ---
@@ -161,7 +161,7 @@ CHART_1_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
     "viz_type": "line",
     "datasource": "\($ds_id)__table",
     "granularity_sqla": "timestamp",
-    "time_range": "No filter",
+    "time_range": "Last 15 seconds",
     "metrics": ["avg_price_change", "avg_rolling_volatility"],
     "show_legend": true,
     "row_limit": 10000,
@@ -201,7 +201,7 @@ CHART_2_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
     "viz_type": "line",
     "datasource": "\($ds_id)__table",
     "granularity_sqla": "timestamp",
-    "time_range": "No filter",
+    "time_range": "Last 15 seconds",
     "metrics": ["avg_bid_ask_spread"],
     "show_legend": true,
     "row_limit": 10000,

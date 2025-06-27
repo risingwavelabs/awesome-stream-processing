@@ -22,7 +22,7 @@ tasks:
         fi
       done
 
-      echo "⏳ Waiting for RisingWave to be ready..."
+      echo "Waiting for RisingWave to be ready..."
       for i in {1..15}; do
         if psql -h localhost -p 4566 -U root -d dev -c '\q' 2>/dev/null; then
           echo "RisingWave is ready."
