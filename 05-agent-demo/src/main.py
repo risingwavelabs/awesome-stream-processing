@@ -36,8 +36,8 @@ class risingWaveMCPClient:
     def __init__(self, server_script_path: str):
         self.client = Client(server_script_path)
         self.anthropic = Anthropic()
-        self.conversation = []
-        self._tools_cache = None  # Add this
+        self.conversation = [] 
+        self._tools_cache = None
 
     async def list_tools(self):
         if self._tools_cache is None:
@@ -128,7 +128,7 @@ class risingWaveMCPClient:
         return "\n".join(final_text)
 
     async def chat_loop(self):
-        print("\nContext-Aware MCP Client Started!")
+        print("Rising Wave MCP Client Started!")
         print("Type your queries or 'quit' to exit.")
         while True:
             try:
