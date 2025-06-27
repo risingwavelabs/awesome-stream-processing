@@ -614,12 +614,55 @@ FORMAT PLAIN ENCODE JSON;
 Now that you are connected to the RisingWave agent, Let's do some basic data analysis with the example above.
 
 1. Give me the database version
+```bash
+I'll help you get the RisingWave database version information using the `get_database_version` function.
+[Calling tool get_database_version with args {}]
+The database is running PostgreSQL 13.14.0 with RisingWave version 2.2.0 (Homebrew build).
+```
 
-2. Show me the uders table structure
+2. Show me the users table structure
+```bash
+Columns:
+1. id (integer)
+2. risk (integer)
+3. cost (integer)
+4. time (timestamp without time zone)
+5. _row_id (serial) - hidden, primary key
+6. _rw_timestamp (timestamp with time zone) - hidden
+
+Additional Information:
+- Primary Key: _row_id
+- Distribution Key: _row_id
+- Table Name: users
+```
 
 3. Track the highest risk scores
+```bash
+I'll help you create a materialized view to track the highest risk scores from the users table. I'll create a view that orders by risk score in descending order.
+[Calling tool create_materialized_view with args {'name': 'high_risk_users', 'sql_statement': 'SELECT id, risk, cost, time \nFROM users \nWHERE risk >= 7 \nORDER BY risk DESC'}]
+Great! The materialized view 'high_risk_users' has been created. Let me show you the results from this view to see the users with the highest risk scores.
+```
 
 4. Sort that mv by highest spending and display
+```bash
+I'll query the materialized view 'high_risk_users' and sort it by cost in descending order (highest spending) using the run_select_query function.
+[Calling tool run_select_query with args {'query': 'SELECT * FROM high_risk_users ORDER BY cost DESC;'}]
+Here's an analysis of the high-risk users sorted by spending:
+
+Top 5 highest spending high-risk users:
+1. ID: 1398 - Risk: 8, Cost: $9,999
+2. ID: 1021 - Risk: 10, Cost: $9,967
+3. ID: 1277 - Risk: 8, Cost: $9,949
+4. ID: 1642 - Risk: 8, Cost: $9,913
+5. ID: 2048 - Risk: 10, Cost: $9,855
+
+Key observations:
+- There are 451 users classified as high-risk
+- Spending ranges from $11 (lowest) to $9,999 (highest)
+- Some users have maximum risk score (10) but varying spending levels
+- The view includes users with risk scores 7 and above
+```
+
 
 Feel free to experiment with more prompts and try out with your own data! Similarly, you can use any of the [demos](https://docs.risingwave.com/demos/overview) the and test the agent with that data.
 
