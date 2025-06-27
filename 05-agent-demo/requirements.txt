@@ -1,0 +1,4 @@
+anthropic
+python-dotenv
+fastmcp
+risingwave
