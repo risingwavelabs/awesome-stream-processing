@@ -138,7 +138,7 @@ CREATE TABLE enriched_market_data_sink (
 ```
 
 ## Step 8: Create Sinks in RisingWave 
-Navigate back to the RisingWave terminal and run these queries to create the sinks. (Note: some parameters need to be changed depending on Operating System.)
+Navigate back to the RisingWave terminal and run these queries to create the sinks. (Note: some parameters need to be changed depending on operating system.)
 
 ```sql
 # on Ubuntu
@@ -149,7 +149,7 @@ user = '$(whoami)'
 ```
 
 ```sql
-# password = set password / remove line if no password set
+password = set password / remove line if no password set
 ```
 
 ```sql
@@ -211,7 +211,9 @@ password = admin
 ```
 
 Next, follow Data -> Databases -> +Databases and use the SQLAlchemy URI replacing pguser and pgpass with your corresponding inputs. 
-If there is no password, remove ":pgpass". On Mac, replace pguser with MacOS username. On Ubuntu, replace "host.docker.internal" with "localhost".
+If there is no password, remove ":pgpass".
+On Mac, replace "pguser" with MacOS username.
+On Ubuntu, replace "host.docker.internal" with "localhost".
 ```terminal
 postgresql://pguser:pgpass@host.docker.internal:5432/postgres
 ```
@@ -242,21 +244,3 @@ Click "Update Chart" and the chart will generate.
 ## Gitpod Alternative:
 Using the link below, the demo is automated with scripts in a cloud development environment and example charts are ready for viewing.
 [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/tinytimcodes/awesome-stream-processing/tree/main/02-simple-demos/capital_markets/market_data_enrichment)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
