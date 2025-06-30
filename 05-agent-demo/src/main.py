@@ -8,8 +8,6 @@ from tabulate import tabulate
 import sys
 from dotenv import load_dotenv, dotenv_values
 
-load_dotenv()
-
 def try_print_table(result):
     try:
         data = json.loads(result)
@@ -148,6 +146,7 @@ class risingWaveMCPAgent:
                 print(f"\nError: {str(e)}")
 
 async def main():
+    load_dotenv()
     if len(sys.argv) < 2:
         print("Usage: python client.py <path_to_server_script>")
         sys.exit(1)
