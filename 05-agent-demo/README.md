@@ -24,7 +24,7 @@ Make sure you have the following Python packages installed:
 ```bash
 pip install anthropic fastmcp python-dotenv tabulate
 ```
-Create .env File
+### Create .env File
 Create a .env file in your project directory with:
 ```env
 ANTHROPIC_API_KEY=<YOUR-API-KEY-HERE>
