@@ -35,6 +35,7 @@ RISINGWAVE_PORT=4566
 RISINGWAVE_DATABASE=dev
 RISINGWAVE_SSLMODE=disable
 RISINGWAVE_TIMEOUT=30
+```
 Generate Test Data in RisingWave
 Use this command inside psql to set up a streaming data table:
 ```
