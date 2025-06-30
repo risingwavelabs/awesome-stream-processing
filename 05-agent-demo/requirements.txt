@@ -1,4 +1,5 @@
 anthropic
-python-dotenv
 fastmcp
-risingwave
+python-dotenv
+tabulate
+asyncio
