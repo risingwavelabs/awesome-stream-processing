@@ -94,7 +94,7 @@ class risingWaveMCPAgent:
         await self.client.__aexit__(exc_type, exc, tb)
 ```
 
-Continuing with the risingWaveMCPAgent class, this section declares a few more function for the agent. These functions allow it to actually invoke the use of a tool and fetch schema context from the a table if needed. The handle tool use actually calls the call_tool function whenever and logs it's use so the user understands the agnets process. It will also save the log of which tools were called on which object for the agent to maintain context of the current session. Handle LLM response will filer the LLM response so that it does not output encoded text and ensure that the agent outputs clean and readable text.
+We declare a few more functions to handle tool usage and providing the necessary context around a table.
 
 ```python
 async def call_tool(self, tool_name, args):
