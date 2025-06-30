@@ -56,7 +56,7 @@ def extract_table_names(query):
     return re.findall(r"(?:from|in|of|table|view|into)\\s+([a-zA-Z0-9_]+)", query, re.IGNORECASE)
 ```
 
-This is the beginning of the risijngWaveMCPAgent class, it instantiates the Agent with the proper environment variables. It should be notes that they are set up to work with Rising Wave on local host if you are running Rising Wave elsewhere, please edit the environment variables so that the client can properly connect to your Rising Wave instance. From there we list a few basic functions to ensure the agent has proper access to the tools. It will cache this tool list to ensure the agent has quick access to these tools. It also has the functions aenter and aexit to ensure that the connection to the MCP Server is opened only once and maintained from there on. 
+This is the beginning of the risingWaveMCPAgent class, it instantiates the Agent with the proper environment variables. It should be notes that they are set up to work with Rising Wave on local host if you are running Rising Wave elsewhere, please edit the environment variables so that the client can properly connect to your Rising Wave instance. From there we list a few basic functions to ensure the agent has proper access to the tools. It will cache this tool list to ensure the agent has quick access to these tools. It also has the functions aenter and aexit to ensure that the connection to the MCP Server is opened only once and maintained from there on. 
 
 ```python
 class risingWaveMCPAgent:
@@ -94,7 +94,7 @@ class risingWaveMCPAgent:
         await self.client.__aexit__(exc_type, exc, tb)
 ```
 
-Continuing with the risingWaveMCPAgent class, this section declares a few more function for the agent. These functions allow it to actually invoke the use of a tool and fetch schema context from the a table if needed. The handle tool use actually calls the call_tool function whenever and logs it's use so the user udnerstands the agnets process. It will also save the log of which tools were called on which object for the agent to maintain context of the current session. Handle LLM response will filer the LLM resposne so that it does not output encoded text and ensure that the agent outputs clean and readable text.
+Continuing with the risingWaveMCPAgent class, this section declares a few more function for the agent. These functions allow it to actually invoke the use of a tool and fetch schema context from the a table if needed. The handle tool use actually calls the call_tool function whenever and logs it's use so the user understands the agnets process. It will also save the log of which tools were called on which object for the agent to maintain context of the current session. Handle LLM response will filer the LLM response so that it does not output encoded text and ensure that the agent outputs clean and readable text.
 
 ```python
 async def call_tool(self, tool_name, args):
@@ -133,7 +133,7 @@ async def call_tool(self, tool_name, args):
             self.conversation.append({"role": "assistant", "content": response.content[0].text})
 ```
 
-These final agent functions allow the agent to process the user query and establish the chat loop for the agent. Process query extracts key words from the users query and has the agnet interpret them in order to decide whether or not tool use is required. If a tool is not required it will call the anthropic model to respond to the user using it's context from previous queries in the session. If there is tool sue invoked, it will take a look at the tool list cached earlier. From there it will call the necessary tool to respond to the user and log it's actions to maintain context. The function will continue to loop this process to handle the case of multiple tool use in one query. If no tools were used in the last query the agent will stop the loop and return the final message to the user. The chat_loop function sets up this chat loop for the user. 
+These final agent functions allow the agent to process the user query and establish the chat loop for the agent. Process query extracts key words from the users query and has the agent interpret them in order to decide whether or not tool use is required. If a tool is not required it will call the anthropic model to respond to the user using it's context from previous queries in the session. If there is tool use invoked, it will take a look at the tool list cached earlier. From there it will call the necessary tool to respond to the user and log it's actions to maintain context. The function will continue to loop this process to handle the case of multiple tool use in one query. If no tools were used in the last query the agent will stop the loop and return the final message to the user. The chat_loop function sets up this chat loop for the user. 
 
 ```python
 async def process_query(self, query: str) -> str:
