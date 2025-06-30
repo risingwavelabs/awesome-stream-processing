@@ -63,12 +63,12 @@ class risingWaveMCPAgent:
     def __init__(self, server_script_path: str):
         self.client = Client(server_script_path)
         env = {
-            "RISINGWAVE_HOST": "0.0.0.0",
-            "RISINGWAVE_USER": "root",
-            "RISINGWAVE_PASSWORD": "root",
-            "RISINGWAVE_PORT": "4566",
-            "RISINGWAVE_DATABASE": "dev",
-            "RISINGWAVE_SSLMODE": "disable"
+            "RISINGWAVE_HOST": os.getenv("RISINGWAVE_HOST", "0.0.0.0"),
+            "RISINGWAVE_USER": os.getenv("RISINGWAVE_USER", "root"),
+            "RISINGWAVE_PASSWORD": os.getenv("RISINGWAVE_PASSWORD", "root"),
+            "RISINGWAVE_PORT": os.getenv("RISINGWAVE_PORT", "4566"),
+            "RISINGWAVE_DATABASE": os.getenv("RISINGWAVE_DATABASE", "dev"),
+            "RISINGWAVE_SSLMODE": os.getenv("RISINGWAVE_SSLMODE", "disable")
         }
         self.client.transport.env = env
         self.anthropic = Anthropic()
