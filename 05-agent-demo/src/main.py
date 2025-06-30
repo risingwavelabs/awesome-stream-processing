@@ -1,11 +1,12 @@
+import os
 import asyncio
 import json
 import re
 from fastmcp import Client
 from anthropic import Anthropic
-from dotenv import load_dotenv
 from tabulate import tabulate
 import sys
+from dotenv import load_dotenv, dotenv_values
 
 load_dotenv()
 
@@ -22,22 +23,29 @@ def try_print_table(result):
     except Exception as e:
         if isinstance(result, list) and len(result) == 1 and hasattr(result[0], "text"):
             return True
-        print(f"DEBUG: Could not parse result as table: {e}")
-        print(f"DEBUG: Raw result: {result}")
     return False
-
-
-def extract_table_names(query):
+    
+def extract_table_names(query): 
     return re.findall(r"(?:from|in|of|table|view|into)\\s+([a-zA-Z0-9_]+)", query, re.IGNORECASE)
 
 
 
-class risingWaveMCPClient:
+class risingWaveMCPAgent:
     def __init__(self, server_script_path: str):
         self.client = Client(server_script_path)
+        env = {
+            "RISINGWAVE_HOST": "0.0.0.0",
+            "RISINGWAVE_USER": "root",
+            "RISINGWAVE_PASSWORD": "root",
+            "RISINGWAVE_PORT": "4566",
+            "RISINGWAVE_DATABASE": "dev",
+            "RISINGWAVE_SSLMODE": "disable"
+        }
+        self.client.transport.env = env
         self.anthropic = Anthropic()
-        self.conversation = [] 
+        self.conversation = []
         self._tools_cache = None
+
 
     async def list_tools(self):
         if self._tools_cache is None:
@@ -120,7 +128,6 @@ class risingWaveMCPClient:
                 elif content.type == 'tool_use':
                     tool_used = True
                     await self.handle_tool_use(content, final_text)
-                    # After handling, update messages for the next round
                     messages = self.conversation.copy()
             if not tool_used:
                 break
@@ -144,8 +151,9 @@ async def main():
     if len(sys.argv) < 2:
         print("Usage: python client.py <path_to_server_script>")
         sys.exit(1)
+    
     server_script_path = sys.argv[1]
-    async with risingWaveMCPClient(server_script_path) as client:
+    async with risingWaveMCPAgent(server_script_path) as client:
         await client.chat_loop()
         
 if __name__ == "__main__":
