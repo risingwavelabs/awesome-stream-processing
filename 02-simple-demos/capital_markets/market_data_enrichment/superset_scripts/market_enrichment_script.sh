@@ -261,88 +261,104 @@ CREATE_CHART_2_PAYLOAD=$(jq -n --arg name "$CHART_2_NAME" --argjson ds_id "$DATA
 CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$CREATE_CHART_2_PAYLOAD")
 
 
-# --- 3. Create Dashboard ---
+# --- 3. Create Dashboard
 echo "--- Creating Dashboard ---" >&2
 
 DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
 
-# Define dashboard layout with both charts positioned side by side
-DASHBOARD_LAYOUT=$(jq -n --argjson chart1_id "$CHART_1_ID" --argjson chart2_id "$CHART_2_ID" '{
-  "CHART-\($chart1_id)": {
-    "children": [],
-    "id": "CHART-\($chart1_id)",
-    "meta": {
-      "chartId": $chart1_id,
-      "height": 50,
-      "sliceName": "Price Change and Volatility Over Time",
-      "uuid": "00000000-0000-0000-0000-000000000001",
-      "width": 6
-    },
-    "type": "CHART"
-  },
-  "CHART-\($chart2_id)": {
-    "children": [],
-    "id": "CHART-\($chart2_id)",
-    "meta": {
-      "chartId": $chart2_id,
-      "height": 50,
-      "sliceName": "Average Bid Ask Spread Over Time",
-      "uuid": "00000000-0000-0000-0000-000000000002",
-      "width": 6
-    },
-    "type": "CHART"
-  },
-  "GRID_ID": {
-    "children": ["ROW-0"],
-    "id": "GRID_ID",
-    "type": "GRID"
-  },
-  "HEADER_ID": {
-    "id": "HEADER_ID",
-    "meta": {
-      "text": "Enriched Market Analysis Dashboard"
-    },
-    "type": "HEADER"
-  },
-  "ROOT_ID": {
-    "children": ["GRID_ID"],
-    "id": "ROOT_ID",
-    "type": "ROOT"
-  },
-  "ROW-0": {
-    "children": ["CHART-\($chart1_id)", "CHART-\($chart2_id)"],
-    "id": "ROW-0",
-    "meta": {
-      "0": "CHART-\($chart1_id)",
-      "background": "BACKGROUND_TRANSPARENT"
-    },
-    "type": "ROW"
-  }
-}')
 
-JSON_METADATA=$(jq -n '{
-  "timed_refresh_immune_slices": [],
-  "expanded_slices": {},
-  "refresh_frequency": 0,
-  "default_filters": {},
-  "color_scheme": null
-}')
+echo "DEBUG: Checking existing dashboard structure..." >&2
+EXISTING_DASHBOARD_RESPONSE=$(curl -s -G "$SUPERSET_URL/api/v1/dashboard/" -H "Authorization: Bearer $TOKEN" --data-urlencode 'q={"page_size":1}')
+echo "DEBUG: Sample dashboard response:" >&2
+echo "$EXISTING_DASHBOARD_RESPONSE" | jq '.result[0] // "No existing dashboards"' >&2
 
-# Create dashboard payload
-CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" --argjson layout "$DASHBOARD_LAYOUT" --argjson metadata "$JSON_METADATA" '{
+
+echo "DEBUG: Attempting minimal dashboard creation..." >&2
+MINIMAL_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" '{
   "dashboard_title": $title,
-  "position_json": ($layout | tostring),
-  "css": "",
-  "json_metadata": ($metadata | tostring),
-  "owners": [1],
-  "roles": [],
-  "published": true
+  "owners": [1]
 }')
 
-DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
+echo "DEBUG: Minimal payload:" >&2
+echo "$MINIMAL_DASHBOARD_PAYLOAD" | jq . >&2
 
-echo ""
-echo "SUCCESS! Superset setup complete!"
+MINIMAL_CREATE_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/dashboard/" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-CSRFToken: $CSRF_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "$MINIMAL_DASHBOARD_PAYLOAD")
+
+echo "DEBUG: Minimal creation response:" >&2
+echo "$MINIMAL_CREATE_RESPONSE" | jq . >&2
+
+DASHBOARD_ID=$(echo "$MINIMAL_CREATE_RESPONSE" | jq -r '.id // empty')
+
+if [[ -n "$DASHBOARD_ID" ]]; then
+  echo "SUCCESS: Created minimal dashboard with ID: $DASHBOARD_ID" >&2
+  
+  echo "DEBUG: Adding charts to dashboard..." >&2
+  
+  SIMPLE_LAYOUT=$(jq -n --argjson chart1_id "$CHART_1_ID" --argjson chart2_id "$CHART_2_ID" '{
+    "DASHBOARD_VERSION_KEY": "v2",
+    "ROOT_ID": {
+      "children": ["GRID_ID"],
+      "id": "ROOT_ID",
+      "type": "ROOT"
+    },
+    "GRID_ID": {
+      "children": ["ROW-0"],
+      "id": "GRID_ID",
+      "type": "GRID"
+    },
+    "ROW-0": {
+      "children": ["CHART-\($chart1_id)", "CHART-\($chart2_id)"],
+      "id": "ROW-0",
+      "type": "ROW"
+    },
+    "CHART-\($chart1_id)": {
+      "children": [],
+      "id": "CHART-\($chart1_id)",
+      "meta": {
+        "chartId": $chart1_id,
+        "height": 50,
+        "width": 6
+      },
+      "type": "CHART"
+    },
+    "CHART-\($chart2_id)": {
+      "children": [],
+      "id": "CHART-\($chart2_id)",
+      "meta": {
+        "chartId": $chart2_id,
+        "height": 50,
+        "width": 6
+      },
+      "type": "CHART"
+    }
+  }')
+  
+  UPDATE_PAYLOAD=$(jq -n --argjson layout "$SIMPLE_LAYOUT" '{
+    "position_json": ($layout | tostring)
+  }')
+  
+  echo "DEBUG: Update payload:" >&2
+  echo "$UPDATE_PAYLOAD" | jq . >&2
+  
+  UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "X-CSRFToken: $CSRF_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "$UPDATE_PAYLOAD")
+  
+  echo "DEBUG: Update response:" >&2
+  echo "$UPDATE_RESPONSE" | jq . >&2
+  
+else
+  echo "ERROR: Failed to create minimal dashboard" >&2
+  echo "Response was: $MINIMAL_CREATE_RESPONSE" >&2
+  exit 1
+fi
+
 echo ""
 echo "Dashboard: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/"
 echo " - Chart 1: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_1_ID"
