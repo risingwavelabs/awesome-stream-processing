@@ -23,25 +23,31 @@ if ! command -v curl &> /dev/null || ! command -v jq &> /dev/null; then
 get_or_create_asset() {
     local asset_type="$1"; local asset_name="$2"; local filter_q="$3"; local create_payload="$4"; local existing_id=""
     echo "--- Managing ${asset_type^}: '$asset_name' ---" >&2
-    local get_response; get_response=$(curl -s -G "$SUPERSET_URL/api/v1/$asset_type/" -H "Authorization: Bearer $TOKEN" --data-urlencode "$filter_q")
+    local get_response; get_response=$(curl -s -G "$SUPERSET_URL/api/v1/$asset_type/" \
+      -H "Authorization: Bearer $TOKEN" --data-urlencode "$filter_q")
     existing_id=$(echo "$get_response" | jq -r '.result[0].id // empty')
-    if [[ -n "$existing_id" ]]; then echo "${asset_type^} '$asset_name' already exists with ID: $existing_id" >&2; echo "$existing_id"; return; fi
-    echo "${asset_type^} '$asset_name' not found, creating it..." >&2
-    local create_response; create_response=$(curl -s -X POST "$SUPERSET_URL/api/v1/$asset_type/" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" -H "Content-Type: application/json" -d "$create_payload")
+    if [[ -n "$existing_id" ]]; then echo "$existing_id"; return; fi
+    local create_response; create_response=$(curl -s -X POST "$SUPERSET_URL/api/v1/$asset_type/" \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "X-CSRFToken: $CSRF_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d "$create_payload")
     local new_id; new_id=$(echo "$create_response" | jq -r '.id // empty')
-    if [[ -z "$new_id" ]]; then echo "Failed to create ${asset_type} '$asset_name'. Response: $create_response" >&2; exit 1; fi
-    echo "${asset_type^} '$asset_name' created with ID: $new_id" >&2; echo "$new_id"
+    if [[ -z "$new_id" ]]; then echo "Failed to create $asset_type '$asset_name'. Response: $create_response" >&2; exit 1; fi
+    echo "$new_id"
 }
 
 # --- 1. Authentication ---
 echo "Waiting for Superset API..." >&2
-until curl -s "$SUPERSET_URL/api/v1/ping" &> /dev/null; do sleep 1 && printf "."; done
-echo -e "\nSuperset is up." >&2
+until curl -s "$SUPERSET_URL/api/v1/ping" &> /dev/null; do sleep 1; done
+echo "Superset is up." >&2
 
 echo "Waiting for Superset to fully initialize..." >&2
 sleep 10
 
-LOGIN_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/security/login" -H 'Content-Type: application/json' -d "{\"username\": \"$SUPERSET_USERNAME\", \"password\": \"$SUPERSET_PASSWORD\", \"provider\": \"db\"}")
+LOGIN_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/security/login" \
+  -H 'Content-Type: application/json' \
+  -d "{\"username\": \"$SUPERSET_USERNAME\", \"password\": \"$SUPERSET_PASSWORD\", \"provider\": \"db\"}")
 TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.access_token // empty')
 [[ -z "$TOKEN" ]] && echo "Login failed. Response: $LOGIN_RESPONSE" >&2 && exit 1
 echo "Login successful." >&2
@@ -49,9 +55,9 @@ CSRF_TOKEN=$(curl -s -H "Authorization: Bearer $TOKEN" "$SUPERSET_URL/api/v1/sec
 [[ -z "$CSRF_TOKEN" ]] && echo "Failed to get CSRF token." >&2 && exit 1
 echo "Got CSRF token." >&2
 
-# --- 2. Get or Create Database ---
+# --- 2. Database ---
 DB_FILTER_Q="q=$(jq -n --arg name "$DB_NAME" '{filters:[{col:"database_name",opr:"eq",value:$name}]}')"
-CREATE_DB_PAYLOAD=$(jq -n --arg name "$DB_NAME" --arg uri "$SQLALCHEMY_URI" '{database_name: $name, sqlalchemy_uri: $uri, expose_in_sqllab: true}')
+CREATE_DB_PAYLOAD=$(jq -n --arg name "$DB_NAME" --arg uri "$SQLALCHEMY_URI" '{database_name:$name,sqlalchemy_uri:$uri,expose_in_sqllab:true}')
 DB_ID=$(get_or_create_asset "database" "$DB_NAME" "$DB_FILTER_Q" "$CREATE_DB_PAYLOAD")
 
 echo "Testing database connection..." >&2
@@ -60,416 +66,96 @@ TEST_DB_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/database/test_connectio
     -H "X-CSRFToken: $CSRF_TOKEN" \
     -H "Content-Type: application/json" \
     -d "{\"sqlalchemy_uri\": \"$SQLALCHEMY_URI\", \"database_name\": \"$DB_NAME\"}")
-
 if echo "$TEST_DB_RESPONSE" | jq -e '.message // empty' | grep -q "OK"; then
     echo "Database connection successful." >&2
 else
-    echo "Database connection test failed: $TEST_DB_RESPONSE" >&2
+    echo "Database connection failed: $TEST_DB_RESPONSE" >&2
+    exit 1
 fi
 
-
-
-#get / create dataset
+# --- 3. Dataset ---
 DATASET_FILTER_Q="q=$(jq -n --arg name "$DATASET_TABLE_NAME" --argjson db_id "$DB_ID" '{filters:[{col:"table_name",opr:"eq",value:$name},{col:"database_id",opr:"eq",value:($db_id|tonumber)}]}')"
-CREATE_DATASET_PAYLOAD=$(jq -n --argjson db_id "$DB_ID" --arg table_name "$DATASET_TABLE_NAME" '{database:($db_id|tonumber), table_name:$table_name, schema:"public", owners:[1]}')
+CREATE_DATASET_PAYLOAD=$(jq -n --argjson db_id "$DB_ID" --arg table_name "$DATASET_TABLE_NAME" '{database:($db_id|tonumber),table_name:$table_name,schema:"public",owners:[1]}')
 DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD")
 
-#wait and set main time
-echo "--- Configuring dataset properties ---" >&2
-curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" > /dev/null
+# Refresh & configure dataset
+echo "Refreshing dataset and waiting for columns..." >&2
+curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" \
+  -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" > /dev/null
 
-echo "    - Waiting for Superset to discover table columns..." >&2
-POLL_ATTEMPTS=0; MAX_POLL_ATTEMPTS=20; COLUMNS_COUNT=0
-until [[ $COLUMNS_COUNT -gt 0 || $POLL_ATTEMPTS -ge $MAX_POLL_ATTEMPTS ]]; do
-    POLL_ATTEMPTS=$((POLL_ATTEMPTS+1)); printf "      Attempt %s/%s..." "$POLL_ATTEMPTS" "$MAX_POLL_ATTEMPTS"
-    QUERY_PARAM='q={"columns":["columns"]}'; set +e
-    DATASET_DETAILS=$(curl -s -f -G "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" --data-urlencode "$QUERY_PARAM" -H "Authorization: Bearer $TOKEN"); CURL_EXIT_CODE=$?
-    set -e; if [[ $CURL_EXIT_CODE -ne 0 ]]; then echo " Curl failed. Retrying..."; sleep 5; continue; fi
-    COLUMNS_COUNT=$(echo "$DATASET_DETAILS" | jq '.result.columns | length'); if [[ $COLUMNS_COUNT -gt 0 ]]; then echo " Found $COLUMNS_COUNT columns."; else echo " No columns yet. Retrying..."; sleep 8; fi
+# Poll until columns are discovered
+POLL=0; MAX=20; COUNT=0
+while [[ $COUNT -eq 0 && $POLL -lt $MAX ]]; do
+  POLL=$((POLL+1))
+  DETAILS=$(curl -s -G "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" --data-urlencode 'q={"columns":["columns"]}' -H "Authorization: Bearer $TOKEN")
+  COUNT=$(echo "$DETAILS" | jq '.result.columns|length')
+  sleep 5
 done
+[[ $COUNT -eq 0 ]] && echo "Dataset columns not found." >&2 && exit 1
 
-if [[ $COLUMNS_COUNT -eq 0 ]]; then 
-    echo "ERROR: Dataset columns not found after $MAX_POLL_ATTEMPTS attempts." >&2
-    echo "Dataset details response: $DATASET_DETAILS" >&2
-    exit 1
-fi
+# Set timestamp column
+UPDATE_PAYLOAD='{"main_dttm_col":"timestamp"}'
+curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" \
+  -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" \
+  -H "Content-Type: application/json" -d "$UPDATE_PAYLOAD" >/dev/null
 
-#check timestamp column
-TIMESTAMP_COLUMN=$(echo "$DATASET_DETAILS" | jq -r '.result.columns[] | select(.column_name=="timestamp") | .column_name // empty')
-if [[ -z "$TIMESTAMP_COLUMN" ]]; then
-    echo "ERROR: 'timestamp' column not found in dataset. Available columns:" >&2
-    echo "$DATASET_DETAILS" | jq -r '.result.columns[].column_name' >&2
-    exit 1
-fi
+echo "Dataset configured." >&2
 
-echo "    - Setting main datetime column to 'timestamp'..." >&2
-UPDATE_DATASET_PAYLOAD=$(jq -n '{"main_dttm_col":"timestamp"}')
-UPDATE_DATASET_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" -H "Content-Type: application/json" -d "$UPDATE_DATASET_PAYLOAD")
-if ! echo "$UPDATE_DATASET_RESPONSE" | jq -e '.result.main_dttm_col=="timestamp"' > /dev/null; then 
-    echo " Failed to set datetime column. Response: $UPDATE_DATASET_RESPONSE" >&2
-    exit 1
-fi
-echo "Dataset configured successfully." >&2
-
-#adding metrics
-echo "--- Ensuring all metrics are present in dataset ---" >&2
-
-#check column existence
-EXISTING_COLUMNS=$(echo "$DATASET_DETAILS" | jq -r '.result.columns[].column_name')
-echo "Available columns: $EXISTING_COLUMNS" >&2
-
-#define metrics
-DESIRED_METRICS=$(jq -n '{
-    "avg_price":"AVG(average_price)",
-    "avg_price_change":"AVG(price_change)",
-    "avg_bid_ask_spread":"AVG(bid_ask_spread)",
-    "avg_rolling_volatility":"AVG(rolling_volatility)",
-    "avg_sector_performance":"AVG(sector_performance)",
-    "avg_sentiment":"AVG(sentiment_score)"
-}')
-
-for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
-    echo "  - Checking for metric: '$metric_name'..." >&2
-    EXISTING_METRICS=$(curl -s -G "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" --data-urlencode 'q={"columns":["metrics"]}' -H "Authorization: Bearer $TOKEN" | jq '.result.metrics // []')
-    metric_exists=$(echo "$EXISTING_METRICS" | jq --arg name "$metric_name" 'any(.metric_name == $name)')
-    if [[ "$metric_exists" == "false" ]]; then
-        expression=$(echo "$DESIRED_METRICS" | jq -r ".${metric_name}")
-        verbose_name=$(echo "$metric_name"|tr '_' ' '|awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1')
-        new_metric_object=$(jq -n --arg name "$metric_name" --arg expr "$expression" --arg vname "$verbose_name" '{"metric_name":$name,"expression":$expr,"verbose_name":$vname}')
-        metrics_to_upload=$(echo "$EXISTING_METRICS" | jq --argjson new_metric "$new_metric_object" '. + [$new_metric]')
-        UPDATE_PAYLOAD=$(echo "$metrics_to_upload"|jq 'map(if .id then {id,metric_name,expression,verbose_name} else {metric_name,expression,verbose_name} end)|{metrics:.}')
-        UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" -H "Content-Type: application/json" -d "$UPDATE_PAYLOAD")
-        if echo "$UPDATE_RESPONSE"|jq -e '.result'>/dev/null; then 
-            echo "Added metric '$metric_name'." >&2
-        else 
-            echo "    Failed to add metric '$metric_name'. Response: $UPDATE_RESPONSE" >&2
-        fi
-    else 
-        echo "    - Metric already exists. Skipping." >&2
-    fi
+# --- 4. Metrics ---
+echo "Adding metrics..." >&2
+METRICS_JSON=$(jq -n '{"avg_price":"AVG(average_price)","avg_price_change":"AVG(price_change)","avg_bid_ask_spread":"AVG(bid_ask_spread)","avg_rolling_volatility":"AVG(rolling_volatility)"}')
+EXISTING_METRICS=$(curl -s -G "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" --data-urlencode 'q={"columns":["metrics"]}' -H "Authorization: Bearer $TOKEN" | jq '.result.metrics')
+for name in $(echo "$METRICS_JSON" | jq -r 'keys[]'); do
+  if ! echo "$EXISTING_METRICS" | jq -e --arg n "$name" 'any(.metric_name==$n)'; then
+    expr=$(echo "$METRICS_JSON" | jq -r ".[$name]")
+    vname=$(echo "$name" | sed -E 's/_/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)}1')
+    OBJ=$(jq -n --arg m "$name" --arg e "$expr" --arg v "$vname" '{metric_name:$m,expression:$e,verbose_name:$v}')
+    UPDATED=$(echo "$EXISTING_METRICS" | jq --argjson o "$OBJ" '. + [$o]')
+    curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" \
+      -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d "$(jq -n --argjson m "$UPDATED" '{metrics:$m}')" >/dev/null
+  fi
 done
-echo "Metrics processing complete." >&2
+echo "Metrics ready." >&2
 
-#chart creation
-echo "--- creating charts ---" >&2
+# --- 5. Charts ---
+echo "Creating charts..." >&2
+# Chart 1
+CH1_FILTER="q=$(jq -n --arg n "$CHART_1_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$n}]}')"
+CH1_PARAMS=$(jq -n --argjson ds "$DATASET_ID" '{viz_type:"line",datasource:"\($ds)__table",granularity_sqla:"timestamp",time_range:"No filter",metrics:["avg_price_change","avg_rolling_volatility"],show_legend:true,row_limit:10000,time_grain_sqla:"PT1S",show_brush:"auto",show_markers:false,rich_tooltip:true,tooltip_sort_by_metric:true,show_controls:true}')
+CH1_PAYLOAD=$(jq -n --arg n "$CHART_1_NAME" --argjson ds "$DATASET_ID" --argjson p "$CH1_PARAMS" '{slice_name:$n,viz_type:"line",datasource_id:$ds,datasource_type:"table",params:( $p|tostring ),owners:[1]}')
+CHART_1_ID=$(get_or_create_asset "chart" "$CHART_1_NAME" "$CH1_FILTER" "$CH1_PAYLOAD")
+# Chart 2
+CH2_FILTER="q=$(jq -n --arg n "$CHART_2_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$n}]}')"
+CH2_PARAMS=$(jq -n --argjson ds "$DATASET_ID" '{viz_type:"line",datasource:"\($ds)__table",granularity_sqla:"timestamp",time_range:"No filter",metrics:["avg_bid_ask_spread"],show_legend:true,row_limit:10000,time_grain_sqla:"PT1S",show_brush:"auto",show_markers:false,rich_tooltip:true,tooltip_sort_by_metric:true,show_controls:true}')
+CH2_PAYLOAD=$(jq -n --arg n "$CHART_2_NAME" --argjson ds "$DATASET_ID" --argjson p "$CH2_PARAMS" '{slice_name:$n,viz_type:"line",datasource_id:$ds,datasource_type:"table",params:( $p|tostring ),owners:[1]}')
+CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CH2_FILTER" "$CH2_PAYLOAD")
+echo "Charts created: $CHART_1_ID, $CHART_2_ID." >&2
 
-#Chart 1 - price change and volatility.
-CHART_1_FILTER_Q="q=$(jq -n --arg name "$CHART_1_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
+# --- 6. Dashboard ---
+echo "Creating dashboard..." >&2
+DBD_FILTER="q=$(jq -n --arg t "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$t}]}')"
+DBD_PAYLOAD=$(jq -n --arg t "$DASHBOARD_TITLE" '{dashboard_title:$t,owners:[1],published:true}')
+DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" "$DBD_FILTER" "$DBD_PAYLOAD")
 
-CHART_1_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
-    "viz_type": "line",
-    "datasource": "\($ds_id)__table",
-    "granularity_sqla": "timestamp",
-    "time_range": "No filter",
-    "metrics": ["avg_price_change", "avg_rolling_volatility"],
-    "show_legend": true,
-    "row_limit": 10000,
-    "time_grain_sqla": "PT1S",
-    "show_brush": "auto",
-    "show_markers": false,
-    "rich_tooltip": true,
-    "tooltip_sort_by_metric": true,
-    "color_scheme": "supersetColors",
-    "show_controls": true,
-    "x_axis_label": "",
-    "bottom_margin": "auto",
-    "x_ticks_layout": "auto",
-    "y_axis_label": "",
-    "left_margin": "auto",
-    "y_axis_bounds": [null, null],
-    "rolling_type": "None",
-    "comparison_type": "values",
-    "annotation_layers": []
+# Layout JSON
+POSITIONS=$(jq -n --arg c1 "$CHART_1_ID" --arg c2 "$CHART_2_ID" '{
+  DASHBOARD_VERSION_KEY:"v2",
+  ROOT_ID:{type:"ROOT",id:"ROOT_ID",children:["GRID_ID"]},
+  GRID_ID:{type:"GRID",id:"GRID_ID",children:["ROW_ID_1","ROW_ID_2"]},
+  ROW_ID_1:{type:"ROW",id:"ROW_ID_1",children:["CHART_ID_1"]},
+  CHART_ID_1:{type:"CHART",id:"CHART_ID_1",meta:{sliceId:(\$c1|tonumber)}},
+  ROW_ID_2:{type:"ROW",id:"ROW_ID_2",children:["CHART_ID_2"]},
+  CHART_ID_2:{type:"CHART",id:"CHART_ID_2",meta:{sliceId:(\$c2|tonumber)}}
 }')
 
-CREATE_CHART_1_PAYLOAD=$(jq -n --arg name "$CHART_1_NAME" --argjson ds_id "$DATASET_ID" --argjson params "$CHART_1_PARAMS" '{
-    "slice_name": $name,
-    "viz_type": "line",
-    "datasource_id": $ds_id,
-    "datasource_type": "table",
-    "params": ($params | tostring),
-    "owners": [1]
-}')
+curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-CSRFToken: $CSRF_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"positions\":$POSITIONS}" >/dev/null
 
+echo "Dashboard created: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/" >&2
 
-CHART_1_ID=$(get_or_create_asset "chart" "$CHART_1_NAME" "$CHART_1_FILTER_Q" "$CREATE_CHART_1_PAYLOAD")
-
-CHART_2_FILTER_Q="q=$(jq -n --arg name "$CHART_2_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
-
-CHART_2_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
-    "viz_type": "line",
-    "datasource": "\($ds_id)__table",
-    "granularity_sqla": "timestamp",
-    "time_range": "No filter",
-    "metrics": ["avg_bid_ask_spread"],
-    "show_legend": true,
-    "row_limit": 10000,
-    "time_grain_sqla": "PT1S",
-    "show_brush": "auto",
-    "show_markers": false,
-    "rich_tooltip": true,
-    "tooltip_sort_by_metric": true,
-    "color_scheme": "supersetColors",
-    "show_controls": true,
-    "x_axis_label": "",
-    "bottom_margin": "auto",
-    "x_ticks_layout": "auto",
-    "y_axis_label": "",
-    "left_margin": "auto",
-    "y_axis_bounds": [null, null],
-    "rolling_type": "None",
-    "comparison_type": "values",
-    "annotation_layers": []
-}')
-
-CREATE_CHART_2_PAYLOAD=$(jq -n --arg name "$CHART_2_NAME" --argjson ds_id "$DATASET_ID" --argjson params "$CHART_2_PARAMS" '{
-    "slice_name": $name,
-    "viz_type": "line",
-    "datasource_id": $ds_id,
-    "datasource_type": "table",
-    "params": ($params | tostring),
-    "owners": [1]
-}')
-
-CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$CREATE_CHART_2_PAYLOAD")
-
-# Add this section after your chart creation and before the final SUCCESS message
-
-# --- 4. Create or Update Dashboard ---
-echo "--- Creating Dashboard ---" >&2
-
-DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
-
-# Define dashboard layout - positioning charts in a 2x1 grid
-DASHBOARD_POSITION_JSON=$(jq -n --argjson chart1_id "$CHART_1_ID" --argjson chart2_id "$CHART_2_ID" '{
-    "DASHBOARD_VERSION_KEY": "v2",
-    "ROOT_ID": {
-        "children": ["GRID_ID"],
-        "id": "ROOT_ID",
-        "type": "ROOT"
-    },
-    "GRID_ID": {
-        "children": ["ROW-1"],
-        "id": "GRID_ID",
-        "type": "GRID"
-    },
-    "ROW-1": {
-        "children": ["CHART-\($chart1_id)", "CHART-\($chart2_id)"],
-        "id": "ROW-1",
-        "meta": {
-            "background": "BACKGROUND_TRANSPARENT"
-        },
-        "type": "ROW"
-    },
-    "CHART-\($chart1_id)": {
-        "children": [],
-        "id": "CHART-\($chart1_id)",
-        "meta": {
-            "chartId": $chart1_id,
-            "height": 50,
-            "sliceName": "Price Change and Volatility Over Time",
-            "uuid": "chart-\($chart1_id)",
-            "width": 6
-        },
-        "type": "CHART"
-    },
-    "CHART-\($chart2_id)": {
-        "children": [],
-        "id": "CHART-\($chart2_id)",
-        "meta": {
-            "chartId": $chart2_id,
-            "height": 50,
-            "sliceName": "Average Bid Ask Spread Over Time",
-            "uuid": "chart-\($chart2_id)",
-            "width": 6
-        },
-        "type": "CHART"
-    }
-}')
-
-# --- 4. Create Dashboard ---
-echo "--- Creating Dashboard ---" >&2
-
-DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
-
-# First, create a basic dashboard without charts
-CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" '{
-    "dashboard_title": $title,
-    "slug": null,
-    "owners": [1],
-    "css": "",
-    "json_metadata": "{\"refresh_frequency\":0,\"color_scheme\":\"\",\"label_colors\":{}}",
-    "published": true
-}')
-
-DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
-
-
-echo "Adding charts to dashboard..." >&2
-
-echo "--- Creating Dashboard ---" >&2
-
-DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
-
-CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" '{
-    "dashboard_title": $title,
-    "slug": null,
-    "owners": [1],
-    "css": "",
-    "json_metadata": "{\"refresh_frequency\":0,\"color_scheme\":\"\",\"label_colors\":{}}",
-    "published": true
-}')
-
-DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
-
-# Now add charts to the dashboard using PUT endpoint
-echo "Adding charts to dashboard..." >&2
-
-# Get chart UUIDs for proper referencing
-echo "Retrieving chart details for UUID generation..." >&2
-CHART_1_DETAILS=$(curl -s "$SUPERSET_URL/api/v1/chart/$CHART_1_ID" -H "Authorization: Bearer $TOKEN")
-CHART_2_DETAILS=$(curl -s "$SUPERSET_URL/api/v1/chart/$CHART_2_ID" -H "Authorization: Bearer $TOKEN")
-
-CHART_1_UUID=$(echo "$CHART_1_DETAILS" | jq -r '.result.uuid // empty')
-CHART_2_UUID=$(echo "$CHART_2_DETAILS" | jq -r '.result.uuid // empty')
-
-# Fallback (rarely needed)
-if [[ -z "$CHART_1_UUID" ]]; then
-    CHART_1_UUID=$(uuidgen)
-    echo "Warning: CHART_1_UUID was empty, generated: $CHART_1_UUID" >&2
-fi
-if [[ -z "$CHART_2_UUID" ]]; then
-    CHART_2_UUID=$(uuidgen)
-    echo "Warning: CHART_2_UUID was empty, generated: $CHART_2_UUID" >&2
-fi
-
-echo "Chart 1 UUID: $CHART_1_UUID, Chart 2 UUID: $CHART_2_UUID" >&2
-
-# Define dashboard layout with charts
-DASHBOARD_POSITION_JSON=$(jq -n --argjson chart1_id "$CHART_1_ID" --argjson chart2_id "$CHART_2_ID" --arg chart1_uuid "$CHART_1_UUID" --arg chart2_uuid "$CHART_2_UUID" '{
-    "DASHBOARD_VERSION_KEY": "v2",
-    "ROOT_ID": {
-        "children": ["GRID_ID"],
-        "id": "ROOT_ID",
-        "type": "ROOT"
-    },
-    "GRID_ID": {
-        "children": ["ROW-1"],
-        "id": "GRID_ID",
-        "type": "GRID"
-    },
-    "ROW-1": {
-        "children": ["CHART-\($chart1_uuid)", "CHART-\($chart2_uuid)"],
-        "id": "ROW-1",
-        "meta": {
-            "background": "BACKGROUND_TRANSPARENT"
-        },
-        "type": "ROW"
-    },
-    "CHART-\($chart1_uuid)": {
-        "children": [],
-        "id": "CHART-\($chart1_uuid)",
-        "meta": {
-            "chartId": $chart1_id,
-            "height": 50,
-            "sliceName": "Price Change and Volatility Over Time",
-            "uuid": $chart1_uuid,
-            "width": 6
-        },
-        "type": "CHART"
-    },
-    "CHART-\($chart2_uuid)": {
-        "children": [],
-        "id": "CHART-\($chart2_uuid)",
-        "meta": {
-            "chartId": $chart2_id,
-            "height": 50,
-            "sliceName": "Average Bid Ask Spread Over Time",
-            "uuid": $chart2_uuid,
-            "width": 6
-        },
-        "type": "CHART"
-    }
-}')
-
-UPDATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" --argjson position_json "$DASHBOARD_POSITION_JSON" '{
-    "dashboard_title": $title,
-    "position_json": ($position_json | tostring),
-    "css": "",
-    "json_metadata": "{\"refresh_frequency\":0,\"color_scheme\":\"\",\"label_colors\":{}}",
-    "published": true
-}')
-
-UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
-    -H "Authorization: Bearer $TOKEN" \
-    -H "X-CSRFToken: $CSRF_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d "$UPDATE_DASHBOARD_PAYLOAD")
-
-if echo "$UPDATE_RESPONSE" | jq -e '.result' > /dev/null; then
-    echo "Dashboard layout updated successfully." >&2
-else
-    echo "Failed to update dashboard layout: $UPDATE_RESPONSE" >&2
-fi
-
-echo "Linking charts to dashboard..." >&2
-
-
-ADD_CHARTS_PAYLOAD=$(jq -n --argjson chart1_id "$CHART_1_ID" --argjson chart2_id "$CHART_2_ID" '{
-    "chart_ids": [$chart1_id, $chart2_id]
-}')
-
-ADD_CHARTS_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID/charts" \
-    -H "Authorization: Bearer $TOKEN" \
-    -H "X-CSRFToken: $CSRF_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d "$ADD_CHARTS_PAYLOAD")
-
-if echo "$ADD_CHARTS_RESPONSE" | jq -e '.result' > /dev/null 2>&1; then
-    echo "Charts linked to dashboard successfully via /charts endpoint." >&2
-else
-    echo "Charts endpoint response: $ADD_CHARTS_RESPONSE" >&2
-    
-    # Method 2: Update dashboard with slices in a separate call
-    echo "Trying alternative method to link charts..." >&2
-    
-    # Get current dashboard state
-    CURRENT_DASHBOARD=$(curl -s "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" -H "Authorization: Bearer $TOKEN")
-    
-    # Update with charts included
-    FULL_UPDATE_PAYLOAD=$(echo "$CURRENT_DASHBOARD" | jq --argjson chart1_id "$CHART_1_ID" --argjson chart2_id "$CHART_2_ID" --argjson position_json "$DASHBOARD_POSITION_JSON" '
-        .result | 
-        {
-            dashboard_title,
-            position_json: ($position_json | tostring),
-            css,
-            json_metadata,
-            published,
-            roles,
-            owners
-        } + {
-            slices: [
-                {id: $chart1_id},
-                {id: $chart2_id}
-            ]
-        }
-    ')
-    
-    FULL_UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "X-CSRFToken: $CSRF_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "$FULL_UPDATE_PAYLOAD")
-    
-    if echo "$FULL_UPDATE_RESPONSE" | jq -e '.result' > /dev/null; then
-        echo "Charts linked via dashboard update method." >&2
-    else
-        echo "Full update response: $FULL_UPDATE_RESPONSE" >&2
-    fi
-fi
-
-echo "Dashboard: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/"
-echo "SUCCESS! Superset setup complete!"
-echo ""
-echo " - Chart 1: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_1_ID"
-echo "  - Chart 2: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_2_ID"
+echo "SUCCESS! Superset setup complete."
