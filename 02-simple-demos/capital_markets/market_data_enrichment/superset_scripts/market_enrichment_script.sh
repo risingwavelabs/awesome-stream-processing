@@ -320,12 +320,20 @@ DASHBOARD_LAYOUT=$(jq -n --argjson chart1_id "$CHART_1_ID" --argjson chart2_id "
   }
 }')
 
+JSON_METADATA=$(jq -n '{
+  "timed_refresh_immune_slices": [],
+  "expanded_slices": {},
+  "refresh_frequency": 0,
+  "default_filters": {},
+  "color_scheme": null
+}')
+
 # Create dashboard payload
-CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" --argjson layout "$DASHBOARD_LAYOUT" '{
+CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" --argjson layout "$DASHBOARD_LAYOUT" --argjson metadata "$JSON_METADATA" '{
   "dashboard_title": $title,
   "position_json": ($layout | tostring),
   "css": "",
-  "json_metadata": "{\"timed_refresh_immune_slices\":[],\"expanded_slices\":{},\"refresh_frequency\":0,\"default_filters\":{},\"color_scheme\":null}",
+  "json_metadata": ($metadata | tostring),
   "owners": [1],
   "roles": [],
   "published": true
