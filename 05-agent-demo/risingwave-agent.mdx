@@ -4,7 +4,7 @@ title: "Use Agents to analyze data ingested into RisingWave"
 
 ## Overview
 
-
+This agent is a client application that connects RisingWave’s MCP (Managed Control Plane) with Anthropic’s LLM to process natural language queries, call data tools, and return clean, readable results to users. It features components for handling table extraction from SQL-like queries, dynamically fetching table schemas, invoking MCP tools, parsing and formatting results (like tables), and managing a chat loop that coordinates between RisingWave tool calls and Anthropic-generated responses — iterating until the user's query is fully handled.
 
 In this tutorial, you will learn how to implement a custom Anthropic Agent, integrate it with RisingWave MCP, to do simple stream processing with RisingWave.
 
@@ -35,7 +35,7 @@ from tabulate import tabulate
 from dotenv import load_dotenv
 ```
 
-The try_print_table function is there to help the agent understand how to parse tables and other data formats, so that it can output the data in a clean and readable way for the user. It verifies that the user request is asking to print a table and from there will call the function and parse through it properly. 
+The try_print_table function helps the agent detect when a table should be displayed, then parses and formats the data into a clean, readable table for the user.
 
 ```python
 def try_print_table(result):
@@ -143,7 +143,7 @@ We declare a few more functions to handle tool usage and providing the necessary
             self.conversation.append({"role": "assistant", "content": response.content[0].text})
 ```
 
-These final agent functions allow the agent to process the user query and establish the chat loop for the agent. Process query extracts key words from the users query and has the agent interpret them in order to decide whether or not tool use is required. If a tool is not required it will call the anthropic model to respond to the user using it's context from previous queries in the session. If there is tool use invoked, it will take a look at the tool list cached earlier. From there it will call the necessary tool to respond to the user and log it's actions to maintain context. The function will continue to loop this process to handle the case of multiple tool use in one query. If no tools were used in the last query the agent will stop the loop and return the final message to the user. The chat_loop function sets up this chat loop for the user. 
+These final agent functions handle processing user queries and managing the chat loop. The agent decides whether to use a tool based on extracted keywords, either invoking tools as needed or calling the Anthropic model for a direct response, looping as necessary until the final message is returned to the user. 
 
 ```python
     async def process_query(self, query: str) -> str:
