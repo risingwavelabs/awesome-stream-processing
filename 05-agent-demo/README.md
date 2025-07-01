@@ -2,6 +2,8 @@
 
 ## Overview
 
+This agent is a client application that connects RisingWave’s MCP (Managed Control Plane) with Anthropic’s LLM to process natural language queries, call data tools, and return clean, readable results to users. It features components for handling table extraction from SQL-like queries, dynamically fetching table schemas, invoking MCP tools, parsing and formatting results (like tables), and managing a chat loop that coordinates between RisingWave tool calls and Anthropic-generated responses — iterating until the user's query is fully handled.
+
 In this tutorial, you'll learn how to implement a custom Anthropic agent and integrate it with RisingWave MCP to perform simple stream processing tasks on live data.
 
 For a reference implementation, check out [this repository](https://github.com/risingwavelabs/awesome-stream-processing/).
