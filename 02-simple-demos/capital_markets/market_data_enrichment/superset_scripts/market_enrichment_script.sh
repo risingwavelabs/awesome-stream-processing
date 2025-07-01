@@ -75,11 +75,7 @@ else
 fi
 
 
-
-
-
-
-#get / create dataset
+# --- 3. Get or Create Dataset ---
 DATASET_FILTER_Q="q=$(jq -n --arg name "$DATASET_TABLE_NAME" --argjson db_id "$DB_ID" '{filters:[{col:"table_name",opr:"eq",value:$name},{col:"database_id",opr:"eq",value:($db_id|tonumber)}]}')"
 CREATE_DATASET_PAYLOAD=$(jq -n --argjson db_id "$DB_ID" --arg table_name "$DATASET_TABLE_NAME" '{database:($db_id|tonumber), table_name:$table_name, schema:"public", owners:[1]}')
 DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD")
@@ -129,14 +125,6 @@ echo "Dataset configured successfully." >&2
 
 #adding metrics
 echo "--- Ensuring all metrics are present in dataset ---" >&2
-
-
-#check column existence
-EXISTING_COLUMNS=$(echo "$DATASET_DETAILS" | jq -r '.result.columns[].column_name')
-echo "Available columns: $EXISTING_COLUMNS" >&2
-
-
-#define metrics
 DESIRED_METRICS=$(jq -n '{
    "avg_price":"AVG(average_price)",
    "avg_price_change":"AVG(price_change)",
@@ -170,14 +158,12 @@ done
 echo "Metrics processing complete." >&2
 
 
-#chart creation
-echo "--- creating charts ---" >&2
+# --- 4. Create Charts ---
+echo "--- Creating charts ---" >&2
 
 
 #Chart 1 - price change and volatility.
 CHART_1_FILTER_Q="q=$(jq -n --arg name "$CHART_1_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
-
-
 CHART_1_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
    "viz_type": "line",
    "datasource": "\($ds_id)__table",
@@ -187,7 +173,7 @@ CHART_1_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
    "show_legend": true,
    "row_limit": 10000,
    "time_grain_sqla": "PT1S",
-   "show_brush": "auto",
+   "show_brush": true,
    "show_markers": false,
    "rich_tooltip": true,
    "tooltip_sort_by_metric": true,
@@ -203,8 +189,6 @@ CHART_1_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
    "comparison_type": "values",
    "annotation_layers": []
 }')
-
-
 CREATE_CHART_1_PAYLOAD=$(jq -n --arg name "$CHART_1_NAME" --argjson ds_id "$DATASET_ID" --argjson params "$CHART_1_PARAMS" '{
    "slice_name": $name,
    "viz_type": "line",
@@ -213,15 +197,11 @@ CREATE_CHART_1_PAYLOAD=$(jq -n --arg name "$CHART_1_NAME" --argjson ds_id "$DATA
    "params": ($params | tostring),
    "owners": [1]
 }')
-
-
 CHART_1_ID=$(get_or_create_asset "chart" "$CHART_1_NAME" "$CHART_1_FILTER_Q" "$CREATE_CHART_1_PAYLOAD")
 
 
 # Chart 2 - Average Bid Ask Spread
 CHART_2_FILTER_Q="q=$(jq -n --arg name "$CHART_2_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
-
-
 CHART_2_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
    "viz_type": "line",
    "datasource": "\($ds_id)__table",
@@ -231,7 +211,7 @@ CHART_2_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
    "show_legend": true,
    "row_limit": 10000,
    "time_grain_sqla": "PT1S",
-   "show_brush": "auto",
+   "show_brush": true,
    "show_markers": false,
    "rich_tooltip": true,
    "tooltip_sort_by_metric": true,
@@ -247,8 +227,6 @@ CHART_2_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
    "comparison_type": "values",
    "annotation_layers": []
 }')
-
-
 CREATE_CHART_2_PAYLOAD=$(jq -n --arg name "$CHART_2_NAME" --argjson ds_id "$DATASET_ID" --argjson params "$CHART_2_PARAMS" '{
    "slice_name": $name,
    "viz_type": "line",
@@ -257,13 +235,11 @@ CREATE_CHART_2_PAYLOAD=$(jq -n --arg name "$CHART_2_NAME" --argjson ds_id "$DATA
    "params": ($params | tostring),
    "owners": [1]
 }')
-
 CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$CREATE_CHART_2_PAYLOAD")
 
-# --- 3. Create or Update Dashboard ---
-echo "--- Creating or Updating Dashboard ---" >&2
 
-# lookup or create
+# --- 5. Create or Update Dashboard ---
+echo "--- Creating or Updating Dashboard ---" >&2
 DASH_FILTER="q=$(jq -n --arg title "$DASHBOARD_TITLE" \
   '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
 EXISTING_DASH_ID=$(curl -s -G "$SUPERSET_URL/api/v1/dashboard/" \
@@ -277,10 +253,6 @@ if [[ -n "$EXISTING_DASH_ID" ]]; then
 else
   echo "Creating dashboard '$DASHBOARD_TITLE'…" >&2
   PAYLOAD=$(jq -n --arg t "$DASHBOARD_TITLE" '{dashboard_title:$t,owners:[1],published:true}')
-
-
-
-
   DASHBOARD_ID=$(curl -s -X POST "$SUPERSET_URL/api/v1/dashboard/" \
     -H "Authorization: Bearer $TOKEN" \
     -H "X-CSRFToken: $CSRF_TOKEN" \
@@ -290,48 +262,85 @@ else
   echo "  → Created (ID=$DASHBOARD_ID)" >&2
 fi
 
-# ensure our two charts are on it
+# Ensure our two charts are on it
 echo "--- Attaching charts to dashboard ---" >&2
 CURRENT_CHART_IDS=($(curl -s -G "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
   -H "Authorization: Bearer $TOKEN" \
-  | jq '.result.charts[]?.id'))
+  | jq '.result.charts[].id'))
 
-
-for CH in $CHART_1_ID $CHART_2_ID; do
-  if ! printf '%s\n' "${CURRENT_CHART_IDS[@]}" | grep -qx "$CH"; then
-    CURRENT_CHART_IDS+=("$CH")
+ALL_CHART_IDS=($CHART_1_ID $CHART_2_ID)
+for chart_to_add in "${ALL_CHART_IDS[@]}"; do
+  is_present=false
+  for existing_chart in "${CURRENT_CHART_IDS[@]}"; do
+    if [[ "$chart_to_add" == "$existing_chart" ]]; then
+      is_present=true
+      break
+    fi
+  done
+  if [[ "$is_present" == "false" ]]; then
+    CURRENT_CHART_IDS+=("$chart_to_add")
   fi
 done
 
 # PUT back the full list
 UPDATE_PAYLOAD=$(jq -n --argjson charts "$(printf '%s\n' "${CURRENT_CHART_IDS[@]}" | jq -R . | jq -s .)" '{charts: $charts}')
-curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
+UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-CSRFToken: $CSRF_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "$UPDATE_PAYLOAD" >/dev/null
+  -d "$UPDATE_PAYLOAD")
+echo "Attach charts response: $UPDATE_RESPONSE" >&2
 
-
-# now apply a simple two-column layout, height=30
+# Now apply a robust two-column layout
 echo "--- Applying layout ---" >&2
 POSITION_JSON=$(jq -n --argjson c1 "$CHART_1_ID" --argjson c2 "$CHART_2_ID" '{
-  DASHBOARD_VERSION_KEY:"v2",
-  ROOT_ID:{type:"ROOT",id:"ROOT_ID",children:["GRID_ID"]},
-  GRID_ID:{type:"GRID",id:"GRID_ID",children:["ROW-0"]},
-  "ROW-0":{type:"ROW",id:"ROW-0",children:["CHART-\($c1)","CHART-\($c2)"],meta:{background:"BACKGROUND_TRANSPARENT"}},
-  "CHART-\($c1)":{type:"CHART",id:"CHART-\($c1)",meta:{chartId:$c1,x:0,y:0,width:6,height:30}},
-  "CHART-\($c2)":{type:"CHART",id:"CHART-\($c2)",meta:{chartId:$c2,x:6,y:0,width:6,height:30}}
-
-
-
+  "DASHBOARD_VERSION_KEY": "v2",
+  "ROOT_ID": {
+    "type": "ROOT",
+    "id": "ROOT_ID",
+    "children": ["GRID_ID"]
+  },
+  "GRID_ID": {
+    "type": "GRID",
+    "id": "GRID_ID",
+    "children": ["ROW-LEVEL-1"]
+  },
+  "ROW-LEVEL-1": {
+    "type": "ROW",
+    "id": "ROW-LEVEL-1",
+    "children": ["CHART_1", "CHART_2"],
+    "meta": {
+      "background": "BACKGROUND_TRANSPARENT"
+    }
+  },
+  "CHART_1": {
+    "type": "CHART",
+    "id": "CHART_1",
+    "meta": {
+      "width": 6,
+      "height": 30,
+      "chartId": $c1
+    }
+  },
+  "CHART_2": {
+    "type": "CHART",
+    "id": "CHART_2",
+    "meta": {
+      "width": 6,
+      "height": 30,
+      "chartId": $c2
+    }
+  }
 }')
-LAYOUT_PAYLOAD=$(jq -n --arg pj "$POSITION_JSON" '{position_json:$pj}')
-curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
+
+LAYOUT_PAYLOAD=$(jq -n --arg pj "$POSITION_JSON" '{position_json: $pj}')
+LAYOUT_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-CSRFToken: $CSRF_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "$LAYOUT_PAYLOAD" >/dev/null
+  -d "$LAYOUT_PAYLOAD")
+echo "Apply layout response: $LAYOUT_RESPONSE" >&2
 
-echo "✅ Dashboard ready: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/" >&2
+echo "✅ Dashboard ready: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/"
 echo " - Chart 1: $SUPERSET_URL/explore/?slice_id=$CHART_1_ID"
 echo " - Chart 2: $SUPERSET_URL/explore/?slice_id=$CHART_2_ID"
