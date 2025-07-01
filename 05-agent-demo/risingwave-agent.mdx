@@ -17,7 +17,7 @@ If you want a reference to the full project you can clone [this](https://github.
 * Ensure that the [PostgreSQL](https://www.postgresql.org/docs/current/app-psql.html) interactive terminal, `psql`, is installed in your environment. For detailed instructions, see [Download PostgreSQL](https://www.postgresql.org/download/).
 * Ensure that you have cloned the [RisingWave MCP](https://github.com/risingwavelabs/risingwave-mcp.git).
 
-## Step 1: Create the file 'client.py'
+## Step 1: Create the Agent
 
 Here are the basic imports necessary for the file
 
@@ -283,9 +283,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## Step 2: Now that you have the script prepared, you must configure your .env file. Create one now and enter your Anthropic API key where needed
-```python
-ANTHROPIC_API_KEY = <YOUR-API-KEY-HERE>
+## Step 2: Setup the workload and configure the Agent
 RISINGWAVE_HOST = 0.0.0.0
 RISINGWAVE_USER = root
 RISINGWAVE_PASSWORD = root
