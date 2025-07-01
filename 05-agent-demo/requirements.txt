@@ -1,5 +1,4 @@
 anthropic
 fastmcp
 python-dotenv
-tabulate
 asyncio
