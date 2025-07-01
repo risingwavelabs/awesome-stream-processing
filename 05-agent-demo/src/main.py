@@ -7,23 +7,7 @@ import json
 import re
 from fastmcp import Client
 from anthropic import Anthropic
-from tabulate import tabulate
 from dotenv import load_dotenv
-
-def try_print_table(result):
-    """Try to print a result as a table if possible."""
-    try:
-        data = json.loads(result)
-        if isinstance(data, list) and all(isinstance(row, dict) for row in data):
-            print(tabulate(data, headers="keys", tablefmt="github"))
-            return True
-        if isinstance(data, list) and all(isinstance(row, list) for row in data):
-            print(tabulate(data, tablefmt="github"))
-            return True
-    except (json.JSONDecodeError, TypeError):
-        if isinstance(result, list) and len(result) == 1 and hasattr(result[0], "text"):
-            return True
-    return False
 
 
 def extract_table_names(query):
@@ -140,8 +124,7 @@ class RisingWaveMCPAgent:
         tool_args = content.input
         result = await self.call_tool(tool_name, tool_args)
         final_text.append(f"[Calling tool {tool_name} with args {tool_args}]")
-        if not try_print_table(result):
-            final_text.append(result)
+        final_text.append(result)
         self.conversation.append({"role": "user", "content": result})
 
         response = self.anthropic.messages.create(
