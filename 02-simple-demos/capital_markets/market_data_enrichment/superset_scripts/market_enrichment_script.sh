@@ -260,11 +260,12 @@ CREATE_CHART_2_PAYLOAD=$(jq -n --arg name "$CHART_2_NAME" --argjson ds_id "$DATA
 
 CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$CREATE_CHART_2_PAYLOAD")
 
-# --- 3. Create or Update Dashboard ---
+# --- 3. Create or Update Dashboard (combined charts + layout) with debug ---
 echo "--- Finalizing Dashboard ---" >&2
 
-# 1) Ensure dashboard exists
-DASH_FILTER="q=$(jq -n --arg t "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$t}]}')"
+# 3.1) Ensure dashboard exists
+DASH_FILTER="q=$(jq -n --arg t "$DASHBOARD_TITLE" \
+  '{filters:[{col:"dashboard_title",opr:"eq",value:$t}]}')"
 EXISTING_ID=$(curl -s -G "$SUPERSET_URL/api/v1/dashboard/" \
   -H "Authorization: Bearer $TOKEN" \
   --data-urlencode "$DASH_FILTER" \
@@ -277,31 +278,41 @@ else
     -H "Authorization: Bearer $TOKEN" \
     -H "X-CSRFToken: $CSRF_TOKEN" \
     -H "Content-Type: application/json" \
-    -d "$(jq -n --arg t "$DASHBOARD_TITLE" '{dashboard_title:$t,owners:[1],published:true}')" \
+    -d "$(jq -n --arg t "$DASHBOARD_TITLE" \
+         '{dashboard_title:$t,owners:[1],published:true}')" \
     | jq -r '.id')
-  echo "Created dashboard ID=$DASHBOARD_ID" >&2
+  echo "Created new dashboard ID=$DASHBOARD_ID" >&2
 fi
 
-# 2) Build charts array and layout JSON
-CHARTS_ARR=$(jq -n --argjson c1 "$CHART_1_ID" --argjson c2 "$CHART_2_ID" '[{id:$c1},{id:$c2}]')
+# 3.2) Build the charts array and the layout JSON
+CHARTS_ARR=$(jq -n --argjson c1 "$CHART_1_ID" --argjson c2 "$CHART_2_ID" \
+  '[{id:$c1},{id:$c2}]')
 POSITION_JSON=$(jq -n --argjson c1 "$CHART_1_ID" --argjson c2 "$CHART_2_ID" '{
   DASHBOARD_VERSION_KEY:"v2",
-  ROOT_ID:{type:"ROOT",id:"ROOT_ID",children:["GRID_ID"]},
-  GRID_ID:{type:"GRID",id:"GRID_ID",children:["ROW-0"]},
-  "ROW-0":{type:"ROW",id:"ROW-0",children:["CHART-\($c1)","CHART-\($c2)"],meta:{background:"BACKGROUND_TRANSPARENT"}},
+  ROOT_ID:   {type:"ROOT",id:"ROOT_ID",children:["GRID_ID"]},
+  GRID_ID:   {type:"GRID",id:"GRID_ID",children:["ROW-0"]},
+  "ROW-0":   {type:"ROW",id:"ROW-0",children:["CHART-\($c1)","CHART-\($c2)"],meta:{background:"BACKGROUND_TRANSPARENT"}},
   "CHART-\($c1)":{type:"CHART",id:"CHART-\($c1)",meta:{chartId:$c1,x:0,y:0,width:6,height:30}},
   "CHART-\($c2)":{type:"CHART",id:"CHART-\($c2)",meta:{chartId:$c2,x:6,y:0,width:6,height:30}}
 }')
 
-# 3) Single PUT for both charts and layout
-PAYLOAD=$(jq -n --argjson charts "$CHARTS_ARR" --argjson pos "$POSITION_JSON" '{charts:$charts,position_json:$pos}')
+COMBINED_PAYLOAD=$(jq -n --argjson charts "$CHARTS_ARR" --argjson pos "$POSITION_JSON" \
+  '{charts:$charts,position_json:$pos}')
+echo "DEBUG: combined payload →" >&2
+jq . <<<"$COMBINED_PAYLOAD" >&2
+
 curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-CSRFToken: $CSRF_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "$PAYLOAD" \
-  >/dev/null
+  -d "$COMBINED_PAYLOAD" >/dev/null
 
-echo "✅ Dashboard ready: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/" >&2
-echo " - Chart 1: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_1_ID"
-echo " - Chart 2: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_2_ID"
+
+curl -s -G "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  --data-urlencode 'q={"columns":["charts","position_json"]}' \
+| jq . >&2
+
+echo "✅ Dashboard ready at: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/" >&2
+echo " - Chart 1: $SUPERSET_URL/explore/?slice_id=$CHART_1_ID" >&2
+echo " - Chart 2: $SUPERSET_URL/explore/?slice_id=$CHART_2_ID" >&2
