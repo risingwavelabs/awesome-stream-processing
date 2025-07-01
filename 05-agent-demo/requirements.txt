@@ -1,0 +1,4 @@
+anthropic
+fastmcp
+python-dotenv
+asyncio
