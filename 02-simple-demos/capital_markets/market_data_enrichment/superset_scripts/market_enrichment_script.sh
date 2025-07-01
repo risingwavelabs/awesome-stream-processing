@@ -260,10 +260,10 @@ CREATE_CHART_2_PAYLOAD=$(jq -n --arg name "$CHART_2_NAME" --argjson ds_id "$DATA
 
 CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$CREATE_CHART_2_PAYLOAD")
 
-#creating dashboard
+# --- 3. Create or Update Dashboard ---
 echo "--- Creating or Updating Dashboard ---" >&2
 
-# 1) lookup or create dashboard
+# lookup or create dashboard
 DASH_FILTER="q=$(jq -n --arg title "$DASHBOARD_TITLE" \
   '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
 EXISTING_DASH_ID=$(curl -s -G "$SUPERSET_URL/api/v1/dashboard/" \
@@ -286,14 +286,29 @@ else
   echo "  → Created (ID=$DASHBOARD_ID)" >&2
 fi
 
-# 2) pull existing charts, ensure ours are present
+# --- DEBUG: dump current charts + layout JSON ---
+echo "--- DEBUG: fetching existing dashboard JSON ---" >&2
+DASH_JSON=$(curl -s -G "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  --data-urlencode 'q={"columns":["charts","position_json"]}')
+echo "DEBUG: raw DASH_JSON = $DASH_JSON" >&2
+
+echo "DEBUG: Owned chart IDs:"
+echo "$DASH_JSON" | jq -r '.result.charts[].id // empty' >&2
+
+echo "DEBUG: Layout references (CHART-<id>):"
+echo "$DASH_JSON" | jq -r '.result.position_json
+  | fromjson
+  | keys[]
+  | select(test("^CHART-"))' >&2
+echo "---------------------------------------------" >&2
+
+# ensure our two charts are on it
 echo "--- Attaching charts to dashboard ---" >&2
 # grab existing chart objects
 EXISTING_CHART_IDS=( $(
-  curl -s -G "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
-    -H "Authorization: Bearer $TOKEN" \
-    --data-urlencode 'q={"columns":["charts"]}' \
-  | jq -r '.result.charts[].id'
+  echo "$DASH_JSON" \
+    | jq -r '.result.charts[].id // empty'
 ) )
 
 for CH in $CHART_1_ID $CHART_2_ID; do
@@ -304,7 +319,9 @@ done
 
 # build payload as [{id:1},{id:2},...]
 CHARTS_PAYLOAD=$(jq -n --argjson ids "$(printf '%s\n' "${EXISTING_CHART_IDS[@]}" | jq -R . | jq -s .)" \
-  '{charts: ($ids | map({id: .}))}')
+  '{charts: ($ids | map({id: .|tonumber}))}')
+
+echo "DEBUG: charts payload = $(jq . <<<"$CHARTS_PAYLOAD")" >&2
 
 curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
   -H "Authorization: Bearer $TOKEN" \
@@ -313,7 +330,7 @@ curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
   -d "$CHARTS_PAYLOAD" \
   >/dev/null
 
-# 3) apply two-column layout (height=30 each)
+# now apply a simple two-column layout, height=30 each
 echo "--- Applying layout ---" >&2
 POSITION_JSON=$(jq -n --argjson c1 "$CHART_1_ID" --argjson c2 "$CHART_2_ID" '{
   DASHBOARD_VERSION_KEY:"v2",
@@ -325,6 +342,8 @@ POSITION_JSON=$(jq -n --argjson c1 "$CHART_1_ID" --argjson c2 "$CHART_2_ID" '{
 }')
 LAYOUT_PAYLOAD=$(jq -n --arg pj "$POSITION_JSON" '{position_json:$pj}')
 
+echo "DEBUG: layout payload = $(jq . <<<"$LAYOUT_PAYLOAD")" >&2
+
 curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-CSRFToken: $CSRF_TOKEN" \
@@ -333,6 +352,7 @@ curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
   >/dev/null
 
 echo "✅ Dashboard is ready at: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/" >&2
+
 
 echo " - Chart 1: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_1_ID"
 echo " - Chart 2: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_2_ID"
