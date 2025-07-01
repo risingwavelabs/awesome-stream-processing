@@ -10,9 +10,6 @@ from anthropic import Anthropic
 from tabulate import tabulate
 from dotenv import load_dotenv
 
-load_dotenv()
-
-
 def try_print_table(result):
     """Try to print a result as a table if possible."""
     try:
@@ -163,6 +160,7 @@ class RisingWaveMCPAgent:
 
 async def main():
     """Entry point for the client."""
+    load_dotenv()
     if len(sys.argv) < 2:
         print("Usage: python client.py <path_to_server_script>")
         sys.exit(1)
