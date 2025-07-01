@@ -20,7 +20,7 @@ def try_print_table(result):
         if isinstance(data, list) and all(isinstance(row, list) for row in data):
             print(tabulate(data, tablefmt="github"))
             return True
-    except Exception:
+    except (json.JSONDecodeError, TypeError):
         if isinstance(result, list) and len(result) == 1 and hasattr(result[0], "text"):
             return True
     return False
@@ -28,7 +28,8 @@ def try_print_table(result):
 
 def extract_table_names(query):
     """Extract table names from a SQL query string."""
-    return re.findall(r"(?:from|in|of|table|view|into)\s+([a-zA-Z0-9_]+)", query, re.IGNORECASE)
+    cleaned = re.sub(r"\b(the|a|an)\b", "", query, flags=re.IGNORECASE)
+    return re.findall(r"(?:from|in|of|table|view|into)\s+([a-zA-Z0-9_]+)", cleaned, re.IGNORECASE)
 
 
 class RisingWaveMCPAgent:
@@ -49,6 +50,55 @@ class RisingWaveMCPAgent:
         self.anthropic = Anthropic()
         self.conversation = []
         self._tools_cache = None
+        self.table_cache = set()
+        self.mv_cache = set()
+        self.table_descriptions = {}
+        self.mv_descriptions = {}
+        self._init_done = False
+
+    async def initialize_caches(self):
+        """Initialize and cache table and materialized view names and their descriptions."""
+        if self._init_done:
+            return
+        # Get table names
+        try:
+            tables_result = await self.client.call_tool("show_tables", {})
+            tables = json.loads(tables_result) if isinstance(tables_result, str) else tables_result
+            if isinstance(tables, list):
+                for t in tables:
+                    name = t[0] if isinstance(t, list) else t.get("table_name") or t.get("name")
+                    if name:
+                        self.table_cache.add(name)
+                        # Cache description
+                        try:
+                            desc = await self.client.call_tool(
+                                "describe_table", {"table_name": name}
+                            )
+                            self.table_descriptions[name] = desc
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+        # Get materialized view names
+        try:
+            mvs_result = await self.client.call_tool("list_materialized_views", {})
+            mvs = json.loads(mvs_result) if isinstance(mvs_result, str) else mvs_result
+            if isinstance(mvs, list):
+                for mv in mvs:
+                    name = mv[0] if isinstance(mv, list) else mv.get("name") or mv.get("mv_name")
+                    if name:
+                        self.mv_cache.add(name)
+                        # Cache description
+                        try:
+                            desc = await self.client.call_tool(
+                                "describe_materialized_view", {"mv_name": name}
+                            )
+                            self.mv_descriptions[name] = desc
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+        self._init_done = True
 
     async def list_tools(self):
         """List available tools from the client."""
@@ -109,10 +159,26 @@ class RisingWaveMCPAgent:
 
     async def process_query(self, query: str) -> str:
         """Process a user query and return the response."""
+        await self.initialize_caches()
         self.conversation.append({"role": "user", "content": query})
 
-        table_names = extract_table_names(query)
-        schema_contexts = await self.fetch_schema_context(table_names) if table_names else []
+        # Use cached table/mv names for extraction
+        def extract_known_names(q):
+            """Extract known table or materialized view names from the query."""
+            words = set(re.findall(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\b", q))
+            found = [w for w in words if w in self.table_cache or w in self.mv_cache]
+            return found
+        table_names = extract_known_names(query)
+        schema_contexts = []
+        for t in table_names:
+            if t in self.table_descriptions:
+                schema_contexts.append(
+                    f"Schema for table '{t}':\n{self.table_descriptions[t]}"
+                )
+            elif t in self.mv_descriptions:
+                schema_contexts.append(
+                    f"Schema for materialized view '{t}':\n{self.mv_descriptions[t]}"
+                )
 
         messages = self.conversation.copy()
         for schema in schema_contexts:
@@ -172,4 +238,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    
