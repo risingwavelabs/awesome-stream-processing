@@ -60,7 +60,7 @@ def extract_table_names(query):
     return re.findall(r"(?:from|in|of|table|view|into)\s+([a-zA-Z0-9_]+)", cleaned, re.IGNORECASE)
 ```
 
-This is the beginning of the RisingWaveMCPAgent class, it instantiates the Agent with the proper environment variables. It should be notes that they are set up to work with Rising Wave on local host if you are running Rising Wave elsewhere, please edit the environment variables so that the client can properly connect to your Rising Wave instance. From there we list a few basic functions to ensure the agent has proper access to the tools. It will cache this tool list to ensure the agent has quick access to these tools. It also has the functions aenter and aexit to ensure that the connection to the MCP Server is opened only once and maintained from there on. 
+The RisingWaveMCPAgent class initializes the agent with environment variables configured for a local RisingWave instance, which should be adjusted if connecting elsewhere. It includes functions to list and cache available tools for quick access and uses async context manager methods to manage a single, persistent connection to the MCP server.
 
 ```python
 class RisingWaveMCPAgent:
