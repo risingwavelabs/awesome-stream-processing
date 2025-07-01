@@ -67,16 +67,17 @@ WITH (
 )
 FORMAT PLAIN ENCODE JSON;
 ```
-Running the Agent
+### Running the Agent
 
 Start your agent by running:
-
+```bash
 python client.py risingwave-mcp/src/main.py
-Example Queries
+```
+### Example Queries
 
 Here are some example queries you can run once the agent is active:
 
-Get Database Version
+- Get Database Version
 ```bash
 I'll help you check the RisingWave database version using the `get_database_version` function.
 [Calling tool get_database_version with args {}]
@@ -86,7 +87,7 @@ Based on the output, you're using:
 - This appears to be the Homebrew installation version
 ```
 
-List all tables
+- List all tables
 
 ```bash
 I'll help you list all the tables in the database using the `show_tables` function.
@@ -124,7 +125,7 @@ Let me know if you'd like to:
 3. Or perform any other operations on this table
 ```
 
-Show me data from the users table
+- Show me data from the users table
 
 ```bash
 I'll help you see the data from the users table using the run_select_query function.
@@ -152,7 +153,7 @@ Column details:
 - time: Timestamp of the transaction (all on June 27, 2025)
 ```
 
-Describe the users table
+- Describe the users table
 
 ```bash
 Table Properties:
@@ -171,7 +172,7 @@ Each row in the table has:
 - System-managed columns for internal use (_row_id and _rw_timestamp)
 ```
 
-Track the highest risk scores in users
+- Track the highest risk scores in users
 
 ```bash
 I'll help you create a materialized view to track the highest risk scores from the users table. This will continuously maintain the maximum risk scores as new data comes in.
@@ -179,7 +180,7 @@ I'll help you create a materialized view to track the highest risk scores from t
 Great! The materialized view 'highest_risks' has been created successfully. You can now query this view to see the highest risk scores from the users table. The view will maintain an up-to-date list of the highest risk values, making it efficient to monitor high-risk cases.
 ```
 
-Display the top rows of that materialized view
+- Display the top rows of that materialized view
 
 ```bash
 
