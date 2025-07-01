@@ -263,158 +263,76 @@ CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$C
 
 # --- 3. Create Dashboard (Safe Version) ---
 echo "--- Creating Dashboard ---" >&2
+echo "--- Creating Dashboard ---" >&2
 
 DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
 
 # Check if dashboard already exists
-echo "Checking if dashboard already exists..." >&2
-EXISTING_DASHBOARD_RESPONSE=$(curl -s -G "$SUPERSET_URL/api/v1/dashboard/" -H "Authorization: Bearer $TOKEN" --data-urlencode "$DASHBOARD_FILTER_Q")
-EXISTING_DASHBOARD_ID=$(echo "$EXISTING_DASHBOARD_RESPONSE" | jq -r '.result[0].id // empty')
+EXISTING_DASHBOARD_ID=$(curl -s -G "$SUPERSET_URL/api/v1/dashboard/" \
+  -H "Authorization: Bearer $TOKEN" \
+  --data-urlencode "$DASHBOARD_FILTER_Q" | jq -r '.result[0].id // empty')
 
 if [[ -n "$EXISTING_DASHBOARD_ID" ]]; then
-    echo "Dashboard already exists with ID: $EXISTING_DASHBOARD_ID" >&2
-    DASHBOARD_ID="$EXISTING_DASHBOARD_ID"
+  echo "Dashboard '$DASHBOARD_TITLE' exists with ID $EXISTING_DASHBOARD_ID" >&2
+  DASHBOARD_ID=$EXISTING_DASHBOARD_ID
 else
-    echo "Creating new dashboard..." >&2
-    
-    # Create dashboard with minimal required fields
-    CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" '{
-        "dashboard_title": $title,
-        "owners": [1],
-        "published": true
-    }')
-    
-    CREATE_DASHBOARD_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/dashboard/" \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "X-CSRFToken: $CSRF_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "$CREATE_DASHBOARD_PAYLOAD")
-    
-    DASHBOARD_ID=$(echo "$CREATE_DASHBOARD_RESPONSE" | jq -r '.id // empty')
-    
-    if [[ -z "$DASHBOARD_ID" ]]; then
-        echo "Failed to create dashboard. Response: $CREATE_DASHBOARD_RESPONSE" >&2
-        exit 1
-    fi
-    
-    echo "Dashboard created with ID: $DASHBOARD_ID" >&2
-fi
-
-# Wait a moment for dashboard to be fully created
-sleep 2
-
-# Now add charts to the dashboard using the slices endpoint
-echo "Adding charts to dashboard..." >&2
-
-# First, get current dashboard details
-DASHBOARD_DETAILS=$(curl -s -G "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" -H "Authorization: Bearer $TOKEN")
-CURRENT_SLICES=$(echo "$DASHBOARD_DETAILS" | jq '.result.slices // []')
-
-# Check if our charts are already in the dashboard
-CHART_1_IN_DASHBOARD=$(echo "$CURRENT_SLICES" | jq --argjson chart_id "$CHART_1_ID" 'any(.id == $chart_id)')
-CHART_2_IN_DASHBOARD=$(echo "$CURRENT_SLICES" | jq --argjson chart_id "$CHART_2_ID" 'any(.id == $chart_id)')
-
-if [[ "$CHART_1_IN_DASHBOARD" == "false" || "$CHART_2_IN_DASHBOARD" == "false" ]]; then
-    echo "Adding missing charts to dashboard..." >&2
-    
-    # Prepare the list of slice IDs to include
-    ALL_SLICE_IDS=$(echo "$CURRENT_SLICES" | jq 'map(.id)')
-    
-    if [[ "$CHART_1_IN_DASHBOARD" == "false" ]]; then
-        ALL_SLICE_IDS=$(echo "$ALL_SLICE_IDS" | jq --argjson chart_id "$CHART_1_ID" '. + [$chart_id]')
-    fi
-    
-    if [[ "$CHART_2_IN_DASHBOARD" == "false" ]]; then
-        ALL_SLICE_IDS=$(echo "$ALL_SLICE_IDS" | jq --argjson chart_id "$CHART_2_ID" '. + [$chart_id]')
-    fi
-    
-    # Update dashboard with new slices
-    UPDATE_SLICES_PAYLOAD=$(echo "$ALL_SLICE_IDS" | jq '{slices: .}')
-    
-    UPDATE_SLICES_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "X-CSRFToken: $CSRF_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "$UPDATE_SLICES_PAYLOAD")
-    
-    if echo "$UPDATE_SLICES_RESPONSE" | jq -e '.result' > /dev/null; then
-        echo "Charts successfully added to dashboard." >&2
-    else
-        echo "Warning: Failed to add charts to dashboard. Response: $UPDATE_SLICES_RESPONSE" >&2
-    fi
-else
-    echo "Charts are already in the dashboard." >&2
-fi
-
-# Create a simple, safe layout
-echo "Setting up dashboard layout..." >&2
-
-SAFE_LAYOUT=$(jq -n --argjson chart1_id "$CHART_1_ID" --argjson chart2_id "$CHART_2_ID" '{
-    "DASHBOARD_VERSION_KEY": "v2",
-    "ROOT_ID": {
-        "children": ["GRID_ID"],
-        "id": "ROOT_ID",
-        "type": "ROOT"
-    },
-    "GRID_ID": {
-        "children": ["ROW-N-0"],
-        "id": "GRID_ID",
-        "type": "GRID"
-    },
-    "ROW-N-0": {
-        "children": ["CHART-\($chart1_id)", "CHART-\($chart2_id)"],
-        "id": "ROW-N-0",
-        "type": "ROW",
-        "meta": {
-            "background": "BACKGROUND_TRANSPARENT"
-        }
-    },
-    "CHART-\($chart1_id)": {
-        "children": [],
-        "id": "CHART-\($chart1_id)",
-        "meta": {
-            "chartId": $chart1_id,
-            "height": 400,
-            "width": 6,
-            "x": 0,
-            "y": 0
-        },
-        "type": "CHART"
-    },
-    "CHART-\($chart2_id)": {
-        "children": [],
-        "id": "CHART-\($chart2_id)",
-        "meta": {
-            "chartId": $chart2_id,
-            "height": 400,
-            "width": 6,
-            "x": 6,
-            "y": 0
-        },
-        "type": "CHART"
-    }
-}')
-
-LAYOUT_UPDATE_PAYLOAD=$(jq -n --argjson layout "$SAFE_LAYOUT" '{
-    "position_json": ($layout | tostring)
-}')
-
-LAYOUT_UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
+  echo "Dashboard '$DASHBOARD_TITLE' not found, creating..." >&2
+  CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" '{
+    dashboard_title: $title,
+    owners: [1],
+    published: true
+  }')
+  DASHBOARD_ID=$(curl -s -X POST "$SUPERSET_URL/api/v1/dashboard/" \
     -H "Authorization: Bearer $TOKEN" \
     -H "X-CSRFToken: $CSRF_TOKEN" \
     -H "Content-Type: application/json" \
-    -d "$LAYOUT_UPDATE_PAYLOAD")
-
-if echo "$LAYOUT_UPDATE_RESPONSE" | jq -e '.result' > /dev/null; then
-    echo "Dashboard layout updated successfully." >&2
-else
-    echo "Warning: Failed to update dashboard layout. Dashboard still accessible but may have default layout." >&2
-    echo "Layout update response: $LAYOUT_UPDATE_RESPONSE" >&2
+    -d "$CREATE_DASHBOARD_PAYLOAD" | jq -r '.id')
+  echo "Created dashboard with ID $DASHBOARD_ID" >&2
 fi
 
-echo ""
-echo "SUCCESS! Dashboard setup complete!"
-echo ""
-echo "Dashboard: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/"
+# Add charts to dashboard
+echo "--- Adding charts to dashboard ---" >&2
+CURRENT_SLICES=$(curl -s -G "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
+  -H "Authorization: Bearer $TOKEN" | jq '.result.slices[]?.id')
+ALL_SLICES=($CURRENT_SLICES)
+
+# include CHART_1_ID and CHART_2_ID if missing
+for CH in $CHART_1_ID $CHART_2_ID; do
+  if ! printf '%s\n' "${ALL_SLICES[@]}" | grep -qx "$CH"; then
+    ALL_SLICES+=("$CH")
+  fi
+done
+
+UPDATE_SLICES_PAYLOAD=$(jq -n --argjson s "$(printf '%s\n' "${ALL_SLICES[@]}" | jq -R . | jq -s .)" '{slices: $s}')
+curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-CSRFToken: $CSRF_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "$UPDATE_SLICES_PAYLOAD" \
+  >/dev/null
+
+# Apply a simple two-column layout
+echo "--- Applying layout ---" >&2
+LAYOUT=$(jq -n --argjson c1 "$CHART_1_ID" --argjson c2 "$CHART_2_ID" '{
+  DASHBOARD_VERSION_KEY: "v2",
+  ROOT_ID: {type:"ROOT", id:"ROOT_ID", children:["GRID_ID"]},
+  GRID_ID: {type:"GRID", id:"GRID_ID", children:["ROW-0"]},
+  "ROW-0": {
+    type:"ROW", id:"ROW-0", children:["CHART-\($c1)","CHART-\($c2)"],
+    meta:{background:"BACKGROUND_TRANSPARENT"}
+  },
+  "CHART-\($c1)": {type:"CHART", id:"CHART-\($c1)", meta:{chartId:$c1,x:0,y:0,width:6,height:10}},
+  "CHART-\($c2)": {type:"CHART", id:"CHART-\($c2)", meta:{chartId:$c2,x:6,y:0,width:6,height:10}}
+}')
+PAYLOAD=$(jq -n --arg layout "$LAYOUT" '{position_json: $layout}')
+curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-CSRFToken: $CSRF_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "$PAYLOAD" \
+  >/dev/null
+
+echo "SUCCESS! Dashboard is available at:" >&2
+echo "  $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/" >&2
 echo " - Chart 1: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_1_ID"
 echo " - Chart 2: $SUPERSET_URL/explore/?form_data_key=&slice_id=$CHART_2_ID"
