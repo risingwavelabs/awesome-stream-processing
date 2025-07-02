@@ -280,6 +280,7 @@ CHART_3_ID=$(get_or_create_asset "chart" "$CHART_3_NAME" "$CHART_3_FILTER_Q" "$C
 
 #asset vol pie chart
 CHART_4_FILTER_Q="q=$(jq -n --arg name \"$CHART_4_NAME\" '{filters:[{col:\"slice_name\",opr:\"eq\",value:$name}]}')"
+
 CHART_4_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
   "viz_type": "pie",
   "datasource": "\($ds_id)__table",
@@ -290,16 +291,21 @@ CHART_4_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
   "show_labels": true,
   "label_type": "key_percent"
 }')
-CREATE_CHART_4_PAYLOAD=$(jq -n --arg name "$CHART_4_NAME" --argjson ds_id "$DATASET_ID" --argjson params "$CHART_4_PARAMS" '{
-  "slice_name": $name,
-  "viz_type": "pie",
-  "datasource_id": $ds_id,
-  "datasource_type": "table",
-  "params": ($params | tostring),
-  "owners": [1]
-}')
-CHART_4_ID=$(get_or_create_asset "chart" "$CHART_4_NAME" "$CHART_4_FILTER_Q" "$CREATE_CHART_4_PAYLOAD")
 
+CREATE_CHART_4_PAYLOAD=$(jq -n \
+  --arg name "$CHART_4_NAME" \
+  --argjson ds_id "$DATASET_ID" \
+  --argjson params "$CHART_4_PARAMS" \
+  '{
+    "slice_name": $name,
+    "viz_type": "pie",
+    "datasource_id": $ds_id,
+    "datasource_type": "table",
+    "params": ($params | tostring),
+    "owners": [1]
+  }')
+
+CHART_4_ID=$(get_or_create_asset "chart" "$CHART_4_NAME" "$CHART_4_FILTER_Q" "$CREATE_CHART_4_PAYLOAD")
 #emp dash creation
 DASHBOARD_TITLE="Enriched Market Analysis Dashboard"
 
