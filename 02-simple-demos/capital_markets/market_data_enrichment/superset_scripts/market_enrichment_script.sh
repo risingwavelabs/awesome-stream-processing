@@ -334,8 +334,20 @@ fi
 # Create Chart 4 with explicit metric configuration
 CHART_4_FILTER_Q="q=$(jq -n --arg name "$CHART_4_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
 
-# More comprehensive chart parameters
-CHART_4_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
+# Get the actual metric ID from the dataset
+echo "Fetching metric details for proper chart configuration..." >&2
+DATASET_FULL=$(curl -s -G "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" \
+  --data-urlencode 'q={"columns":["metrics","columns"]}' \
+  -H "Authorization: Bearer $TOKEN")
+
+# Find the sum_price_change metric details
+SUM_PRICE_CHANGE_METRIC=$(echo "$DATASET_FULL" | jq -r '.result.metrics[]? | select(.metric_name=="sum_price_change")')
+METRIC_ID=$(echo "$SUM_PRICE_CHANGE_METRIC" | jq -r '.id // empty')
+
+echo "Found metric ID: $METRIC_ID" >&2
+
+# Create proper AdhocMetric format for metrics that auto-populate
+CHART_4_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" --arg metric_id "$METRIC_ID" '{
   "viz_type": "pie",
   "datasource": "\($ds_id)__table",
   "granularity_sqla": "timestamp",
@@ -349,7 +361,9 @@ CHART_4_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
       },
       "expressionType": "SIMPLE",
       "label": "SUM(price_change)",
-      "optionName": "metric_sum_price_change"
+      "optionName": "metric_sum_price_change",
+      "sqlExpression": null,
+      "hasCustomLabel": false
     }
   ],
   "groupby": ["asset_id"],
@@ -371,7 +385,7 @@ CHART_4_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
   "innerRadius": 30
 }')
 
-# Alternative simpler version if the above doesn't work
+# Fallback version using simple metric name reference
 CHART_4_PARAMS_SIMPLE=$(jq -n --argjson ds_id "$DATASET_ID" '{
   "viz_type": "pie",
   "datasource": "\($ds_id)__table",
@@ -386,10 +400,18 @@ CHART_4_PARAMS_SIMPLE=$(jq -n --argjson ds_id "$DATASET_ID" '{
   "order_desc": true
 }')
 
+if [[ -n "$METRIC_ID" ]]; then
+    echo "Using comprehensive metric configuration..." >&2
+    FINAL_PARAMS="$CHART_4_PARAMS"
+else
+    echo "Using simple metric name reference..." >&2
+    FINAL_PARAMS="$CHART_4_PARAMS_SIMPLE"
+fi
+
 CREATE_CHART_4_PAYLOAD=$(jq -n \
   --arg name "$CHART_4_NAME" \
   --argjson ds_id "$DATASET_ID" \
-  --argjson params "$CHART_4_PARAMS_SIMPLE" \
+  --argjson params "$FINAL_PARAMS" \
   '{
     "slice_name": $name,
     "viz_type": "pie",
