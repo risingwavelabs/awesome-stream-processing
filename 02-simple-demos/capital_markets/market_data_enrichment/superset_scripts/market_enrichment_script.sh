@@ -289,7 +289,7 @@ CHART_4_FILTER_Q="q=$(jq -n --arg name "$CHART_4_NAME" '{filters:[{col:"slice_na
 CHART_4_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
   "viz_type": "pie",
   "datasource": "\($ds_id)__table",
-  "metrics": ["sum_price_change"],
+  "metrics": ["avg_bid_ask_spread"],
   "groupby": ["asset_id"],
   "row_limit": 10000,
   "donut": false,
