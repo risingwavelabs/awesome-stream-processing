@@ -243,7 +243,10 @@ CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$C
 #chart 3 is tbd
 
 #chart 4
-CHART_4_FILTER_Q="q=$(jq -n --arg name "$CHART_4_NAME" '{filters:[{col:\"slice_name\",opr:\"eq\",value:$name}]}')"
+
+FILTER_JSON=$(jq -n --arg name "$CHART_4_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')
+CHART_4_FILTER_Q="q=$FILTER_JSON"
+
 CHART_4_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
   "viz_type":"scatter",
   "datasource":"\($ds_id)__table",
