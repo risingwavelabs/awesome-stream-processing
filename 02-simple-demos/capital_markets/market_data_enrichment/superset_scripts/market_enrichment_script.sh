@@ -279,7 +279,7 @@ CREATE_CHART_3_PAYLOAD=$(jq -n --arg name "$CHART_3_NAME" --argjson ds_id "$DATA
 CHART_3_ID=$(get_or_create_asset "chart" "$CHART_3_NAME" "$CHART_3_FILTER_Q" "$CREATE_CHART_3_PAYLOAD")
 
 #asset vol pie chart
-CHART_4_FILTER_Q="q=$(jq -n --arg name \"$CHART_4_NAME\" '{filters:[{col:\"slice_name\",opr:\"eq\",value:$name}]}')"
+CHART_4_FILTER_Q="q=$(jq -n --arg name "$CHART_4_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
 
 CHART_4_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
   "viz_type": "pie",
