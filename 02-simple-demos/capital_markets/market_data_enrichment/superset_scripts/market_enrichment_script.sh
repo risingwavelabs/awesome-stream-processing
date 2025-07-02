@@ -331,155 +331,38 @@ if [[ -z "$SUM_PRICE_CHANGE_EXISTS" ]]; then
     sleep 3
 fi
 
-# Create Chart 4 with explicit metric configuration
-# Asset Volatility Pie Chart - Improved Version
-echo "--- Creating Chart 4: Asset Volatility Pie Chart ---" >&2
-
-# First, let's verify the dataset and metrics are available
-echo "Verifying dataset metrics before creating Chart 4..." >&2
-DATASET_METRICS_CHECK=$(curl -s -G "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" \
-  --data-urlencode 'q={"columns":["metrics"]}' \
-  -H "Authorization: Bearer $TOKEN")
-
-echo "Available metrics:" >&2
-echo "$DATASET_METRICS_CHECK" | jq -r '.result.metrics[]?.metric_name // empty' >&2
-
-# Check if our required metric exists
-SUM_PRICE_CHANGE_EXISTS=$(echo "$DATASET_METRICS_CHECK" | jq -r '.result.metrics[]? | select(.metric_name=="sum_price_change") | .metric_name // empty')
-if [[ -z "$SUM_PRICE_CHANGE_EXISTS" ]]; then
-    echo "ERROR: sum_price_change metric not found. Creating it now..." >&2
-    
-    # Add the metric if it doesn't exist
-    EXISTING_METRICS=$(echo "$DATASET_METRICS_CHECK" | jq '.result.metrics // []')
-    NEW_METRIC=$(jq -n '{
-        "metric_name": "sum_price_change",
-        "expression": "SUM(price_change)",
-        "verbose_name": "Sum Price Change"
-    }')
-    
-    UPDATED_METRICS=$(echo "$EXISTING_METRICS" | jq --argjson new_metric "$NEW_METRIC" '. + [$new_metric]')
-    UPDATE_PAYLOAD=$(echo "$UPDATED_METRICS" | jq 'map(if .id then {id,metric_name,expression,verbose_name} else {metric_name,expression,verbose_name} end) | {metrics:.}')
-    
-    UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "X-CSRFToken: $CSRF_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "$UPDATE_PAYLOAD")
-    
-    if echo "$UPDATE_RESPONSE" | jq -e '.result' > /dev/null; then
-        echo "Successfully added sum_price_change metric." >&2
-    else
-        echo "Failed to add metric. Response: $UPDATE_RESPONSE" >&2
-    fi
-    
-    # Refresh dataset after adding metric
-    curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "X-CSRFToken: $CSRF_TOKEN" > /dev/null
-    sleep 3
-fi
-
-# Create Chart 4 with explicit metric configuration
+# Chart 4 - Asset Volatility Pie Chart
 CHART_4_FILTER_Q="q=$(jq -n --arg name "$CHART_4_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
-
-# Get the actual dataset structure to understand column types
-echo "Fetching dataset structure for proper chart configuration..." >&2
-DATASET_FULL=$(curl -s -G "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" \
-  --data-urlencode 'q={"columns":["metrics","columns"]}' \
-  -H "Authorization: Bearer $TOKEN")
-
-# Get price_change column details
-PRICE_CHANGE_COLUMN=$(echo "$DATASET_FULL" | jq -r '.result.columns[]? | select(.column_name=="price_change")')
-COLUMN_TYPE=$(echo "$PRICE_CHANGE_COLUMN" | jq -r '.type // "DOUBLE_PRECISION"')
-
-echo "Using column type: $COLUMN_TYPE" >&2
-
-# Create chart using adhoc metric format that Superset form recognizes
-CHART_4_PARAMS=$(jq -n \
-  --argjson ds_id "$DATASET_ID" \
-  --arg col_type "$COLUMN_TYPE" \
-  '{
-  "viz_type": "pie",
-  "datasource": "\($ds_id)__table",
-  "metrics": [
-    {
-      "aggregate": "SUM",
-      "column": {
-        "column_name": "price_change",
-        "type": $col_type
-      },
-      "expressionType": "SIMPLE",
-      "label": "SUM(price_change)",
-      "optionName": "metric_adhoc_sum_price_change",
-      "sqlExpression": null,
-      "hasCustomLabel": false
-    }
-  ],
-  "groupby": ["asset_id"],
-  "adhoc_filters": [],
-  "row_limit": 10000,
-  "pie_label_type": "key_percent",
-  "donut": false,
-  "show_labels": true,
-  "labels_outside": true,
-  "color_scheme": "supersetColors",
-  "show_legend": true,
-  "legend_type": "scroll",
-  "legend_orientation": "top",
-  "order_desc": true,
-  "number_format": "SMART_NUMBER"
+CHART_4_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
+   "viz_type": "pie",
+   "datasource": "\($ds_id)__table",
+   "granularity_sqla": "timestamp",
+   "time_range": "No filter",
+   "metrics": ["sum_price_change"],
+   "groupby": ["asset_id"],
+   "show_legend": true,
+   "row_limit": 10000,
+   "pie_label_type": "key_value",
+   "donut": false,
+   "show_labels": true,
+   "labels_outside": true,
+   "color_scheme": "supersetColors",
+   "show_controls": true,
+   "rich_tooltip": true,
+   "tooltip_sort_by_metric": true,
+   "number_format": "SMART_NUMBER",
+   "date_filter": false,
+   "instant_filtering": false
 }')
-
-echo "Chart 4 parameters:" >&2
-echo "$CHART_4_PARAMS" | jq . >&2
-
-CREATE_CHART_4_PAYLOAD=$(jq -n \
-  --arg name "$CHART_4_NAME" \
-  --argjson ds_id "$DATASET_ID" \
-  --argjson params "$CHART_4_PARAMS" \
-  '{
-    "slice_name": $name,
-    "viz_type": "pie",
-    "datasource_id": $ds_id,
-    "datasource_type": "table",
-    "params": ($params | tostring),
-    "owners": [1],
-    "description": "Pie chart showing asset volatility distribution based on price changes"
-  }')
-
-echo "Creating Chart 4 with payload:" >&2
-echo "$CREATE_CHART_4_PAYLOAD" | jq . >&2
-
+CREATE_CHART_4_PAYLOAD=$(jq -n --arg name "$CHART_4_NAME" --argjson ds_id "$DATASET_ID" --argjson params "$CHART_4_PARAMS" '{
+   "slice_name": $name,
+   "viz_type": "pie",
+   "datasource_id": $ds_id,
+   "datasource_type": "table",
+   "params": ($params | tostring),
+   "owners": [1]
+}')
 CHART_4_ID=$(get_or_create_asset "chart" "$CHART_4_NAME" "$CHART_4_FILTER_Q" "$CREATE_CHART_4_PAYLOAD")
-
-# Verify the chart was created successfully
-if [[ -n "$CHART_4_ID" ]]; then
-    echo "Chart 4 created successfully with ID: $CHART_4_ID" >&2
-    
-    # Optional: Test the chart by running a query
-    echo "Testing Chart 4 query..." >&2
-    TEST_QUERY_PAYLOAD=$(jq -n --argjson chart_id "$CHART_4_ID" '{
-        "queries": [{
-            "result_type": "full",
-            "result_format": "json"
-        }]
-    }')
-    
-    TEST_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/chart/data" \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "X-CSRFToken: $CSRF_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"queries\":[{\"result_type\":\"full\",\"result_format\":\"json\"}],\"form_data\":{\"slice_id\":$CHART_4_ID}}")
-    
-    if echo "$TEST_RESPONSE" | jq -e '.result[0].data' > /dev/null 2>&1; then
-        echo "Chart 4 query test successful!" >&2
-    else
-        echo "Chart 4 query test failed. Response: $TEST_RESPONSE" >&2
-    fi
-else
-    echo "Failed to create Chart 4" >&2
-    exit 1
-fi
 
 #emp dash creation
 DASHBOARD_TITLE="Enriched Market Analysis Dashboard"
