@@ -144,7 +144,7 @@ for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
    EXISTING_METRICS=$(curl -s -G "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" --data-urlencode 'q={"columns":["metrics"]}' -H "Authorization: Bearer $TOKEN" | jq '.result.metrics // []')
    metric_exists=$(echo "$EXISTING_METRICS" | jq --arg name "$metric_name" 'any(.metric_name == $name)')
    if [[ "$metric_exists" == "false" ]]; then
-       expression=$(echo "$DESIRED_METRICS" | jq -r ".${metric_name}")
+       expression=$(jq -r --arg key "$metric_name" '.[$key]' <<<"$DESIRED_METRICS")
        verbose_name=$(echo "$metric_name"|tr '_' ' '|awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1')
        new_metric_object=$(jq -n --arg name "$metric_name" --arg expr "$expression" --arg vname "$verbose_name" '{"metric_name":$name,"expression":$expr,"verbose_name":$vname}')
        metrics_to_upload=$(echo "$EXISTING_METRICS" | jq --argjson new_metric "$new_metric_object" '. + [$new_metric]')
