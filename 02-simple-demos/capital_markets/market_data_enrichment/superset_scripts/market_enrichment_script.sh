@@ -136,7 +136,6 @@ DESIRED_METRICS=$(jq -n '{
    "avg_rolling_volatility":"AVG(rolling_volatility)",
    "avg_sector_performance":"AVG(sector_performance)",
    "avg_sentiment":"AVG(sentiment_score)"
-   "sum_price":
 }')
 
 
