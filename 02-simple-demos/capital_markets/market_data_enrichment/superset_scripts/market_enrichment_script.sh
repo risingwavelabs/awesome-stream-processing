@@ -12,7 +12,7 @@ DATASET_TABLE_NAME="enriched_market_data_sink"
 DATASET_NAME="Enriched Market Data"
 CHART_1_NAME="Price Change Over Time"
 CHART_2_NAME="Average Bid Ask Spread Over Time"
-CHART_3_NAME="TBD"
+CHART_3_NAME="Sentiment over Time Chart"
 CHART_4_NAME="Price change vs volatility"
 
 DASHBOARD_TITLE="Enriched Market Analysis Dashboard"
@@ -211,6 +211,7 @@ CHART_2_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
    "granularity_sqla": "timestamp",
    "time_range": "No filter",
    "metrics": ["avg_bid_ask_spread"],
+   "groupby": ["asset_id"],
    "show_legend": true,
    "row_limit": 10000,
    "time_grain_sqla": "PT1S",
@@ -240,36 +241,43 @@ CREATE_CHART_2_PAYLOAD=$(jq -n --arg name "$CHART_2_NAME" --argjson ds_id "$DATA
 }')
 CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$CREATE_CHART_2_PAYLOAD")
 
-#chart 3 is tbd
-
-#chart 4
-
-FILTER_JSON=$(jq -n --arg name "$CHART_4_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')
-CHART_4_FILTER_Q="q=$FILTER_JSON"
-
-CHART_4_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
-  "viz_type":"time_series_scatter",
-  "datasource":"\($ds_id)__table",
-  "granularity_sqla":"timestamp",
-  "time_range":"No filter",
-  "row_limit":10000,
-  "x_axis":"avg_price_change",
-  "y_axis":"avg_rolling_volatility"
+#chart 3 - sentiment over time
+CHART_3_FILTER_Q="q=$(jq -n --arg name "$CHART_3_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
+CHART_3_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
+   "viz_type": "line",
+   "datasource": "\($ds_id)__table",
+   "granularity_sqla": "timestamp",
+   "time_range": "No filter",
+   "metrics": ["avg_sentiment"],
+   "show_legend": true,
+   "row_limit": 10000,
+   "time_grain_sqla": "PT1S",
+   "show_brush": true,
+   "show_markers": false,
+   "rich_tooltip": true,
+   "tooltip_sort_by_metric": true,
+   "color_scheme": "supersetColors",
+   "show_controls": true,
+   "x_axis_label": "",
+   "bottom_margin": "auto",
+   "x_ticks_layout": "auto",
+   "y_axis_label": "",
+   "left_margin": "auto",
+   "y_axis_bounds": [null, null],
+   "rolling_type": "None",
+   "comparison_type": "values",
+   "annotation_layers": []
 }')
-
-CREATE_CHART_4_PAYLOAD=$(jq -n \
-  --arg name "$CHART_4_NAME" \
-  --argjson ds_id "$DATASET_ID" \
-  --argjson params "$CHART_4_PARAMS" '{
-    "slice_name": $name,
-    "viz_type": "time_series_scatter",
-    "datasource_id": $ds_id,
-    "datasource_type": "table",
-    "params": ($params | tostring),
-    "owners": [1]
+CREATE_CHART_3_PAYLOAD=$(jq -n --arg name "$CHART_3_NAME" --argjson ds_id "$DATASET_ID" --argjson params "$CHART_3_PARAMS" '{
+   "slice_name": $name,
+   "viz_type": "line",
+   "datasource_id": $ds_id,
+   "datasource_type": "table",
+   "params": ($params | tostring),
+   "owners": [1]
 }')
-CHART_4_ID=$(get_or_create_asset "chart" "$CHART_4_NAME" "$CHART_4_FILTER_Q" "$CREATE_CHART_4_PAYLOAD")
+CHART_3_ID=$(get_or_create_asset "chart" "$CHART_3_NAME" "$CHART_3_FILTER_Q" "$CREATE_CHART_3_PAYLOAD")
 
 echo " - Chart 1: $SUPERSET_URL/explore/?slice_id=$CHART_1_ID"
 echo " - Chart 2: $SUPERSET_URL/explore/?slice_id=$CHART_2_ID"
-echo " - Chart 4: $SUPERSET_URL/explore/?slice_id=$CHART_4_ID"
+echo " - Chart 4: $SUPERSET_URL/explore/?slice_id=$CHART_3_ID"
