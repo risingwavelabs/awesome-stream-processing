@@ -248,22 +248,25 @@ FILTER_JSON=$(jq -n --arg name "$CHART_4_NAME" '{filters:[{col:"slice_name",opr:
 CHART_4_FILTER_Q="q=$FILTER_JSON"
 
 CHART_4_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
-  "viz_type":"scatter",
+  "viz_type":"time_series_scatter",
   "datasource":"\($ds_id)__table",
   "granularity_sqla":"timestamp",
   "time_range":"No filter",
-  "metrics":["avg_price_change","avg_rolling_volatility"],
-  "x_axis_label":"Avg Price Change",
-  "y_axis_label":"Avg Volatility",
-  "row_limit":10000
+  "row_limit":10000,
+  "x_axis":"avg_price_change",
+  "y_axis":"avg_rolling_volatility"
 }')
-CREATE_CHART_4_PAYLOAD=$(jq -n --arg name "$CHART_4_NAME" --argjson ds_id "$DATASET_ID" --argjson params "$CHART_4_PARAMS" '{
-  "slice_name":$name,
-  "viz_type":"scatter",
-  "datasource_id":$ds_id,
-  "datasource_type":"table",
-  "params":($params|tostring),
-  "owners":[1]
+
+CREATE_CHART_4_PAYLOAD=$(jq -n \
+  --arg name "$CHART_4_NAME" \
+  --argjson ds_id "$DATASET_ID" \
+  --argjson params "$CHART_4_PARAMS" '{
+    "slice_name": $name,
+    "viz_type": "time_series_scatter",
+    "datasource_id": $ds_id,
+    "datasource_type": "table",
+    "params": ($params | tostring),
+    "owners": [1]
 }')
 CHART_4_ID=$(get_or_create_asset "chart" "$CHART_4_NAME" "$CHART_4_FILTER_Q" "$CREATE_CHART_4_PAYLOAD")
 
