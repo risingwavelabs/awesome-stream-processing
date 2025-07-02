@@ -305,7 +305,14 @@ CREATE_CHART_4_PAYLOAD=$(jq -n \
     "owners": [1]
   }')
 
+echo "=== CHART 4 PARAMS ==="
+echo "$CHART_4_PARAMS" | jq .
+echo "=== CHART 4 PAYLOAD ==="
+echo "$CREATE_CHART_4_PAYLOAD" | jq .
 CHART_4_ID=$(get_or_create_asset "chart" "$CHART_4_NAME" "$CHART_4_FILTER_Q" "$CREATE_CHART_4_PAYLOAD")
+
+
+
 #emp dash creation
 DASHBOARD_TITLE="Enriched Market Analysis Dashboard"
 
