@@ -161,6 +161,11 @@ for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
 done
 echo "Metrics processing complete." >&2
 
+echo "refresh"
+curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-CSRFToken: $CSRF_TOKEN" > /dev/null
+sleep 5
 
 # --- 4. Create Charts ---
 echo "--- Creating charts ---" >&2
