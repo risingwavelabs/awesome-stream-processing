@@ -135,7 +135,6 @@ DESIRED_METRICS=$(jq -n '{
    "avg_rolling_volatility":"AVG(rolling_volatility)",
    "avg_sector_performance":"AVG(sector_performance)",
    "avg_sentiment":"AVG(sentiment_score)"
-   "sum_abs_price_change":"SUM(ABS(price_change))"
 }')
 
 
@@ -279,32 +278,6 @@ CREATE_CHART_3_PAYLOAD=$(jq -n --arg name "$CHART_3_NAME" --argjson ds_id "$DATA
 }')
 CHART_3_ID=$(get_or_create_asset "chart" "$CHART_3_NAME" "$CHART_3_FILTER_Q" "$CREATE_CHART_3_PAYLOAD")
 
-# Chart 4 – asset volatility pie chart
-FILTER_JSON=$(jq -n --arg name "$CHART_4_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')
-CHART_4_FILTER_Q="q=$FILTER_JSON"
-
-CHART_4_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
-  "viz_type":"pie",
-  "datasource":"\($ds_id)__table",
-  "groupby":["asset_id"],
-  "metrics":["sum_abs_price_change"],
-  "pie_label_type":"key_and_val",
-  "row_limit":1000
-}')
-
-CREATE_CHART_4_PAYLOAD=$(jq -n \
-  --arg name "$CHART_4_NAME" \
-  --argjson ds_id "$DATASET_ID" \
-  --argjson params "$CHART_4_PARAMS" '{
-    "slice_name": $name,
-    "viz_type": "pie",
-    "datasource_id": $ds_id,
-    "datasource_type": "table",
-    "params": ($params|tostring),
-    "owners":[1]
-}')
-CHART_4_ID=$(get_or_create_asset "chart" "$CHART_4_NAME" "$CHART_4_FILTER_Q" "$CREATE_CHART_4_PAYLOAD")
-
 #emp dash creation
 DASHBOARD_TITLE="Enriched Market Analysis Dashboard"
 
@@ -328,4 +301,5 @@ echo " - Chart 3: $SUPERSET_URL/explore/?slice_id=$CHART_3_ID"
 echo " - Chart 4: $SUPERSET_URL/explore/?slice_id=$CHART_4_ID"
 echo ""
 echo ""
+
 echo " - Dashboard: $SUPERSET_URL/dashboard/$DASHBOARD_ID"
