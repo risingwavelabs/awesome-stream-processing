@@ -311,12 +311,14 @@ CREATE_CHART_4_PAYLOAD=$(jq -n --arg name "$CHART_4_NAME" --argjson ds_id "$DATA
 CHART_4_ID=$(get_or_create_asset "chart" "$CHART_4_NAME" "$CHART_4_FILTER_Q" "$CREATE_CHART_4_PAYLOAD")
 
 # dashboard creation
+# --- 5. Create Dashboard ---
 echo "--- Creating dashboard ---" >&2
 
 DASHBOARD_FILTER_Q="q=$(jq -n --arg name "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$name}]}')"
-CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" '{
+DASHBOARD_SLUG=$(echo "$DASHBOARD_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')
+CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" --arg slug "$DASHBOARD_SLUG" '{
    "dashboard_title": $title,
-   "slug": "",
+   "slug": $slug,
    "owners": [1],
    "position_json": "{}",
    "css": "",
