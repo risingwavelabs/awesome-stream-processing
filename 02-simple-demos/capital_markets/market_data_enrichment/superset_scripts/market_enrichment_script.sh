@@ -310,43 +310,8 @@ CREATE_CHART_4_PAYLOAD=$(jq -n --arg name "$CHART_4_NAME" --argjson ds_id "$DATA
 }')
 CHART_4_ID=$(get_or_create_asset "chart" "$CHART_4_NAME" "$CHART_4_FILTER_Q" "$CREATE_CHART_4_PAYLOAD")
 
-# --- 5. Create Dashboard and Add Charts ---
-echo "--- Creating and arranging dashboard: '$DASHBOARD_TITLE' ---" >&2
-DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
-CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" '{dashboard_title: $title, published: true, owners:[1]}')
-DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
-
-# Define the layout using chart IDs
-CHART_POSITION_JSON=$(jq -n \
-  --argjson c1_id "$CHART_1_ID" \
-  --argjson c2_id "$CHART_2_ID" \
-  --argjson c3_id "$CHART_3_ID" \
-  --argjson c4_id "$CHART_4_ID" \
-  '{
-    "CHART-Lp5NqDk_L8": { "type": "CHART", "id": $c1_id, "children": [], "meta": { "width": 4, "height": 50, "chartId": $c1_id } },
-    "CHART-S3fX_jY_vB": { "type": "CHART", "id": $c2_id, "children": [], "meta": { "width": 4, "height": 50, "chartId": $c2_id } },
-    "CHART-abcde12345": { "type": "CHART", "id": $c3_id, "children": [], "meta": { "width": 4, "height": 50, "chartId": $c3_id } },
-    "CHART-fghij67890": { "type": "CHART", "id": $c4_id, "children": [], "meta": { "width": 4, "height": 50, "chartId": $c4_id } },
-    "GRID_ID": { "type": "GRID", "id": "GRID_ID", "children": ["ROW_ID_1", "ROW_ID_2"], "meta": {} },
-    "HEADER_ID": { "type": "HEADER", "id": "HEADER_ID", "children": [], "meta": { "text": $DASHBOARD_TITLE } },
-    "ROOT_ID": { "type": "ROOT", "id": "ROOT_ID", "children": ["GRID_ID"], "meta": {} },
-    "ROW_ID_1": { "type": "ROW", "id": "ROW_ID_1", "children": ["CHART-Lp5NqDk_L8", "CHART-S3fX_jY_vB"], "meta": {} },
-    "ROW_ID_2": { "type": "ROW", "id": "ROW_ID_2", "children": ["CHART-abcde12345", "CHART-fghij67890"], "meta": {} }
-  }')
-
-UPDATE_DASHBOARD_PAYLOAD=$(jq -n --argjson pos "$CHART_POSITION_JSON" '{ "json_metadata": ($pos | tostring) }')
-
-curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "X-CSRFToken: $CSRF_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d "$UPDATE_DASHBOARD_PAYLOAD" > /dev/null
-
-echo "Dashboard layout updated." >&2
 
 echo " - Chart 1: $SUPERSET_URL/explore/?slice_id=$CHART_1_ID"
 echo " - Chart 2: $SUPERSET_URL/explore/?slice_id=$CHART_2_ID"
 echo " - Chart 3: $SUPERSET_URL/explore/?slice_id=$CHART_3_ID"
 echo " - Chart 4: $SUPERSET_URL/explore/?slice_id=$CHART_4_ID"
-echo ""
-echo " - Dashboard: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID"
