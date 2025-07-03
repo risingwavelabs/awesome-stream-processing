@@ -289,7 +289,7 @@ CHART_4_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
    "viz_type": "pie",
    "datasource": "\($ds_id)__table",
    "time_range": "No filter",
-   "metrics": "sum_price_change",
+   "metric": "sum_price_change",
    "groupby": ["asset_id"],
    "row_limit": 50,
    "pie_label_type": "key_value",
