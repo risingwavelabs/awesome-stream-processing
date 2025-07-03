@@ -151,9 +151,9 @@ for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
        UPDATE_PAYLOAD=$(echo "$metrics_to_upload"|jq 'map(if .id then {id,metric_name,expression,verbose_name} else {metric_name,expression,verbose_name} end)|{metrics:.}')
        UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" -H "Content-Type: application/json" -d "$UPDATE_PAYLOAD")
        if echo "$UPDATE_RESPONSE"|jq -e '.result'>/dev/null; then
-           echo "Added metric '$metric_name'." >&2
+           echo "    - Added metric '$metric_name'." >&2
        else
-           echo "    Failed to add metric '$metric_name'. Response: $UPDATE_RESPONSE" >&2
+           echo "    - Failed to add metric '$metric_name'. Response: $UPDATE_RESPONSE" >&2
        fi
    else
        echo "    - Metric already exists. Skipping." >&2
@@ -161,7 +161,7 @@ for metric_name in $(echo "$DESIRED_METRICS" | jq -r 'keys[]'); do
 done
 echo "Metrics processing complete." >&2
 
-echo "refresh"
+echo "Refreshing dataset to apply changes..."
 curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-CSRFToken: $CSRF_TOKEN" > /dev/null
@@ -170,7 +170,7 @@ sleep 5
 # --- 4. Create Charts ---
 echo "--- Creating charts ---" >&2
 
-#Chart 1 - price change
+# Chart 1 - Price Change
 CHART_1_FILTER_Q="q=$(jq -n --arg name "$CHART_1_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
 CHART_1_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
    "viz_type": "line",
@@ -246,7 +246,7 @@ CREATE_CHART_2_PAYLOAD=$(jq -n --arg name "$CHART_2_NAME" --argjson ds_id "$DATA
 }')
 CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$CREATE_CHART_2_PAYLOAD")
 
-#chart 3 - sentiment over time
+# Chart 3 - Sentiment Over Time
 CHART_3_FILTER_Q="q=$(jq -n --arg name "$CHART_3_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
 CHART_3_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
    "viz_type": "line",
@@ -283,76 +283,22 @@ CREATE_CHART_3_PAYLOAD=$(jq -n --arg name "$CHART_3_NAME" --argjson ds_id "$DATA
 }')
 CHART_3_ID=$(get_or_create_asset "chart" "$CHART_3_NAME" "$CHART_3_FILTER_Q" "$CREATE_CHART_3_PAYLOAD")
 
-#asset vol pie chart
-# Asset Volatility Pie Chart - Improved Version
-echo "--- Creating Chart 4: Asset Volatility Pie Chart ---" >&2
-
-# First, let's verify the dataset and metrics are available
-echo "Verifying dataset metrics before creating Chart 4..." >&2
-DATASET_METRICS_CHECK=$(curl -s -G "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" \
-  --data-urlencode 'q={"columns":["metrics"]}' \
-  -H "Authorization: Bearer $TOKEN")
-
-echo "Available metrics:" >&2
-echo "$DATASET_METRICS_CHECK" | jq -r '.result.metrics[]?.metric_name // empty' >&2
-
-# Check if our required metric exists
-SUM_PRICE_CHANGE_EXISTS=$(echo "$DATASET_METRICS_CHECK" | jq -r '.result.metrics[]? | select(.metric_name=="sum_price_change") | .metric_name // empty')
-if [[ -z "$SUM_PRICE_CHANGE_EXISTS" ]]; then
-    echo "ERROR: sum_price_change metric not found. Creating it now..." >&2
-    
-    # Add the metric if it doesn't exist
-    EXISTING_METRICS=$(echo "$DATASET_METRICS_CHECK" | jq '.result.metrics // []')
-    NEW_METRIC=$(jq -n '{
-        "metric_name": "sum_price_change",
-        "expression": "SUM(price_change)",
-        "verbose_name": "Sum Price Change"
-    }')
-    
-    UPDATED_METRICS=$(echo "$EXISTING_METRICS" | jq --argjson new_metric "$NEW_METRIC" '. + [$new_metric]')
-    UPDATE_PAYLOAD=$(echo "$UPDATED_METRICS" | jq 'map(if .id then {id,metric_name,expression,verbose_name} else {metric_name,expression,verbose_name} end) | {metrics:.}')
-    
-    UPDATE_RESPONSE=$(curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID" \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "X-CSRFToken: $CSRF_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "$UPDATE_PAYLOAD")
-    
-    if echo "$UPDATE_RESPONSE" | jq -e '.result' > /dev/null; then
-        echo "Successfully added sum_price_change metric." >&2
-    else
-        echo "Failed to add metric. Response: $UPDATE_RESPONSE" >&2
-    fi
-    
-    # Refresh dataset after adding metric
-    curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "X-CSRFToken: $CSRF_TOKEN" > /dev/null
-    sleep 3
-fi
-
 # Chart 4 - Asset Volatility Pie Chart
 CHART_4_FILTER_Q="q=$(jq -n --arg name "$CHART_4_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
 CHART_4_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
    "viz_type": "pie",
    "datasource": "\($ds_id)__table",
-   "granularity_sqla": "timestamp",
    "time_range": "No filter",
-   "metrics": ["sum_price_change"],
+   "metrics": ["avg_rolling_volatility"],
    "groupby": ["asset_id"],
-   "show_legend": true,
-   "row_limit": 10000,
+   "row_limit": 50,
    "pie_label_type": "key_value",
    "donut": false,
    "show_labels": true,
    "labels_outside": true,
    "color_scheme": "supersetColors",
-   "show_controls": true,
-   "rich_tooltip": true,
-   "tooltip_sort_by_metric": true,
-   "number_format": "SMART_NUMBER",
-   "date_filter": false,
-   "instant_filtering": false
+   "show_legend": true,
+   "rich_tooltip": true
 }')
 CREATE_CHART_4_PAYLOAD=$(jq -n --arg name "$CHART_4_NAME" --argjson ds_id "$DATASET_ID" --argjson params "$CHART_4_PARAMS" '{
    "slice_name": $name,
@@ -364,28 +310,43 @@ CREATE_CHART_4_PAYLOAD=$(jq -n --arg name "$CHART_4_NAME" --argjson ds_id "$DATA
 }')
 CHART_4_ID=$(get_or_create_asset "chart" "$CHART_4_NAME" "$CHART_4_FILTER_Q" "$CREATE_CHART_4_PAYLOAD")
 
-#emp dash creation
-DASHBOARD_TITLE="Enriched Market Analysis Dashboard"
-
-FILTER_JSON=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')
-DASHBOARD_FILTER_Q="q=$FILTER_JSON"
-
-CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" '{
-  dashboard_title: $title,
-  slug: null,
-  owners: [1],
-  css: "",
-  json_metadata: "{\"refresh_frequency\":0,\"color_scheme\":\"\",\"label_colors\":{}}",
-  published: true
-}')
-
+# --- 5. Create Dashboard and Add Charts ---
+echo "--- Creating and arranging dashboard: '$DASHBOARD_TITLE' ---" >&2
+DASHBOARD_FILTER_Q="q=$(jq -n --arg title "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}')"
+CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" '{dashboard_title: $title, published: true, owners:[1]}')
 DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
+
+# Define the layout using chart IDs
+CHART_POSITION_JSON=$(jq -n \
+  --argjson c1_id "$CHART_1_ID" \
+  --argjson c2_id "$CHART_2_ID" \
+  --argjson c3_id "$CHART_3_ID" \
+  --argjson c4_id "$CHART_4_ID" \
+  '{
+    "CHART-Lp5NqDk_L8": { "type": "CHART", "id": $c1_id, "children": [], "meta": { "width": 4, "height": 50, "chartId": $c1_id } },
+    "CHART-S3fX_jY_vB": { "type": "CHART", "id": $c2_id, "children": [], "meta": { "width": 4, "height": 50, "chartId": $c2_id } },
+    "CHART-abcde12345": { "type": "CHART", "id": $c3_id, "children": [], "meta": { "width": 4, "height": 50, "chartId": $c3_id } },
+    "CHART-fghij67890": { "type": "CHART", "id": $c4_id, "children": [], "meta": { "width": 4, "height": 50, "chartId": $c4_id } },
+    "GRID_ID": { "type": "GRID", "id": "GRID_ID", "children": ["ROW_ID_1", "ROW_ID_2"], "meta": {} },
+    "HEADER_ID": { "type": "HEADER", "id": "HEADER_ID", "children": [], "meta": { "text": $DASHBOARD_TITLE } },
+    "ROOT_ID": { "type": "ROOT", "id": "ROOT_ID", "children": ["GRID_ID"], "meta": {} },
+    "ROW_ID_1": { "type": "ROW", "id": "ROW_ID_1", "children": ["CHART-Lp5NqDk_L8", "CHART-S3fX_jY_vB"], "meta": {} },
+    "ROW_ID_2": { "type": "ROW", "id": "ROW_ID_2", "children": ["CHART-abcde12345", "CHART-fghij67890"], "meta": {} }
+  }')
+
+UPDATE_DASHBOARD_PAYLOAD=$(jq -n --argjson pos "$CHART_POSITION_JSON" '{ "json_metadata": ($pos | tostring) }')
+
+curl -s -X PUT "$SUPERSET_URL/api/v1/dashboard/$DASHBOARD_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-CSRFToken: $CSRF_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "$UPDATE_DASHBOARD_PAYLOAD" > /dev/null
+
+echo "Dashboard layout updated." >&2
 
 echo " - Chart 1: $SUPERSET_URL/explore/?slice_id=$CHART_1_ID"
 echo " - Chart 2: $SUPERSET_URL/explore/?slice_id=$CHART_2_ID"
 echo " - Chart 3: $SUPERSET_URL/explore/?slice_id=$CHART_3_ID"
 echo " - Chart 4: $SUPERSET_URL/explore/?slice_id=$CHART_4_ID"
 echo ""
-echo ""
-
-echo " - Dashboard: $SUPERSET_URL/dashboard/$DASHBOARD_ID"
+echo " - Dashboard: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID"
