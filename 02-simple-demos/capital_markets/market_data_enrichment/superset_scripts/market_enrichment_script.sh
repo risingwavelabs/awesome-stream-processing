@@ -316,14 +316,37 @@ echo "--- Creating dashboard ---" >&2
 DASHBOARD_FILTER_Q="q=$(jq -n --arg name "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$name}]}')"
 CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" '{
    "dashboard_title": $title,
-   "slug": null,
+   "slug": "",
    "owners": [1],
    "position_json": "{}",
    "css": "",
    "json_metadata": "{}",
    "published": false
 }')
-DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
+
+# First check if dashboard already exists
+echo "Checking if dashboard '$DASHBOARD_TITLE' already exists..." >&2
+DASHBOARD_GET_RESPONSE=$(curl -s -G "$SUPERSET_URL/api/v1/dashboard/" -H "Authorization: Bearer $TOKEN" --data-urlencode "$DASHBOARD_FILTER_Q")
+EXISTING_DASHBOARD_ID=$(echo "$DASHBOARD_GET_RESPONSE" | jq -r '.result[0].id // empty')
+
+if [[ -n "$EXISTING_DASHBOARD_ID" ]]; then
+    echo "Dashboard '$DASHBOARD_TITLE' already exists with ID: $EXISTING_DASHBOARD_ID" >&2
+    DASHBOARD_ID="$EXISTING_DASHBOARD_ID"
+else
+    echo "Dashboard '$DASHBOARD_TITLE' not found, creating it..." >&2
+    CREATE_DASHBOARD_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/dashboard/" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "X-CSRFToken: $CSRF_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "$CREATE_DASHBOARD_PAYLOAD")
+    
+    DASHBOARD_ID=$(echo "$CREATE_DASHBOARD_RESPONSE" | jq -r '.id // empty')
+    if [[ -z "$DASHBOARD_ID" ]]; then
+        echo "Failed to create dashboard '$DASHBOARD_TITLE'. Response: $CREATE_DASHBOARD_RESPONSE" >&2
+        exit 1
+    fi
+    echo "Dashboard '$DASHBOARD_TITLE' created with ID: $DASHBOARD_ID" >&2
+fi
 
 echo "Dashboard created successfully!"
 echo "Dashboard URL: $SUPERSET_URL/dashboard/$DASHBOARD_ID/"
