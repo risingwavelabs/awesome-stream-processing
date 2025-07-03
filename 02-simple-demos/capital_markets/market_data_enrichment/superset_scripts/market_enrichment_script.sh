@@ -310,25 +310,23 @@ CREATE_CHART_4_PAYLOAD=$(jq -n --arg name "$CHART_4_NAME" --argjson ds_id "$DATA
 }')
 CHART_4_ID=$(get_or_create_asset "chart" "$CHART_4_NAME" "$CHART_4_FILTER_Q" "$CREATE_CHART_4_PAYLOAD")
 
-# empty dashboard
-FILTER_JSON=$(jq -c \
-  --arg title "$DASHBOARD_TITLE" \
-  '{filters:[{col:"dashboard_title",opr:"eq",value:$title}]}' )
+# dashboard creation
+echo "--- Creating dashboard ---" >&2
 
-DASHBOARD_FILTER_Q="q=${FILTER_JSON}"
-
-CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title \"$DASHBOARD_TITLE\" '{
-  dashboard_title: $title,
-  slug: null,
-  owners: [1],
-  published: true,
-  json_metadata: "{}"
+DASHBOARD_FILTER_Q="q=$(jq -n --arg name "$DASHBOARD_TITLE" '{filters:[{col:"dashboard_title",opr:"eq",value:$name}]}')"
+CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title "$DASHBOARD_TITLE" '{
+   "dashboard_title": $title,
+   "slug": null,
+   "owners": [1],
+   "position_json": "{}",
+   "css": "",
+   "json_metadata": "{}",
+   "published": false
 }')
+DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
 
-DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" \
-  "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
-
-echo "Empty dashboard ready at: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/"
+echo "Dashboard created successfully!"
+echo "Dashboard URL: $SUPERSET_URL/dashboard/$DASHBOARD_ID/"
 
 
 echo " - Chart 1: $SUPERSET_URL/explore/?slice_id=$CHART_1_ID"
