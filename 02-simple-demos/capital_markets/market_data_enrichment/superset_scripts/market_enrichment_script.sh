@@ -310,6 +310,23 @@ CREATE_CHART_4_PAYLOAD=$(jq -n --arg name "$CHART_4_NAME" --argjson ds_id "$DATA
 }')
 CHART_4_ID=$(get_or_create_asset "chart" "$CHART_4_NAME" "$CHART_4_FILTER_Q" "$CREATE_CHART_4_PAYLOAD")
 
+# --- 5 dashboard to put charts
+DASHBOARD_FILTER_Q="q=$(jq -c --arg title \"$DASHBOARD_TITLE\" \
+  '{filters:[{col:\"dashboard_title\",opr:\"eq\",value:$title}]}')"
+
+CREATE_DASHBOARD_PAYLOAD=$(jq -n --arg title \"$DASHBOARD_TITLE\" '{
+  dashboard_title: $title,
+  slug: null,
+  owners: [1],
+  published: true,
+  json_metadata: "{}"
+}')
+
+DASHBOARD_ID=$(get_or_create_asset "dashboard" "$DASHBOARD_TITLE" \
+  "$DASHBOARD_FILTER_Q" "$CREATE_DASHBOARD_PAYLOAD")
+
+echo "Empty dashboard ready at: $SUPERSET_URL/superset/dashboard/$DASHBOARD_ID/"
+
 
 echo " - Chart 1: $SUPERSET_URL/explore/?slice_id=$CHART_1_ID"
 echo " - Chart 2: $SUPERSET_URL/explore/?slice_id=$CHART_2_ID"
