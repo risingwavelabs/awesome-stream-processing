@@ -350,9 +350,6 @@ else
     echo "Dashboard '$DASHBOARD_TITLE' created with ID: $DASHBOARD_ID" >&2
 fi
 
-echo "Dashboard created successfully!"
-echo "Dashboard URL: $SUPERSET_URL/dashboard/$DASHBOARD_ID/"
-
 
 echo " - Chart 1: $SUPERSET_URL/explore/?slice_id=$CHART_1_ID"
 echo " - Chart 2: $SUPERSET_URL/explore/?slice_id=$CHART_2_ID"
