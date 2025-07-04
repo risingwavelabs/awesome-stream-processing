@@ -6,7 +6,7 @@ set -o pipefail
 SUPERSET_URL="${SUPERSET_URL:-http://localhost:8088}"
 SUPERSET_USERNAME="${SUPERSET_USERNAME:-admin}"
 SUPERSET_PASSWORD="${SUPERSET_PASSWORD:-admin}"
-DB_NAME="Postgres_Market_Data"
+DB_NAME="RisingWave_Market_Data"
 SQLALCHEMY_URI="risingwave://root@risingwave:4566/dev"
 DATASET_TABLE_NAME="enriched_market_data"
 DATASET_NAME="Enriched Market Data"
@@ -62,25 +62,29 @@ DB_FILTER_Q="q=$(jq -n --arg name "$DB_NAME" '{filters:[{col:"database_name",opr
 CREATE_DB_PAYLOAD=$(jq -n --arg name "$DB_NAME" --arg uri "$SQLALCHEMY_URI" '{database_name: $name, sqlalchemy_uri: $uri, expose_in_sqllab: true}')
 DB_ID=$(get_or_create_asset "database" "$DB_NAME" "$DB_FILTER_Q" "$CREATE_DB_PAYLOAD")
 
-
 echo "Testing database connection..." >&2
-TEST_DB_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/database/test_connection" \
-   -H "Authorization: Bearer $TOKEN" \
-   -H "X-CSRFToken: $CSRF_TOKEN" \
-   -H "Content-Type: application/json" \
-   -d "{\"sqlalchemy_uri\": \"$SQLALCHEMY_URI\", \"database_name\": \"$DB_NAME\"}")
+TEST_DB_RESPONSE=$(curl -s -L -X POST "$SUPERSET_URL/api/v1/database/test_connection/" \
+-H "Authorization: Bearer $TOKEN" \
+-H "X-CSRFToken: $CSRF_TOKEN" \
+-H "Content-Type: application/json" \
+-d "{\"sqlalchemy_uri\": \"$SQLALCHEMY_URI\", \"database_name\": \"$DB_NAME\"}")
 
-
-if echo "$TEST_DB_RESPONSE" | jq -e '.message // empty' | grep -q "OK"; then
-   echo "Database connection successful." >&2
+if echo "$TEST_DB_RESPONSE" | jq -r '.message // ""' | grep -q "OK"; then
+echo "Database connection successful." >&2
 else
-   echo "Database connection test failed: $TEST_DB_RESPONSE" >&2
+echo "Database connection test failed: $TEST_DB_RESPONSE" >&2
+exit 1
 fi
-
 
 # --- 3. Get or Create Dataset ---
 DATASET_FILTER_Q="q=$(jq -n --arg name "$DATASET_TABLE_NAME" --argjson db_id "$DB_ID" '{filters:[{col:"table_name",opr:"eq",value:$name},{col:"database_id",opr:"eq",value:($db_id|tonumber)}]}')"
-CREATE_DATASET_PAYLOAD=$(jq -n --argjson db_id "$DB_ID" --arg table_name "$DATASET_TABLE_NAME" '{database:($db_id|tonumber), table_name:$table_name, schema:"public", owners:[1]}')
+CREATE_DATASET_PAYLOAD=$(jq -n --argjson db_id "$DB_ID" --arg table_name "$DATASET_TABLE_NAME" '{
+database:    ($db_id|tonumber),
+database_id: ($db_id|tonumber),
+table_name:  $table_name,
+schema:      "public",
+owners:      [1]
+}')
 DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD")
 
 
