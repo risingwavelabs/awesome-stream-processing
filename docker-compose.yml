@@ -57,7 +57,7 @@ services:
       ADMIN_PASSWORD: admin
       FLASK_ENV: development
     depends_on:
-      - postgres
+      - risingwave
     command: >
       sh -c "
         pip install sqlalchemy-risingwave psycopg2-binary &&

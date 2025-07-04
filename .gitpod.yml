@@ -35,7 +35,7 @@ tasks:
 
       echo "Installing Python + psycopg2"
       sudo apt-get update
-      sudo apt-get install -y python3-pip uuid-runtime jq
+      sudo apt-get install -y python3-pip uuid-runtime jq postgresql-client
       pip3 install psycopg2-binary kafka-python
 
       echo "Starting demo bootstrap"
