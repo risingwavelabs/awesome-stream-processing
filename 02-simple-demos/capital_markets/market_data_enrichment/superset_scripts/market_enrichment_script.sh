@@ -96,16 +96,21 @@ curl -s -X POST "$SUPERSET_URL/api/v1/database/$DB_ID/refresh" \
      -H "Authorization: Bearer $TOKEN" \
      -H "X-CSRFToken: $CSRF_TOKEN" >/dev/null
 
+# ─── 2.x: Wait for Superset to register your table ───
 echo "Waiting for '$DATASET_TABLE_NAME' to appear in Superset metadata…" >&2
 FOUND=0
 for i in {1..12}; do
   sleep 5
   echo "  Check #$i…" >&2
+
+  # use Rison q=(force:!f,schema_name:public) to list tables in 'public'
   TABLES_JSON=$(curl -s -G "$SUPERSET_URL/api/v1/database/$DB_ID/tables/" \
-                    --data-urlencode "schema=public" \
-                    -H "Authorization: Bearer $TOKEN")
+    --data-urlencode "q=(force:!f,schema_name:public)" \
+    -H "Authorization: Bearer $TOKEN")
+
+  # look for your table_name in result[].table_name
   if echo "$TABLES_JSON" | jq -e --arg t "$DATASET_TABLE_NAME" \
-       '.result[].tables[].table_name == $t' > /dev/null; then
+       'any(.result[].table_name; . == $t)' > /dev/null; then
     FOUND=1
     echo "  Found '$DATASET_TABLE_NAME'!" >&2
     break
@@ -116,6 +121,7 @@ if [[ $FOUND -ne 1 ]]; then
   echo "ERROR: Table '$DATASET_TABLE_NAME' never showed up in Superset." >&2
   exit 1
 fi
+
 
 
 # --- 3. Get or Create Dataset ---
