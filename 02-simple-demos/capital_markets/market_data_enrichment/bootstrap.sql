@@ -65,3 +65,16 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS enriched_market_data AS
   JOIN enrichment_data AS ed
     ON rmd.asset_id = ed.asset_id
     AND rmd.timestamp BETWEEN ed.timestamp - INTERVAL '2 seconds' AND ed.timestamp + INTERVAL '2 seconds';
+
+
+DROP TABLE IF EXISTS avg_price_bid_ask_spread_table;
+CREATE TABLE avg_price_bid_ask_spread_table AS
+  SELECT * FROM avg_price_bid_ask_spread;
+
+DROP TABLE IF EXISTS rolling_volatility_table;
+CREATE TABLE rolling_volatility_table AS
+  SELECT * FROM rolling_volatility;
+
+DROP TABLE IF EXISTS enriched_market_data_table;
+CREATE TABLE enriched_market_data_table AS
+  SELECT * FROM enriched_market_data;
