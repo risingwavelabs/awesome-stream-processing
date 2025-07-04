@@ -77,14 +77,15 @@ exit 1
 fi
 
 # --- 3. Get or Create Dataset ---
-DATASET_FILTER_Q="q=$(jq -n --arg name "$DATASET_TABLE_NAME" --argjson db_id "$DB_ID" '{filters:[{col:"table_name",opr:"eq",value:$name},{col:"database_id",opr:"eq",value:($db_id|tonumber)}]}')"
-CREATE_DATASET_PAYLOAD=$(jq -n --argjson db_id "$DB_ID" --arg table_name "$DATASET_TABLE_NAME" '{
-database:    ($db_id|tonumber),
-database_id: ($db_id|tonumber),
-table_name:  $table_name,
-schema:      "public",
-owners:      [1]
-}')
+DATASET_FILTER_Q="q=$(jq -n --arg name \"$DATASET_TABLE_NAME\" \
+   '{filters:[{col:\"table_name\",opr:\"eq\",value:$name}]}')"
+
+CREATE_DATASET_PAYLOAD=$(jq -n --argjson db_id \"$DB_ID\" --arg table_name \"$DATASET_TABLE_NAME\" '{
+   database:   ($db_id|tonumber),
+   table_name: $table_name,
+   schema:     "public",
+   owners:     [1]
+   }')
 DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD")
 
 
