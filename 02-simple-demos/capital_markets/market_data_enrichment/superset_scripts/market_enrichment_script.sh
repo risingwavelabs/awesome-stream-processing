@@ -56,24 +56,37 @@ CSRF_TOKEN=$(curl -s -H "Authorization: Bearer $TOKEN" "$SUPERSET_URL/api/v1/sec
 [[ -z "$CSRF_TOKEN" ]] && echo "Failed to get CSRF token." >&2 && exit 1
 echo "Got CSRF token." >&2
 
-# --- 2. Get or Create Database ---
+# --- 2. Get or Create Database (with view exposure) ---
 DB_FILTER_Q="q=$(jq -n --arg name "$DB_NAME" '{filters:[{col:"database_name",opr:"eq",value:$name}]}')"
-CREATE_DB_PAYLOAD=$(jq -n --arg name "$DB_NAME" --arg uri "$SQLALCHEMY_URI" '{database_name: $name, sqlalchemy_uri: $uri, expose_in_sqllab: true}')
+
+# include `extra.show_views=true` in your create payload
+CREATE_DB_PAYLOAD=$(jq -n \
+  --arg name "$DB_NAME" \
+  --arg uri  "$SQLALCHEMY_URI" \
+  --argjson expose true \
+  --argjson extra '{"show_views": true}' \
+  '{database_name: $name,
+    sqlalchemy_uri: $uri,
+    expose_in_sqllab: $expose,
+    extra: $extra
+  }'
+)
+
 DB_ID=$(get_or_create_asset "database" "$DB_NAME" "$DB_FILTER_Q" "$CREATE_DB_PAYLOAD")
 
-echo "Testing database connection..." >&2
-TEST_DB_RESPONSE=$(curl -s -L -X POST "$SUPERSET_URL/api/v1/database/test_connection/" \
--H "Authorization: Bearer $TOKEN" \
--H "X-CSRFToken: $CSRF_TOKEN" \
--H "Content-Type: application/json" \
--d "{\"sqlalchemy_uri\": \"$SQLALCHEMY_URI\", \"database_name\": \"$DB_NAME\"}")
+# immediately refresh Superset’s introspection so it picks up your materialized views
+echo "  Updating database to expose materialized views and refreshing metadata…" >&2
+UPDATE_DB_PAYLOAD=$(jq -n --argjson extra '{"show_views": true}' '{extra: $extra}')
+curl -s -X PUT "$SUPERSET_URL/api/v1/database/$DB_ID" \
+     -H "Authorization: Bearer $TOKEN" \
+     -H "X-CSRFToken: $CSRF_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d "$UPDATE_DB_PAYLOAD" > /dev/null
 
-if echo "$TEST_DB_RESPONSE" | jq -r '.message // ""' | grep -q "OK"; then
-echo "Database connection successful." >&2
-else
-echo "Database connection test failed: $TEST_DB_RESPONSE" >&2
-exit 1
-fi
+curl -s -X POST "$SUPERSET_URL/api/v1/database/$DB_ID/refresh" \
+     -H "Authorization: Bearer $TOKEN" \
+     -H "X-CSRFToken: $CSRF_TOKEN" \
+     > /dev/null
 
 # --- 3. Get or Create Dataset ---
 DATASET_FILTER_Q='q='$(jq -n --arg name "$DATASET_TABLE_NAME" \
