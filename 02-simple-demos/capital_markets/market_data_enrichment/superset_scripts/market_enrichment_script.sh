@@ -77,7 +77,7 @@ fi
 
 echo "--- Waiting for Materialized View 'enriched_market_data' to become available ---"
 # CORRECTED COMMAND: Switched from escaped double-quotes to single-quotes to fix parsing.
-RW_CHECK_CMD="psql -h localhost -p 4566 -U root -d dev -c '\dt enriched_market_data'"
+RW_CHECK_CMD="psql -h localhost -p 4566 -U root -d dev -c '\dm enriched_market_data'"
 RETRY_COUNT=0
 MAX_RETRIES=12 # 12 retries * 5 seconds = 60 seconds timeout
 
