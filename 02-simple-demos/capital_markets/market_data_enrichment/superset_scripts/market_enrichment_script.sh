@@ -56,28 +56,6 @@ CSRF_TOKEN=$(curl -s -H "Authorization: Bearer $TOKEN" "$SUPERSET_URL/api/v1/sec
 [[ -z "$CSRF_TOKEN" ]] && echo "Failed to get CSRF token." >&2 && exit 1
 echo "Got CSRF token." >&2
 
-# --- NEW: Wait for RisingWave Materialized View to be ready ---
-echo "--- Waiting for Materialized View 'enriched_market_data' to become available ---"
-# CORRECTED COMMAND: Added host, port, user, and db flags for RisingWave
-RW_CHECK_CMD="psql -h localhost -p 4566 -U root -d dev -c \"\dt enriched_market_data\""
-RETRY_COUNT=0
-MAX_RETRIES=12 # 12 retries * 5 seconds = 60 seconds timeout
-
-# This loop now correctly checks RisingWave
-until $RW_CHECK_CMD | grep -q "enriched_market_data"; do
-    RETRY_COUNT=$((RETRY_COUNT+1))
-    if [ $RETRY_COUNT -gt $MAX_RETRIES ]; then
-        echo "Error: Timed out waiting for 'enriched_market_data' view to be created." >&2
-        # Adding this line gives you the last error message for better debugging
-        echo "Last error from psql:"
-        $RW_CHECK_CMD
-        exit 1
-    fi
-    echo "Attempt $RETRY_COUNT/$MAX_RETRIES: View not found. Retrying in 5 seconds..."
-    sleep 5
-done
-echo "Materialized View 'enriched_market_data' is ready."
-
 # --- 2. Get or Create Database ---
 DB_FILTER_Q="q=$(jq -n --arg name "$DB_NAME" '{filters:[{col:"database_name",opr:"eq",value:$name}]}')"
 CREATE_DB_PAYLOAD=$(jq -n --arg name "$DB_NAME" --arg uri "$SQLALCHEMY_URI" '{database_name: $name, sqlalchemy_uri: $uri, expose_in_sqllab: true}')
@@ -96,6 +74,27 @@ else
 echo "Database connection test failed: $TEST_DB_RESPONSE" >&2
 exit 1
 fi
+
+echo "--- Waiting for Materialized View 'enriched_market_data' to become available ---"
+# CORRECTED COMMAND: Switched from escaped double-quotes to single-quotes to fix parsing.
+RW_CHECK_CMD="psql -h localhost -p 4566 -U root -d dev -c '\dt enriched_market_data'"
+RETRY_COUNT=0
+MAX_RETRIES=12 # 12 retries * 5 seconds = 60 seconds timeout
+
+# This loop now correctly checks RisingWave
+until $RW_CHECK_CMD 2>/dev/null | grep -q "enriched_market_data"; do
+    RETRY_COUNT=$((RETRY_COUNT+1))
+    if [ $RETRY_COUNT -gt $MAX_RETRIES ]; then
+        echo "Error: Timed out waiting for 'enriched_market_data' view to be created." >&2
+        # Adding this line gives you the last error message for better debugging
+        echo "Last attempt to check the view failed:"
+        $RW_CHECK_CMD
+        exit 1
+    fi
+    echo "Attempt $RETRY_COUNT/$MAX_RETRIES: View not found. Retrying in 5 seconds..."
+    sleep 5
+done
+echo "✅ Materialized View 'enriched_market_data' is ready."
 
 # --- 3. Get or Create Dataset ---
 DATASET_FILTER_Q='q='$(jq -n --arg name "$DATASET_TABLE_NAME" \
