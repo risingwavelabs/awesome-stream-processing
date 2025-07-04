@@ -153,6 +153,16 @@ DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "
 
 #wait and set main time
 echo "--- Configuring dataset properties ---" >&2
+echo "••• [DEBUG] Verifying sink table in RisingWave •••" >&2
+
+# 1) List all tables in 'public' so you see exactly what RisingWave has
+psql -h risingwave -U root -d dev -c "\dt public.*" >&2
+
+# 2) Try to select from your sink table (this will fail if it doesn't exist)
+echo "→ Row count in $DATASET_TABLE_NAME:"
+psql -h risingwave -U root -d dev -t -c "SELECT COUNT(*) FROM public.$DATASET_TABLE_NAME;" >&2
+
+
 curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" > /dev/null
 
 
