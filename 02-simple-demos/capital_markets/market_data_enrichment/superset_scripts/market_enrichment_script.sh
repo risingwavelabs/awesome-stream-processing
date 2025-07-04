@@ -96,29 +96,44 @@ curl -s -X POST "$SUPERSET_URL/api/v1/database/$DB_ID/refresh" \
      -H "Authorization: Bearer $TOKEN" \
      -H "X-CSRFToken: $CSRF_TOKEN" >/dev/null
 
-# ─── 2.x: Wait for Superset to register your table ───
-echo "Waiting for '$DATASET_TABLE_NAME' to appear in Superset metadata…" >&2
+# ─── 2.x: Enhanced debug polling ───
+echo "Waiting for '$DATASET_TABLE_NAME' in Superset metadata…" >&2
 FOUND=0
 for i in {1..12}; do
   sleep 5
-  echo "  Check #$i…" >&2
+  echo "  🔄 Check #$i…" >&2
 
-  # ask Superset for all tables in schema=public
+  # fetch the tables JSON
   TABLES_JSON=$(curl -s -G "$SUPERSET_URL/api/v1/database/$DB_ID/tables/" \
-    --data-urlencode "q=(force:!f,schema_name:public)" \
-    -H "Authorization: Bearer $TOKEN")
+                   --data-urlencode "q=(force:!f,schema_name:public)" \
+                   -H "Authorization: Bearer $TOKEN")
 
-  # look for your table_name under result[].table_name
-  if echo "$TABLES_JSON" | jq -e --arg t "$DATASET_TABLE_NAME" \
-       'any(.result[]; .table_name == $t)' > /dev/null; then
+  # debug: print raw JSON (or the first 300 chars)
+  echo "    → Raw response (truncated):" >&2
+  echo "${TABLES_JSON:0:300}..." >&2
+
+  # debug: count how many table entries were returned
+  TABLE_COUNT=$(echo "$TABLES_JSON" | jq '.result | length' 2>/dev/null || echo "null")
+  echo "    → Parsed .result length: $TABLE_COUNT" >&2
+
+  # debug: show the list of table names
+  echo "    → Table names:" >&2
+  echo "$TABLES_JSON" | jq -r '.result[].table_name // empty' >&2
+
+  # now test for your specific table
+  MATCH=$(echo "$TABLES_JSON" | jq -r --arg t "$DATASET_TABLE_NAME" \
+            'any(.result[]; .table_name == $t)')
+  echo "    → any(.table_name == \"$DATASET_TABLE_NAME\"): $MATCH" >&2
+
+  if [[ "$MATCH" == "true" ]]; then
     FOUND=1
-    echo "  Found '$DATASET_TABLE_NAME'!" >&2
+    echo "  ✅ Found '$DATASET_TABLE_NAME'!" >&2
     break
   fi
 done
 
 if [[ $FOUND -ne 1 ]]; then
-  echo "ERROR: Table '$DATASET_TABLE_NAME' never showed up in Superset." >&2
+  echo "❌ ERROR: Table '$DATASET_TABLE_NAME' never showed up in Superset." >&2
   exit 1
 fi
 
