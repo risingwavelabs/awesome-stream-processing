@@ -96,7 +96,7 @@ curl -s -X POST "$SUPERSET_URL/api/v1/database/$DB_ID/refresh" \
      -H "Authorization: Bearer $TOKEN" \
      -H "X-CSRFToken: $CSRF_TOKEN" >/dev/null
 
-# ─── 2.x: Enhanced debug polling ───
+# ─── 2.x: Wait for Superset to register your table ───
 echo "Waiting for '$DATASET_TABLE_NAME' in Superset metadata…" >&2
 FOUND=0
 for i in {1..12}; do
@@ -108,22 +108,21 @@ for i in {1..12}; do
                    --data-urlencode "q=(force:!f,schema_name:public)" \
                    -H "Authorization: Bearer $TOKEN")
 
-  # debug: print raw JSON (or the first 300 chars)
-  echo "    → Raw response (truncated):" >&2
-  echo "${TABLES_JSON:0:300}..." >&2
+  # debug: print raw JSON (truncated)
+  echo "    → Raw response (truncated): ${TABLES_JSON:0:300}..." >&2
 
-  # debug: count how many table entries were returned
-  TABLE_COUNT=$(echo "$TABLES_JSON" | jq '.result | length' 2>/dev/null || echo "null")
-  echo "    → Parsed .result length: $TABLE_COUNT" >&2
+  # debug: count how many entries
+  COUNT=$(echo "$TABLES_JSON" | jq '.result | length' 2>/dev/null || echo "null")
+  echo "    → .result length: $COUNT" >&2
 
-  # debug: show the list of table names
-  echo "    → Table names:" >&2
-  echo "$TABLES_JSON" | jq -r '.result[].table_name // empty' >&2
+  # debug: list (type,value) of each entry
+  echo "    → Entries:"
+  echo "$TABLES_JSON" | jq -r '.result[] | "\(.type): \(.value)"' >&2
 
-  # now test for your specific table
+  # now test for your specific table under .value
   MATCH=$(echo "$TABLES_JSON" | jq -r --arg t "$DATASET_TABLE_NAME" \
-            'any(.result[]; .table_name == $t)')
-  echo "    → any(.table_name == \"$DATASET_TABLE_NAME\"): $MATCH" >&2
+            'any(.result[]; .value == $t)')
+  echo "    → match value == \"$DATASET_TABLE_NAME\": $MATCH" >&2
 
   if [[ "$MATCH" == "true" ]]; then
     FOUND=1
