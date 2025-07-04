@@ -56,14 +56,21 @@ CSRF_TOKEN=$(curl -s -H "Authorization: Bearer $TOKEN" "$SUPERSET_URL/api/v1/sec
 [[ -z "$CSRF_TOKEN" ]] && echo "Failed to get CSRF token." >&2 && exit 1
 echo "Got CSRF token." >&2
 
+# --- NEW: Wait for RisingWave Materialized View to be ready ---
 echo "--- Waiting for Materialized View 'enriched_market_data' to become available ---"
-RW_CHECK_CMD="psql $SQLALCHEMY_URI -c \"\dt enriched_market_data\""
+# CORRECTED COMMAND: Added host, port, user, and db flags for RisingWave
+RW_CHECK_CMD="psql -h localhost -p 4566 -U root -d dev -c \"\dt enriched_market_data\""
 RETRY_COUNT=0
 MAX_RETRIES=12 # 12 retries * 5 seconds = 60 seconds timeout
+
+# This loop now correctly checks RisingWave
 until $RW_CHECK_CMD | grep -q "enriched_market_data"; do
     RETRY_COUNT=$((RETRY_COUNT+1))
     if [ $RETRY_COUNT -gt $MAX_RETRIES ]; then
         echo "Error: Timed out waiting for 'enriched_market_data' view to be created." >&2
+        # Adding this line gives you the last error message for better debugging
+        echo "Last error from psql:"
+        $RW_CHECK_CMD
         exit 1
     fi
     echo "Attempt $RETRY_COUNT/$MAX_RETRIES: View not found. Retrying in 5 seconds..."
