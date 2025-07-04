@@ -103,14 +103,14 @@ for i in {1..12}; do
   sleep 5
   echo "  Check #$i…" >&2
 
-  # use Rison q=(force:!f,schema_name:public) to list tables in 'public'
+  # ask Superset for all tables in schema=public
   TABLES_JSON=$(curl -s -G "$SUPERSET_URL/api/v1/database/$DB_ID/tables/" \
     --data-urlencode "q=(force:!f,schema_name:public)" \
     -H "Authorization: Bearer $TOKEN")
 
-  # look for your table_name in result[].table_name
+  # look for your table_name under result[].table_name
   if echo "$TABLES_JSON" | jq -e --arg t "$DATASET_TABLE_NAME" \
-       'any(.result[].table_name; . == $t)' > /dev/null; then
+       'any(.result[]; .table_name == $t)' > /dev/null; then
     FOUND=1
     echo "  Found '$DATASET_TABLE_NAME'!" >&2
     break
