@@ -56,6 +56,20 @@ CSRF_TOKEN=$(curl -s -H "Authorization: Bearer $TOKEN" "$SUPERSET_URL/api/v1/sec
 [[ -z "$CSRF_TOKEN" ]] && echo "Failed to get CSRF token." >&2 && exit 1
 echo "Got CSRF token." >&2
 
+echo "--- Waiting for Materialized View 'enriched_market_data' to become available ---"
+RW_CHECK_CMD="psql $SQLALCHEMY_URI -c \"\dt enriched_market_data\""
+RETRY_COUNT=0
+MAX_RETRIES=12 # 12 retries * 5 seconds = 60 seconds timeout
+until $RW_CHECK_CMD | grep -q "enriched_market_data"; do
+    RETRY_COUNT=$((RETRY_COUNT+1))
+    if [ $RETRY_COUNT -gt $MAX_RETRIES ]; then
+        echo "Error: Timed out waiting for 'enriched_market_data' view to be created." >&2
+        exit 1
+    fi
+    echo "Attempt $RETRY_COUNT/$MAX_RETRIES: View not found. Retrying in 5 seconds..."
+    sleep 5
+done
+echo "Materialized View 'enriched_market_data' is ready."
 
 # --- 2. Get or Create Database ---
 DB_FILTER_Q="q=$(jq -n --arg name "$DB_NAME" '{filters:[{col:"database_name",opr:"eq",value:$name}]}')"
