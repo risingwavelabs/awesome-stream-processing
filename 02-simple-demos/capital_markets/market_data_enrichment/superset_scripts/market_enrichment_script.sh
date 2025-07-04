@@ -75,27 +75,6 @@ echo "Database connection test failed: $TEST_DB_RESPONSE" >&2
 exit 1
 fi
 
-echo "--- Waiting for Materialized View 'enriched_market_data' to become available ---"
-# CORRECTED COMMAND: Switched from escaped double-quotes to single-quotes to fix parsing.
-RW_CHECK_CMD="psql -h localhost -p 4566 -U root -d dev -c '\dm enriched_market_data'"
-RETRY_COUNT=0
-MAX_RETRIES=12 # 12 retries * 5 seconds = 60 seconds timeout
-
-# This loop now correctly checks RisingWave
-until $RW_CHECK_CMD 2>/dev/null | grep -q "enriched_market_data"; do
-    RETRY_COUNT=$((RETRY_COUNT+1))
-    if [ $RETRY_COUNT -gt $MAX_RETRIES ]; then
-        echo "Error: Timed out waiting for 'enriched_market_data' view to be created." >&2
-        # Adding this line gives you the last error message for better debugging
-        echo "Last attempt to check the view failed:"
-        $RW_CHECK_CMD
-        exit 1
-    fi
-    echo "Attempt $RETRY_COUNT/$MAX_RETRIES: View not found. Retrying in 5 seconds..."
-    sleep 5
-done
-echo "✅ Materialized View 'enriched_market_data' is ready."
-
 # --- 3. Get or Create Dataset ---
 DATASET_FILTER_Q='q='$(jq -n --arg name "$DATASET_TABLE_NAME" \
   '{filters:[{col:"table_name",opr:"eq",value:$name}]}')
