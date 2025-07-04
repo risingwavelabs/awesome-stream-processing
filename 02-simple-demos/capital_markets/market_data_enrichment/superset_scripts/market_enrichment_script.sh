@@ -57,36 +57,45 @@ CSRF_TOKEN=$(curl -s -H "Authorization: Bearer $TOKEN" "$SUPERSET_URL/api/v1/sec
 echo "Got CSRF token." >&2
 
 # --- 2. Get or Create Database (with view exposure) ---
-DB_FILTER_Q="q=$(jq -n --arg name "$DB_NAME" '{filters:[{col:"database_name",opr:"eq",value:$name}]}')"
+DB_FILTER_Q="q=$(jq -n --arg name "$DB_NAME" \
+  '{filters:[{col:"database_name",opr:"eq",value:$name}]}')"
 
-# include `extra.show_views=true` in your create payload
+# note: extra must be passed as a STRING containing JSON
 CREATE_DB_PAYLOAD=$(jq -n \
-  --arg name "$DB_NAME" \
-  --arg uri  "$SQLALCHEMY_URI" \
+  --arg name   "$DB_NAME" \
+  --arg uri    "$SQLALCHEMY_URI" \
   --argjson expose true \
-  --argjson extra '{"show_views": true}' \
-  '{database_name: $name,
-    sqlalchemy_uri: $uri,
-    expose_in_sqllab: $expose,
-    extra: $extra
-  }'
+  --arg extra  '{"show_views": true}' \
+  '{
+     database_name:  $name,
+     sqlalchemy_uri: $uri,
+     expose_in_sqllab: $expose,
+     extra:           $extra
+   }'
 )
 
-DB_ID=$(get_or_create_asset "database" "$DB_NAME" "$DB_FILTER_Q" "$CREATE_DB_PAYLOAD")
+DB_ID=$(get_or_create_asset "database" \
+       "$DB_NAME" "$DB_FILTER_Q" "$CREATE_DB_PAYLOAD")
 
-# immediately refresh Superset’s introspection so it picks up your materialized views
-echo "  Updating database to expose materialized views and refreshing metadata…" >&2
-UPDATE_DB_PAYLOAD=$(jq -n --argjson extra '{"show_views": true}' '{extra: $extra}')
+echo "  – Ensuring views are exposed and refreshing metadata…" >&2
+
+# update the same extra (again, as a STRING)
+UPDATE_DB_PAYLOAD=$(jq -n \
+  --arg extra '{"show_views": true}' \
+  '{extra: $extra}'
+)
+
 curl -s -X PUT "$SUPERSET_URL/api/v1/database/$DB_ID" \
      -H "Authorization: Bearer $TOKEN" \
      -H "X-CSRFToken: $CSRF_TOKEN" \
      -H "Content-Type: application/json" \
-     -d "$UPDATE_DB_PAYLOAD" > /dev/null
+     -d "$UPDATE_DB_PAYLOAD" >/dev/null
 
+# now ask Superset to re‐scan for tables & views
 curl -s -X POST "$SUPERSET_URL/api/v1/database/$DB_ID/refresh" \
      -H "Authorization: Bearer $TOKEN" \
-     -H "X-CSRFToken: $CSRF_TOKEN" \
-     > /dev/null
+     -H "X-CSRFToken: $CSRF_TOKEN" >/dev/null
+
 
 # --- 3. Get or Create Dataset ---
 DATASET_FILTER_Q='q='$(jq -n --arg name "$DATASET_TABLE_NAME" \
