@@ -77,8 +77,8 @@ exit 1
 fi
 
 # --- 3. Get or Create Dataset ---
-DATASET_FILTER_Q="q=$(jq -n --arg name \"$DATASET_TABLE_NAME\" \
-   '{filters:[{col:\"table_name\",opr:\"eq\",value:$name}]}')"
+DATASET_FILTER_Q='q='$(jq -n --arg name "$DATASET_TABLE_NAME" \
+  '{filters:[{col:"table_name",opr:"eq",value:$name}]}')
 
 CREATE_DATASET_PAYLOAD=$(jq -n --argjson db_id \"$DB_ID\" --arg table_name \"$DATASET_TABLE_NAME\" '{
    database:   ($db_id|tonumber),
