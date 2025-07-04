@@ -96,6 +96,27 @@ curl -s -X POST "$SUPERSET_URL/api/v1/database/$DB_ID/refresh" \
      -H "Authorization: Bearer $TOKEN" \
      -H "X-CSRFToken: $CSRF_TOKEN" >/dev/null
 
+echo "Waiting for '$DATASET_TABLE_NAME' to appear in Superset metadata…" >&2
+FOUND=0
+for i in {1..12}; do
+  sleep 5
+  echo "  Check #$i…" >&2
+  TABLES_JSON=$(curl -s -G "$SUPERSET_URL/api/v1/database/$DB_ID/tables/" \
+                    --data-urlencode "schema=public" \
+                    -H "Authorization: Bearer $TOKEN")
+  if echo "$TABLES_JSON" | jq -e --arg t "$DATASET_TABLE_NAME" \
+       '.result[].tables[].table_name == $t' > /dev/null; then
+    FOUND=1
+    echo "  Found '$DATASET_TABLE_NAME'!" >&2
+    break
+  fi
+done
+
+if [[ $FOUND -ne 1 ]]; then
+  echo "ERROR: Table '$DATASET_TABLE_NAME' never showed up in Superset." >&2
+  exit 1
+fi
+
 
 # --- 3. Get or Create Dataset ---
 DATASET_FILTER_Q='q='$(jq -n --arg name "$DATASET_TABLE_NAME" \
