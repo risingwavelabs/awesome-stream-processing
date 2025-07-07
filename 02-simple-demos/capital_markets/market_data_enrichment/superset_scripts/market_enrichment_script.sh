@@ -1,6 +1,5 @@
 #!/bin/bash
-set -e
-set -o pipefail
+set -euo pipefail
 
 # --- Configuration ---
 SUPERSET_URL="${SUPERSET_URL:-http://localhost:8088}"
@@ -14,182 +13,108 @@ CHART_1_NAME="Price Change Over Time"
 CHART_2_NAME="Average Bid Ask Spread Over Time"
 CHART_3_NAME="Sentiment over Time Chart"
 CHART_4_NAME="Asset Volatility Pie Chart"
-
 DASHBOARD_TITLE="Enriched Market Analysis Dashboard"
 
+if ! command -v curl &>/dev/null || ! command -v jq &>/dev/null; then
+  echo "Error: curl + jq are required" >&2
+  exit 1
+fi
 
-# --- Pre-requisite Checks ---
-if ! command -v curl &> /dev/null || ! command -v jq &> /dev/null; then
-   echo "Error: 'curl' and 'jq' are required." >&2; exit 1; fi
-
-
-# --- Helper Function for Idempotent Asset Creation ---
+# --- Helper: get_or_create_asset ---
 get_or_create_asset() {
-   local asset_type="$1"; local asset_name="$2"; local filter_q="$3"; local create_payload="$4"; local existing_id=""
-   echo "--- Managing ${asset_type^}: '$asset_name' ---" >&2
-   local get_response; get_response=$(curl -s -G "$SUPERSET_URL/api/v1/$asset_type/" -H "Authorization: Bearer $TOKEN" --data-urlencode "$filter_q")
-   existing_id=$(echo "$get_response" | jq -r '.result[0].id // empty')
-   if [[ -n "$existing_id" ]]; then echo "${asset_type^} '$asset_name' already exists with ID: $existing_id" >&2; echo "$existing_id"; return; fi
-   echo "${asset_type^} '$asset_name' not found, creating it..." >&2
-   local create_response; create_response=$(curl -s -X POST "$SUPERSET_URL/api/v1/$asset_type/" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" -H "Content-Type: application/json" -d "$create_payload")
-   local new_id; new_id=$(echo "$create_response" | jq -r '.id // empty')
-   if [[ -z "$new_id" ]]; then echo "Failed to create ${asset_type} '$asset_name'. Response: $create_response" >&2; exit 1; fi
-   echo "${asset_type^} '$asset_name' created with ID: $new_id" >&2; echo "$new_id"
+  local type=$1 name=$2 filter_q=$3 payload=$4
+  echo "--- Managing ${type^}: '$name' ---" >&2
+  local existing; existing=$(curl -s -G "$SUPERSET_URL/api/v1/$type/" \
+    -H "Authorization: Bearer $TOKEN" \
+    --data-urlencode "$filter_q" \
+    | jq -r '.result[0].id // empty')
+  if [[ -n $existing ]]; then
+    echo "$type '$name' exists with ID $existing" >&2
+    echo "$existing"; return
+  fi
+  echo "$type '$name' not found, creating…" >&2
+  local created; created=$(curl -s -X POST "$SUPERSET_URL/api/v1/$type/" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "X-CSRFToken: $CSRF_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "$payload")
+  echo "$created" >&2
+  echo "$created" | jq -r '.id'
 }
 
+# --- 1) Auth ---
+echo "Waiting for Superset…" >&2
+until curl -s "$SUPERSET_URL/api/v1/ping" &>/dev/null; do sleep 1; done
+sleep 5
+LOGIN=$(curl -s -X POST "$SUPERSET_URL/api/v1/security/login" \
+  -H 'Content-Type: application/json' \
+  -d "{\"username\":\"$SUPERSET_USERNAME\",\"password\":\"$SUPERSET_PASSWORD\",\"provider\":\"db\"}")
+TOKEN=$(echo "$LOGIN" | jq -r .access_token)
+CSRF_TOKEN=$(curl -s -H "Authorization: Bearer $TOKEN" \
+  "$SUPERSET_URL/api/v1/security/csrf_token/" | jq -r .result)
+echo "Authenticated." >&2
 
-# --- 1. Authentication ---
-echo "Waiting for Superset API..." >&2
-until curl -s "$SUPERSET_URL/api/v1/ping" &> /dev/null; do sleep 1 && printf "."; done
-echo -e "\nSuperset is up." >&2
-
-
-echo "Waiting for Superset to fully initialize..." >&2
-sleep 10
-
-
-LOGIN_RESPONSE=$(curl -s -X POST "$SUPERSET_URL/api/v1/security/login" -H 'Content-Type: application/json' -d "{\"username\": \"$SUPERSET_USERNAME\", \"password\": \"$SUPERSET_PASSWORD\", \"provider\": \"db\"}")
-TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.access_token // empty')
-[[ -z "$TOKEN" ]] && echo "Login failed. Response: $LOGIN_RESPONSE" >&2 && exit 1
-echo "Login successful." >&2
-CSRF_TOKEN=$(curl -s -H "Authorization: Bearer $TOKEN" "$SUPERSET_URL/api/v1/security/csrf_token/" | jq -r '.result // empty')
-[[ -z "$CSRF_TOKEN" ]] && echo "Failed to get CSRF token." >&2 && exit 1
-echo "Got CSRF token." >&2
-
-# --- 2. Get or Create Database (with view exposure) ---
-DB_FILTER_Q="q=$(jq -n --arg name "$DB_NAME" \
-  '{filters:[{col:"database_name",opr:"eq",value:$name}]}')"
-
-# note: extra must be passed as a STRING containing JSON
-CREATE_DB_PAYLOAD=$(jq -n \
-  --arg name   "$DB_NAME" \
-  --arg uri    "$SQLALCHEMY_URI" \
-  --argjson expose true \
-  --arg extra  '{"show_views": true}' \
-  '{
-     database_name:  $name,
-     sqlalchemy_uri: $uri,
-     expose_in_sqllab: $expose,
-     extra:           $extra
-   }'
-)
-
-DB_ID=$(get_or_create_asset "database" \
-       "$DB_NAME" "$DB_FILTER_Q" "$CREATE_DB_PAYLOAD")
-
-echo "  – Ensuring views are exposed and refreshing metadata…" >&2
-
-# update the same extra (again, as a STRING)
-UPDATE_DB_PAYLOAD=$(jq -n \
+# --- 2) Database w/ views ---
+DB_FILTER="q=$(jq -n --arg n "$DB_NAME" \
+  '{filters:[{col:"database_name",opr:"eq",value:$n}]}')"
+DB_PAYLOAD=$(jq -n \
+  --arg n "$DB_NAME" \
+  --arg uri "$SQLALCHEMY_URI" \
   --arg extra '{"show_views": true}' \
-  '{extra: $extra}'
-)
+  '{database_name:$n,sqlalchemy_uri:$uri,expose_in_sqllab:true,extra:$extra}')
+DB_ID=$(get_or_create_asset database "$DB_NAME" "$DB_FILTER" "$DB_PAYLOAD")
 
+# ensure views are shown
 curl -s -X PUT "$SUPERSET_URL/api/v1/database/$DB_ID" \
-     -H "Authorization: Bearer $TOKEN" \
-     -H "X-CSRFToken: $CSRF_TOKEN" \
-     -H "Content-Type: application/json" \
-     -d "$UPDATE_DB_PAYLOAD" >/dev/null
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-CSRFToken: $CSRF_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"extra":"{\"show_views\": true}"}' >/dev/null
 
-# now ask Superset to re‐scan for tables & views
+# initial refresh
 curl -s -X POST "$SUPERSET_URL/api/v1/database/$DB_ID/refresh" \
-     -H "Authorization: Bearer $TOKEN" \
-     -H "X-CSRFToken: $CSRF_TOKEN" >/dev/null
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-CSRFToken: $CSRF_TOKEN" >/dev/null
 
-# ─── 2.x: Wait for Superset to register your table ───
-echo "Waiting for '$DATASET_TABLE_NAME' in Superset metadata…" >&2
-FOUND=0
+# ── Poll until the MV shows up ──
+echo "Waiting for '$DATASET_TABLE_NAME' to appear…" >&2
 for i in {1..12}; do
   sleep 5
-  echo "  🔄 Check #$i…" >&2
-
-  # fetch the tables JSON
-  TABLES_JSON=$(curl -s -G "$SUPERSET_URL/api/v1/database/$DB_ID/tables/" \
-                   --data-urlencode "q=(force:!f,schema_name:public)" \
-                   -H "Authorization: Bearer $TOKEN")
-
-  # debug: print raw JSON (truncated)
-  echo "    → Raw response (truncated): ${TABLES_JSON:0:300}..." >&2
-
-  # debug: count how many entries
-  COUNT=$(echo "$TABLES_JSON" | jq '.result | length' 2>/dev/null || echo "null")
-  echo "    → .result length: $COUNT" >&2
-
-  # debug: list (type,value) of each entry
-  echo "    → Entries:"
-  echo "$TABLES_JSON" | jq -r '.result[] | "\(.type): \(.value)"' >&2
-
-  # now test for your specific table under .value
-  MATCH=$(echo "$TABLES_JSON" | jq -r --arg t "$DATASET_TABLE_NAME" \
-            'any(.result[]; .value == $t)')
-  echo "    → match value == \"$DATASET_TABLE_NAME\": $MATCH" >&2
-
-  if [[ "$MATCH" == "true" ]]; then
-    FOUND=1
-    echo "  ✅ Found '$DATASET_TABLE_NAME'!" >&2
+  echo " Check #$i…" >&2
+  RESP=$(curl -s -G "$SUPERSET_URL/api/v1/database/$DB_ID/tables/" \
+    -H "Authorization: Bearer $TOKEN" \
+    --data-urlencode 'q=(force:!f,schema_name:public)')
+  if echo "$RESP" | jq -e --arg t "$DATASET_TABLE_NAME" 'any(.result[]; .value == $t)' &>/dev/null; then
+    echo " ✅ Found '$DATASET_TABLE_NAME'" >&2
     break
   fi
 done
 
-if [[ $FOUND -ne 1 ]]; then
-  echo "❌ ERROR: Table '$DATASET_TABLE_NAME' never showed up in Superset." >&2
-  exit 1
-fi
-
-# --- 3. Get or Create Dataset ---
-DATASET_FILTER_Q=$(
-  jq -n --arg name "$DATASET_TABLE_NAME" \
-  '{filters:[{col:"table_name",opr:"eq",value:$name}]}'
-)
-DATASET_FILTER_Q="q=$DATASET_FILTER_Q"
-
-CREATE_DATASET_PAYLOAD=$(
-  jq -n \
-    --arg db_id "$DB_ID" \
-    --arg tbl   "$DATASET_TABLE_NAME" \
-  '{
-     "database_id":      ($db_id | tonumber),
-     "table_name":    $tbl,
-     "schema":        "public",
-     "owners":        [1],
-   }'
-)
+# --- 3) Create Dataset on the MV ---
+FILTER_Q="q=$(jq -n --arg t "$DATASET_TABLE_NAME" \
+  '{filters:[{col:"table_name",opr:"eq",value:$t}]}')"
+PAYLOAD=$(jq -n \
+  --arg db "$DB_ID" \
+  --arg tbl "$DATASET_TABLE_NAME" \
+  '{database:( $db|tonumber ),table_name:$tbl,schema:"public",owners:[1]}')
 
 echo
-echo ">>> DEBUG: dataset filter q  = $DATASET_FILTER_Q"
-echo ">>> DEBUG: create payload ="
-echo "$CREATE_DATASET_PAYLOAD" | jq .
+echo ">>> DEBUG: dataset filter = $FILTER_Q" >&2
+echo ">>> DEBUG: payload =" 
+echo "$PAYLOAD" | jq . >&2
 
-echo
-echo ">>> DEBUG: creating dataset with payload:"
-echo "$CREATE_DATASET_PAYLOAD" | jq .
+# verbose create
+curl -v -X POST "$SUPERSET_URL/api/v1/dataset/" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-CSRFToken: $CSRF_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "$PAYLOAD" || true
 
-RAW_CREATE_RESP=$(
-  curl -s -w "\n%{http_code}" \
-    -X POST "$SUPERSET_URL/api/v1/dataset/" \
-    -H "Authorization: Bearer $TOKEN" \
-    -H "X-CSRFToken: $CSRF_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d "$CREATE_DATASET_PAYLOAD"
-)
+# now idempotently get_or_create
+DATASET_ID=$(get_or_create_asset dataset "$DATASET_NAME" \
+  "$FILTER_Q" "$PAYLOAD")
 
-# split body and status
-HTTP_STATUS=$(echo "$RAW_CREATE_RESP" | tail -n1)
-CREATE_BODY=$(echo "$RAW_CREATE_RESP" | sed '$d')
-
-echo ">>> DEBUG: HTTP status: $HTTP_STATUS" >&2
-echo ">>> DEBUG: body:" >&2
-echo "$CREATE_BODY" | jq . >&2
-
-if [[ "$HTTP_STATUS" != "201" ]]; then
-  echo "❌ Dataset create failed; see debug above." >&2
-  exit 1
-fi
-
-DATASET_ID=$(
-  get_or_create_asset "dataset" \
-    "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD"
-)
+# ...then set time, metrics, charts, dashboard as before...
 
 #wait and set main time
 echo "--- Configuring dataset properties ---" >&2
