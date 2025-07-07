@@ -173,9 +173,8 @@ echo "••• [DEBUG] Verifying sink table in RisingWave •••" >&2
 psql -h risingwave -U root -d dev -c "\dt public.*" >&2
 
 # 2) Try to select from your sink table (this will fail if it doesn't exist)
-echo "→ Row count in $DATASET_TABLE_NAME:"
-psql -h risingwave -U root -d dev -t -c "SELECT COUNT(*) FROM public.$DATASET_TABLE_NAME;" >&2
-
+psql -h localhost -p 4566 -U root -d dev -t \
+  -c "SELECT COUNT(*) FROM public.$DATASET_TABLE_NAME;" >&2
 
 curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" > /dev/null
 
