@@ -170,7 +170,7 @@ echo "--- Configuring dataset properties ---" >&2
 echo "••• [DEBUG] Verifying sink table in RisingWave •••" >&2
 
 # 1) List all tables in 'public' so you see exactly what RisingWave has
-psql -h risingwave -U root -d dev -c "\dt public.*" >&2
+psql -h localhost -p 4566 -U root -d dev -c "\dt public.*" >&2
 
 # 2) Try to select from your sink table (this will fail if it doesn't exist)
 psql -h localhost -p 4566 -U root -d dev -t \
