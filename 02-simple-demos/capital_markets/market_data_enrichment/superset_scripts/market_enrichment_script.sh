@@ -136,48 +136,44 @@ if [[ $FOUND -ne 1 ]]; then
   exit 1
 fi
 
-# --- 3. Get or Create Dataset ---
-DATASET_FILTER_Q=$(
-  jq -n --arg name "$DATASET_TABLE_NAME" 
-  '{filters:[{col:"table_name",opr:"eq",value:$name}]}'
-)
-DATASET_FILTER_Q="q=$DATASET_FILTER_Q"
 
-CREATE_DATASET_PAYLOAD=$( 
-  jq -n \
-    --arg db_id "$DB_ID" \
-    --arg tbl   "$DATASET_TABLE_NAME" \
+# --- 3. Get or Create Dataset ---
+# Build filter JSON for dataset lookup
+FILTER_JSON=$(jq -n --arg name "$DATASET_TABLE_NAME" \
+  '{filters:[{col:"table_name",opr:"eq",value:$name}]}')
+DATASET_FILTER_Q="q=$FILTER_JSON"
+
+# Build dataset creation payload
+CREATE_DATASET_PAYLOAD=$(jq -n \
+  --arg db "$DB_ID" \
+  --arg tbl "$DATASET_TABLE_NAME" \
   '{
-     "database":      ($db_id | tonumber),
-     "table_name":    $tbl,
-     "schema":        "public",
-     "owners":        [1]
+     "database":   ($db | tonumber),
+     "table_name": $tbl,
+     "schema":     "public",
+     "owners":     [1]
    }'
 )
 
-# === PATCH BEGINS ===
-echo "\n✔️ DB_ID resolved as: $DB_ID" >&2
+# === DEBUG & MANUAL CURL ===
+echo "✔️ DB_ID resolved as: $DB_ID" >&2
+echo ">>> DEBUG: dataset create payload (POST /dataset/)" >&2
+echo "$CREATE_DATASET_PAYLOAD" | jq . >&2
 
-echo "\n>>> DEBUG: dataset create payload (POST /dataset/)"
-echo "$CREATE_DATASET_PAYLOAD" | jq .
+echo ">>> DEBUG: manual curl:" >&2
+echo "curl -i -X POST \"$SUPERSET_URL/api/v1/dataset/\" \\" >&2
+echo "  -H \"Authorization: Bearer $TOKEN\" \\" >&2
+echo "  -H \"X-CSRFToken: $CSRF_TOKEN\" \\" >&2
+echo "  -H \"Content-Type: application/json\" \\" >&2
+echo "  -d '$CREATE_DATASET_PAYLOAD'" >&2
 
-
-echo
-echo ">>> DEBUG: Run this manually to test:"
-echo "curl -i -X POST \"$SUPERSET_URL/api/v1/dataset/\" \\
-  -H \"Authorization: Bearer $TOKEN\" \\
-  -H \"X-CSRFToken: $CSRF_TOKEN\" \\
-  -H \"Content-Type: application/json\" \\
-  -d '$CREATE_DATASET_PAYLOAD'"
-echo
-
-RAW_CREATE_RESP=$( 
-  curl -s -w "\n%{http_code}" \
-    -X POST "$SUPERSET_URL/api/v1/dataset/" \
-    -H "Authorization: Bearer $TOKEN" \
-    -H "X-CSRFToken: $CSRF_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d "$CREATE_DATASET_PAYLOAD"
+# Send dataset creation request
+RAW_CREATE_RESP=$(curl -s -w "\n%{http_code}" \
+  -X POST "$SUPERSET_URL/api/v1/dataset/" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-CSRFToken: $CSRF_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "$CREATE_DATASET_PAYLOAD"
 )
 
 # Split response
@@ -193,15 +189,16 @@ if [[ "$HTTP_STATUS" != "201" ]]; then
   exit 1
 fi
 
-
-DATASET_ID=$( 
+# Finally, look up (or re-create) the dataset by table_name
+DATASET_ID=$(
   get_or_create_asset "dataset" \
     "$DATASET_TABLE_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD"
 )
 
+
 #wait and set main time
 echo "--- Configuring dataset properties ---" >&2
-echo "••• [DEBUG] Verifying sink table in RisingWave •••" >&2s
+echo "••• [DEBUG] Verifying sink table in RisingWave •••" >&2
 
 curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" > /dev/null
 
