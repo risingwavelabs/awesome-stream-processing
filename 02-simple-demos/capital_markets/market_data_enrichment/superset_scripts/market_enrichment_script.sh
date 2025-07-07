@@ -160,6 +160,32 @@ echo ">>> DEBUG: dataset filter q  = $DATASET_FILTER_Q"
 echo ">>> DEBUG: create payload ="
 echo "$CREATE_DATASET_PAYLOAD" | jq .
 
+echo
+echo ">>> DEBUG: creating dataset with payload:"
+echo "$CREATE_DATASET_PAYLOAD" | jq .
+
+RAW_CREATE_RESP=$(
+  curl -s -w "\n%{http_code}" \
+    -X POST "$SUPERSET_URL/api/v1/dataset/" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "X-CSRFToken: $CSRF_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "$CREATE_DATASET_PAYLOAD"
+)
+
+# split body and status
+HTTP_STATUS=$(echo "$RAW_CREATE_RESP" | tail -n1)
+CREATE_BODY=$(echo "$RAW_CREATE_RESP" | sed '$d')
+
+echo ">>> DEBUG: HTTP status: $HTTP_STATUS" >&2
+echo ">>> DEBUG: body:" >&2
+echo "$CREATE_BODY" | jq . >&2
+
+if [[ "$HTTP_STATUS" != "201" ]]; then
+  echo "❌ Dataset create failed; see debug above." >&2
+  exit 1
+fi
+
 DATASET_ID=$(
   get_or_create_asset "dataset" \
     "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD"
