@@ -136,20 +136,34 @@ if [[ $FOUND -ne 1 ]]; then
   exit 1
 fi
 
-
-
 # --- 3. Get or Create Dataset ---
-DATASET_FILTER_Q='q='$(jq -n --arg name "$DATASET_TABLE_NAME" \
-  '{filters:[{col:"table_name",opr:"eq",value:$name}]}')
+DATASET_FILTER_Q=$(
+  jq -n --arg name "$DATASET_TABLE_NAME" \
+  '{filters:[{col:"table_name",opr:"eq",value:$name}]}'
+)
+DATASET_FILTER_Q="q=$DATASET_FILTER_Q"
 
-CREATE_DATASET_PAYLOAD=$(jq -n --argjson db_id \"$DB_ID\" --arg table_name \"$DATASET_TABLE_NAME\" '{
-   database:   ($db_id|tonumber),
-   table_name: $table_name,
-   schema:     "public",
-   owners:     [1]
-   }')
-DATASET_ID=$(get_or_create_asset "dataset" "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD")
+CREATE_DATASET_PAYLOAD=$(
+  jq -n \
+    --arg db_id "$DB_ID" \
+    --arg tbl   "$DATASET_TABLE_NAME" \
+  '{
+     database:   ($db_id | tonumber),
+     table_name: $tbl,
+     schema:     "public",
+     owners:     [1]
+   }'
+)
 
+echo
+echo ">>> DEBUG: dataset filter q  = $DATASET_FILTER_Q"
+echo ">>> DEBUG: create payload ="
+echo "$CREATE_DATASET_PAYLOAD" | jq .
+
+DATASET_ID=$(
+  get_or_create_asset "dataset" \
+    "$DATASET_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD"
+)
 
 #wait and set main time
 echo "--- Configuring dataset properties ---" >&2
