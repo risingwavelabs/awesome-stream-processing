@@ -148,7 +148,7 @@ CREATE_DATASET_PAYLOAD=$(
     --arg db_id "$DB_ID" \
     --arg tbl   "$DATASET_TABLE_NAME" \
   '{
-     "database_id":      ($db_id | tonumber),
+     "database":      ($db_id | tonumber),
      "table_name":    $tbl,
      "schema":        "public",
      "owners":        [1],
