@@ -152,7 +152,6 @@ CREATE_DATASET_PAYLOAD=$(
      "table_name":    $tbl,
      "schema":        "public",
      "owners":        [1],
-     "template_params": {}
    }'
 )
 
