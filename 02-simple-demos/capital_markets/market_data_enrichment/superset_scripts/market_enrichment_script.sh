@@ -137,30 +137,25 @@ if [[ $FOUND -ne 1 ]]; then
 fi
 
 #3 dataset creation
-DATASET_FILTER_Q="q=$(jq -n --arg tn \"$DATASET_TABLE_NAME\" \
-  '{filters:[{col:\"table_name\",opr:\"eq\",value:$tn}]}')"
+DATASET_FILTER_JSON=$(jq -nc --arg tn "$DATASET_TABLE_NAME" \
+  '{filters:[{col:"table_name",opr:"eq",value:$tn}]}')
+DATASET_FILTER_Q="q=$DATASET_FILTER_JSON"
 
-CREATE_DATASET_PAYLOAD=$(jq -n \
-  --arg db    \"$DB_ID\" \
-  --arg tn    \"$DATASET_TABLE_NAME\" \
-  --arg schema \"public\" \
-  '{
-     "database":   ($db|tonumber),
-     "table_name": $tn,
-     "schema":     $schema,
-     "owners":     [1]
-   }'
+CREATE_DATASET_PAYLOAD=$(jq -nc \
+  --arg db     "$DB_ID" \
+  --arg tn     "$DATASET_TABLE_NAME" \
+  --arg schema "public" \
+  '{database:($db|tonumber),table_name:$tn,schema:$schema,owners:[1]}'
 )
 
 DATASET_ID=$(
   get_or_create_asset "dataset" \
-    \"$DATASET_TABLE_NAME\" \"$DATASET_FILTER_Q\" \"$CREATE_DATASET_PAYLOAD\"
+    "$DATASET_TABLE_NAME" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD"
 )
 
-curl -s -X PUT \"$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh\" \
-     -H \"Authorization: Bearer \$TOKEN\" \
-     -H \"X-CSRFToken: \$CSRF_TOKEN\" >/dev/null
-
+curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" \
+     -H "Authorization: Bearer $TOKEN" \
+     -H "X-CSRFToken: $CSRF_TOKEN" >/dev/null
 echo "    - Waiting for Superset to discover table columns..." >&2
 POLL_ATTEMPTS=0; MAX_POLL_ATTEMPTS=20; COLUMNS_COUNT=0
 until [[ $COLUMNS_COUNT -gt 0 || $POLL_ATTEMPTS -ge $MAX_POLL_ATTEMPTS ]]; do
