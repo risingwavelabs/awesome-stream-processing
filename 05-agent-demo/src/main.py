@@ -9,13 +9,6 @@ from fastmcp import Client
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
-
-def extract_table_names(query):
-    """Extract table names from a SQL query string."""
-    cleaned = re.sub(r"\b(the|a|an)\b", "", query, flags=re.IGNORECASE)
-    return re.findall(r"(?:from|in|of|table|view|into)\s+([a-zA-Z0-9_]+)", cleaned, re.IGNORECASE)
-
-
 class RisingWaveMCPAgent:
     """Agent for interacting with RisingWave via MCP and Anthropic."""
 
