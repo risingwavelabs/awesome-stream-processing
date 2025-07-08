@@ -136,74 +136,30 @@ if [[ $FOUND -ne 1 ]]; then
   exit 1
 fi
 
-# --- 3. Get or Create Dataset ---
-# --- 3. Get or Create SQL Dataset on the MV ---
-SQL_QUERY="SELECT * FROM $DATASET_TABLE_NAME"
+#3 dataset creation
+DATASET_FILTER_Q="q=$(jq -n --arg tn \"$DATASET_TABLE_NAME\" \
+  '{filters:[{col:\"table_name\",opr:\"eq\",value:$tn}]}')"
 
-# 3.1 Build filter JSON for a saved‐query dataset
-FILTER_JSON=$(jq -n --arg sql "$SQL_QUERY" \
-  '{filters:[{col:"sql",opr:"eq",value:$sql}]}')
-DATASET_FILTER_Q="q=$FILTER_JSON"
-
-# 3.2 Build creation payload
 CREATE_DATASET_PAYLOAD=$(jq -n \
-  --arg db "$DB_ID" \
-  --arg sql "$SQL_QUERY" \
+  --arg db    \"$DB_ID\" \
+  --arg tn    \"$DATASET_TABLE_NAME\" \
+  --arg schema \"public\" \
   '{
      "database":   ($db|tonumber),
-     "sql":        $sql,
+     "table_name": $tn,
+     "schema":     $schema,
      "owners":     [1]
    }'
 )
 
-# 3.3 Debug / manual‐curl fallback
-echo "✔️ DB_ID resolved as: $DB_ID" >&2
-echo ">>> DEBUG: SQL dataset create payload" >&2
-echo "$CREATE_DATASET_PAYLOAD" | jq . >&2
-
-echo ">>> DEBUG: manual curl:" >&2
-echo "curl -i -X POST \"$SUPERSET_URL/api/v1/dataset/\" \\" >&2
-echo "  -H \"Authorization: Bearer \$TOKEN\" \\" >&2
-echo "  -H \"X-CSRFToken: \$CSRF_TOKEN\" \\" >&2
-echo "  -H \"Content-Type: application/json\" \\" >&2
-echo "  -d '\$CREATE_DATASET_PAYLOAD'" >&2
-
-# 3.4 Try to create it
-RAW_CREATE_RESP=$(curl -s -w "\n%{http_code}" \
-  -X POST "$SUPERSET_URL/api/v1/dataset/" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "X-CSRFToken: $CSRF_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d "$CREATE_DATASET_PAYLOAD"
+DATASET_ID=$(
+  get_or_create_asset "dataset" \
+    \"$DATASET_TABLE_NAME\" \"$DATASET_FILTER_Q\" \"$CREATE_DATASET_PAYLOAD\"
 )
 
-HTTP_STATUS=$(printf "%s\n" "$RAW_CREATE_RESP" | tail -n1)
-CREATE_BODY=$(printf "%s\n" "$RAW_CREATE_RESP" | sed '$d')
-
-echo ">>> DEBUG: HTTP status: $HTTP_STATUS" >&2
-echo ">>> DEBUG: body:" >&2
-echo "$CREATE_BODY" | jq . >&2
-
-if [[ "$HTTP_STATUS" == "201" ]]; then
-  # created successfully, parse new ID
-  DATASET_ID=$(echo "$CREATE_BODY" | jq -r '.id')
-elif [[ "$HTTP_STATUS" == "200" ]]; then
-  # already existed via get_or_create_asset logic—lookup via GET
-  DATASET_ID=$(
-    get_or_create_asset "dataset" \
-      "$SQL_QUERY" "$DATASET_FILTER_Q" "$CREATE_DATASET_PAYLOAD"
-  )
-else
-  echo "❌ SQL Dataset creation failed; see debug above." >&2
-  exit 1
-fi
-
-#wait and set main time
-echo "--- Configuring dataset properties ---" >&2
-echo "••• [DEBUG] Verifying sink table in RisingWave •••" >&2
-
-curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh" -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" > /dev/null
-
+curl -s -X PUT \"$SUPERSET_URL/api/v1/dataset/$DATASET_ID/refresh\" \
+     -H \"Authorization: Bearer \$TOKEN\" \
+     -H \"X-CSRFToken: \$CSRF_TOKEN\" >/dev/null
 
 echo "    - Waiting for Superset to discover table columns..." >&2
 POLL_ATTEMPTS=0; MAX_POLL_ATTEMPTS=20; COLUMNS_COUNT=0
@@ -290,7 +246,7 @@ echo "--- Creating charts ---" >&2
 CHART_1_FILTER_Q="q=$(jq -n --arg name "$CHART_1_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
 CHART_1_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
    "viz_type": "line",
-   "datasource": "\($ds_id)__query",
+   "datasource": "\($ds_id)__table",
    "granularity_sqla": "timestamp",
    "time_range": "No filter",
    "metrics": ["avg_price_change", "avg_rolling_volatility"],
@@ -317,7 +273,7 @@ CREATE_CHART_1_PAYLOAD=$(jq -n --arg name "$CHART_1_NAME" --argjson ds_id "$DATA
    "slice_name": $name,
    "viz_type": "line",
    "datasource_id": $ds_id,
-   "datasource_type": "query",
+   "datasource_type": "table",
    "params": ($params | tostring),
    "owners": [1]
 }')
@@ -328,7 +284,7 @@ CHART_1_ID=$(get_or_create_asset "chart" "$CHART_1_NAME" "$CHART_1_FILTER_Q" "$C
 CHART_2_FILTER_Q="q=$(jq -n --arg name "$CHART_2_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
 CHART_2_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
    "viz_type": "line",
-   "datasource": "\($ds_id)__query",
+   "datasource": "\($ds_id)__table",
    "granularity_sqla": "timestamp",
    "time_range": "No filter",
    "metrics": ["avg_bid_ask_spread"],
@@ -356,7 +312,7 @@ CREATE_CHART_2_PAYLOAD=$(jq -n --arg name "$CHART_2_NAME" --argjson ds_id "$DATA
    "slice_name": $name,
    "viz_type": "line",
    "datasource_id": $ds_id,
-   "datasource_type": "query",
+   "datasource_type": "table",
    "params": ($params | tostring),
    "owners": [1]
 }')
@@ -366,7 +322,7 @@ CHART_2_ID=$(get_or_create_asset "chart" "$CHART_2_NAME" "$CHART_2_FILTER_Q" "$C
 CHART_3_FILTER_Q="q=$(jq -n --arg name "$CHART_3_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
 CHART_3_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
    "viz_type": "line",
-   "datasource": "\($ds_id)__query",
+   "datasource": "\($ds_id)__table",
    "granularity_sqla": "timestamp",
    "time_range": "No filter",
    "metrics": ["avg_sentiment"],
@@ -393,7 +349,7 @@ CREATE_CHART_3_PAYLOAD=$(jq -n --arg name "$CHART_3_NAME" --argjson ds_id "$DATA
    "slice_name": $name,
    "viz_type": "line",
    "datasource_id": $ds_id,
-   "datasource_type": "query",
+   "datasource_type": "table",
    "params": ($params | tostring),
    "owners": [1]
 }')
@@ -403,7 +359,7 @@ CHART_3_ID=$(get_or_create_asset "chart" "$CHART_3_NAME" "$CHART_3_FILTER_Q" "$C
 CHART_4_FILTER_Q="q=$(jq -n --arg name "$CHART_4_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
 CHART_4_PARAMS=$(jq -n --argjson ds_id "$DATASET_ID" '{
    "viz_type": "pie",
-   "datasource": "\($ds_id)__query",
+   "datasource": "\($ds_id)__table",
    "time_range": "No filter",
    "metric": "sum_price_change",
    "groupby": ["asset_id"],
@@ -420,7 +376,7 @@ CREATE_CHART_4_PAYLOAD=$(jq -n --arg name "$CHART_4_NAME" --argjson ds_id "$DATA
    "slice_name": $name,
    "viz_type": "pie",
    "datasource_id": $ds_id,
-   "datasource_type": "query",
+   "datasource_type": "table",
    "params": ($params | tostring),
    "owners": [1]
 }')
