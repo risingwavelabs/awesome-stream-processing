@@ -10,7 +10,7 @@ CREATE SOURCE raw_market_data (
   topic = 'raw_market_data',
   properties.bootstrap.servers = 'localhost:9092',
   scan.startup.mode = 'earliest-offset'
-) FORMAT = 'json';
+) FORMAT PLAIN ENCODE JSON;
 
 CREATE SOURCE enrichment_data (
     asset_id INT,
@@ -24,7 +24,7 @@ CREATE SOURCE enrichment_data (
     topic = 'enrichment_data',
     properties.bootstrap.servers = 'localhost:9092',
     scan.startup.mode = 'earliest-offset'
-) FORMAT = 'json';
+) FORMAT PLAIN ENCODE JSON;
 
 -- Base tables
 CREATE TABLE IF NOT EXISTS raw_market_data (

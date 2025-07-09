@@ -17,7 +17,7 @@ try:
     while True:
         # Insert raw market data
         for asset_id in asset_ids:
-            timestamp = datetime.now().isoforxmat()
+            timestamp = datetime.now().isoformat()
             price = round(random.uniform(50, 150), 2)
             volume = random.randint(100, 5000)
             bid_price = round(price - random.uniform(0.1, 0.5), 2)
