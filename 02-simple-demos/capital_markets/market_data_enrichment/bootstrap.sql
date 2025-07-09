@@ -1,3 +1,31 @@
+CREATE SOURCE raw_market_data (
+  asset_id     INT,
+  timestamp    TIMESTAMPTZ,
+  price        DOUBLE,
+  volume       INT,
+  bid_price    DOUBLE,
+  ask_price    DOUBLE
+) WITH (
+  connector = 'kafka',
+  topic = 'raw_market_data',
+  properties.bootstrap.servers = 'localhost:9092',
+  scan.startup.mode = 'earliest-offset'
+) FORMAT = 'json';
+
+CREATE SOURCE enrichment_data (
+    asset_id INT,
+    sector VARCHAR,
+    historical_volatility DOUBLE,
+    sector_performance DOUBLE,
+    sentiment_score DOUBLE,
+    timestamp TIMESTAMP
+) WITH (
+    connector = 'kafka',
+    topic = 'enrichment_data',
+    properties.bootstrap.servers = 'localhost:9092',
+    scan.startup.mode = 'earliest-offset'
+) FORMAT = 'json';
+
 -- Base tables
 CREATE TABLE IF NOT EXISTS raw_market_data (
   asset_id INT,

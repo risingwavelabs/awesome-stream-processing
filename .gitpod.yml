@@ -144,6 +144,25 @@ tasks:
           fi
 
           # Any additional market enrichment specific setup
+          # Create the raw_market_data topic
+          docker exec kafka \
+            kafka-topics.sh \
+              --bootstrap-server kafka:9092 \
+              --create \
+              --topic raw_market_data \
+              --partitions 1 \
+              --replication-factor 1
+
+          # Create the enrichment_data topic
+          docker exec kafka \
+            kafka-topics.sh \
+              --bootstrap-server kafka:9092 \
+              --create \
+              --topic enrichment_data \
+              --partitions 1 \
+              --replication-factor 1
+          # Verify
+          docker exec kafka kafka-topics.sh --bootstrap-server kafka:9092 --list
               # After everything is ready
           echo "Setting up Superset dashboard"
           chmod +x superset_scripts/market_enrichment_script.sh
