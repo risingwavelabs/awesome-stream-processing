@@ -1,30 +1,30 @@
-CREATE SOURCE raw_market_data (
-  asset_id     INT,
-  timestamp    TIMESTAMPTZ,
-  price        DOUBLE,
-  volume       INT,
-  bid_price    DOUBLE,
-  ask_price    DOUBLE
-) WITH (
-  connector = 'kafka',
-  topic = 'raw_market_data',
-  properties.bootstrap.servers = 'localhost:9092',
-  scan.startup.mode = 'earliest-offset'
-) FORMAT PLAIN ENCODE JSON;
+-- CREATE SOURCE raw_market_data (
+--   asset_id     INT,
+--   timestamp    TIMESTAMPTZ,
+--   price        DOUBLE,
+--   volume       INT,
+--   bid_price    DOUBLE,
+--   ask_price    DOUBLE
+-- ) WITH (
+--   connector = 'kafka',
+--   topic = 'raw_market_data',
+--   properties.bootstrap.servers = 'localhost:9092',
+--   scan.startup.mode = 'earliest-offset'
+-- ) FORMAT PLAIN ENCODE JSON;
 
-CREATE SOURCE enrichment_data (
-    asset_id INT,
-    sector VARCHAR,
-    historical_volatility DOUBLE,
-    sector_performance DOUBLE,
-    sentiment_score DOUBLE,
-    timestamp TIMESTAMP
-) WITH (
-    connector = 'kafka',
-    topic = 'enrichment_data',
-    properties.bootstrap.servers = 'localhost:9092',
-    scan.startup.mode = 'earliest-offset'
-) FORMAT PLAIN ENCODE JSON;
+-- CREATE SOURCE enrichment_data (
+--     asset_id INT,
+--     sector VARCHAR,
+--     historical_volatility DOUBLE,
+--     sector_performance DOUBLE,
+--     sentiment_score DOUBLE,
+--     timestamp TIMESTAMP
+-- ) WITH (
+--     connector = 'kafka',
+--     topic = 'enrichment_data',
+--     properties.bootstrap.servers = 'localhost:9092',
+--     scan.startup.mode = 'earliest-offset'
+-- ) FORMAT PLAIN ENCODE JSON;
 
 -- Base tables
 CREATE TABLE IF NOT EXISTS raw_market_data (
@@ -95,41 +95,41 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS enriched_market_data AS
     AND rmd.timestamp BETWEEN ed.timestamp - INTERVAL '2 seconds' AND ed.timestamp + INTERVAL '2 seconds';
 
 
-CREATE TABLE avg_price_bid_ask_spread_table (
-  asset_id INT,
-  average_price NUMERIC,
-  bid_ask_spread NUMERIC,
-  timestamp TIMESTAMPTZ,
-  PRIMARY KEY(asset_id, timestamp)
-);
+-- CREATE TABLE avg_price_bid_ask_spread_table (
+--   asset_id INT,
+--   average_price NUMERIC,
+--   bid_ask_spread NUMERIC,
+--   timestamp TIMESTAMPTZ,
+--   PRIMARY KEY(asset_id, timestamp)
+-- );
 
-CREATE TABLE rolling_volatility_table (
-  asset_id INT,
-  rolling_volatility NUMERIC,
-  timestamp TIMESTAMPTZ,
-  PRIMARY KEY(asset_id, timestamp)
-);
+-- CREATE TABLE rolling_volatility_table (
+--   asset_id INT,
+--   rolling_volatility NUMERIC,
+--   timestamp TIMESTAMPTZ,
+--   PRIMARY KEY(asset_id, timestamp)
+-- );
 
-CREATE TABLE enriched_market_data_table (
-  asset_id INT,
-  average_price NUMERIC,
-  price_change NUMERIC,
-  bid_ask_spread NUMERIC,
-  rolling_volatility NUMERIC,
-  sector_performance NUMERIC,
-  sentiment_score NUMERIC,
-  timestamp TIMESTAMPTZ,
-  PRIMARY KEY(asset_id, timestamp)
-);
+-- CREATE TABLE enriched_market_data_table (
+--   asset_id INT,
+--   average_price NUMERIC,
+--   price_change NUMERIC,
+--   bid_ask_spread NUMERIC,
+--   rolling_volatility NUMERIC,
+--   sector_performance NUMERIC,
+--   sentiment_score NUMERIC,
+--   timestamp TIMESTAMPTZ,
+--   PRIMARY KEY(asset_id, timestamp)
+-- );
 
-CREATE SINK average_price_sink
-INTO avg_price_bid_ask_spread_table
-FROM avg_price_bid_ask_spread;
+-- CREATE SINK average_price_sink
+-- INTO avg_price_bid_ask_spread_table
+-- FROM avg_price_bid_ask_spread;
 
-CREATE SINK volatility_sink
-INTO rolling_volatility_table
-FROM rolling_volatility;
+-- CREATE SINK volatility_sink
+-- INTO rolling_volatility_table
+-- FROM rolling_volatility;
 
-CREATE SINK enrichment_sink 
-INTO enriched_market_data_table
-FROM enriched_market_data;
+-- CREATE SINK enrichment_sink 
+-- INTO enriched_market_data_table
+-- FROM enriched_market_data;
