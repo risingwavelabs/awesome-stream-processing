@@ -68,34 +68,40 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS enriched_market_data AS
 
 
 CREATE TABLE avg_price_bid_ask_spread_table (
-  asset_id        INT,
-  average_price   NUMERIC,
-  bid_ask_spread  NUMERIC,
-  timestamp       TIMESTAMPTZ,
+  asset_id INT,
+  average_price NUMERIC,
+  bid_ask_spread NUMERIC,
+  timestamp TIMESTAMPTZ,
   PRIMARY KEY(asset_id, timestamp)
 );
 
 CREATE TABLE rolling_volatility_table (
-  asset_id          INT,
+  asset_id INT,
   rolling_volatility NUMERIC,
-  timestamp         TIMESTAMPTZ,
+  timestamp TIMESTAMPTZ,
   PRIMARY KEY(asset_id, timestamp)
 );
 
 CREATE TABLE enriched_market_data_table (
-  asset_id            INT,
-  average_price       NUMERIC,
-  price_change        NUMERIC,
-  bid_ask_spread      NUMERIC,
-  rolling_volatility  NUMERIC,
-  sector_performance  NUMERIC,
-  sentiment_score     NUMERIC,
-  timestamp           TIMESTAMPTZ,
+  asset_id INT,
+  average_price NUMERIC,
+  price_change NUMERIC,
+  bid_ask_spread NUMERIC,
+  rolling_volatility NUMERIC,
+  sector_performance NUMERIC,
+  sentiment_score NUMERIC,
+  timestamp TIMESTAMPTZ,
   PRIMARY KEY(asset_id, timestamp)
 );
 
-CREATE SINK average_price_sink INTO avg_price_bid_ask_spread_table FROM avg_price_bid_ask_spread;
+CREATE SINK average_price_sink
+INTO avg_price_bid_ask_spread_table
+FROM avg_price_bid_ask_spread;
 
-CREATE SINK volatility_sink INTO rolling_volatility_table FROM rolling_volatility;
+CREATE SINK volatility_sink
+INTO rolling_volatility_table
+FROM rolling_volatility;
 
-CREATE SINK enrichment_sink INTO enriched_market_data_table FROM enriched_market_data
+CREATE SINK enrichment_sink 
+INTO enriched_market_data_table
+FROM enriched_market_data;

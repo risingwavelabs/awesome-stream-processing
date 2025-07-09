@@ -79,7 +79,7 @@ DB_ID=$(get_or_create_asset "database" \
 
 echo "  – Ensuring views are exposed and refreshing metadata…" >&2
 
-# update the same extra (again, as a STRING)
+# update the same extra
 UPDATE_DB_PAYLOAD=$(jq -n \
   --arg extra '{"show_views": true}' \
   '{extra: $extra}'
@@ -107,29 +107,6 @@ for i in {1..12}; do
   TABLES_JSON=$(curl -s -G "$SUPERSET_URL/api/v1/database/$DB_ID/tables/" \
                    --data-urlencode "q=(force:!f,schema_name:public)" \
                    -H "Authorization: Bearer $TOKEN")
-
-  # debug: print raw JSON (truncated)
-  echo "    → Raw response (truncated): ${TABLES_JSON:0:300}..." >&2
-
-  # debug: count how many entries
-  COUNT=$(echo "$TABLES_JSON" | jq '.result | length' 2>/dev/null || echo "null")
-  echo "    → .result length: $COUNT" >&2
-
-  # debug: list (type,value) of each entry
-  echo "    → Entries:"
-  echo "$TABLES_JSON" | jq -r '.result[] | "\(.type): \(.value)"' >&2
-
-  # now test for your specific table under .value
-  MATCH=$(echo "$TABLES_JSON" | jq -r --arg t "$DATASET_TABLE_NAME" \
-            'any(.result[]; .value == $t)')
-  echo "    → match value == \"$DATASET_TABLE_NAME\": $MATCH" >&2
-
-  if [[ "$MATCH" == "true" ]]; then
-    FOUND=1
-    echo "  ✅ Found '$DATASET_TABLE_NAME'!" >&2
-    break
-  fi
-done
 
 if [[ $FOUND -ne 1 ]]; then
   echo "❌ ERROR: Table '$DATASET_TABLE_NAME' never showed up in Superset." >&2
