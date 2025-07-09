@@ -79,7 +79,7 @@ DB_ID=$(get_or_create_asset "database" \
 
 echo "  – Ensuring views are exposed and refreshing metadata…" >&2
 
-# update the same extra
+# update the same extra (again, as a STRING)
 UPDATE_DB_PAYLOAD=$(jq -n \
   --arg extra '{"show_views": true}' \
   '{extra: $extra}'
@@ -108,8 +108,20 @@ for i in {1..12}; do
                    --data-urlencode "q=(force:!f,schema_name:public)" \
                    -H "Authorization: Bearer $TOKEN")
 
+  # now test for your specific table under .value
+  MATCH=$(echo "$TABLES_JSON" | jq -r --arg t "$DATASET_TABLE_NAME" \
+            'any(.result[]; .value == $t)')
+  echo "    → match value == \"$DATASET_TABLE_NAME\": $MATCH" >&2
+
+  if [[ "$MATCH" == "true" ]]; then
+    FOUND=1
+    echo "Found '$DATASET_TABLE_NAME'!" >&2
+    break
+  fi
+done
+
 if [[ $FOUND -ne 1 ]]; then
-  echo "❌ ERROR: Table '$DATASET_TABLE_NAME' never showed up in Superset." >&2
+  echo "ERROR: Table '$DATASET_TABLE_NAME' never showed up in Superset." >&2
   exit 1
 fi
 
