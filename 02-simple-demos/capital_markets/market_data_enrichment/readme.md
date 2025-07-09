@@ -94,38 +94,29 @@ JOIN
 
 See the [Official Superset Quickstart guide](https://superset.apache.org/docs/quickstart/) for Superset installation and start up.
 
-## Step 6: Connect PostgreSQL to Database
-
-```terminal
-# on Ubuntu
-psql -h localhost -p 5432 -d postgres -U postgres
-
-# on Mac the default user is the installing user
-psql -h localhost -p 5432 -d postgres -U $(whoami)
-```
-
-## Step 7: Create PostgreSQL Tables
-Run the following queries in PostgreSQL to create target tables for RisingWave to write to.
-
+## Step 6: Create Sinks in RisingWave
+Run the following queries in RisingWave to set up tables. 
 ```sql
-CREATE TABLE avg_price_sink (
+CREATE TABLE avg_price_bid_ask_spread_table (
   asset_id INT,
   average_price NUMERIC,
   bid_ask_spread NUMERIC,
-  timestamp TIMESTAMPTZ
+  timestamp TIMESTAMPTZ,
+  PRIMARY KEY(asset_id, timestamp)
 );
 ```
 
 ```sql
-CREATE TABLE rolling_volatility_sink (
+CREATE TABLE rolling_volatility_table (
   asset_id INT,
   rolling_volatility NUMERIC,
-  timestamp TIMESTAMPTZ
+  timestamp TIMESTAMPTZ,
+  PRIMARY KEY(asset_id, timestamp)
 );
 ```
 
 ```sql
-CREATE TABLE enriched_market_data_sink (
+CREATE TABLE enriched_market_data_table (
   asset_id INT,
   average_price NUMERIC,
   price_change NUMERIC,
@@ -133,74 +124,33 @@ CREATE TABLE enriched_market_data_sink (
   rolling_volatility NUMERIC,
   sector_performance NUMERIC,
   sentiment_score NUMERIC,
-  timestamp TIMESTAMPTZ
+  timestamp TIMESTAMPTZ,
+  PRIMARY KEY(asset_id, timestamp)
 );
 ```
 
-## Step 8: Create Sinks in RisingWave 
-Navigate back to the RisingWave terminal and run these queries to create the sinks. (Note: some parameters need to be changed depending on operating system.)
+## Step 7: Sink Materialized Views into Tables
+Run these queries to set up the sinks.
 
 ```sql
-# on Ubuntu
-user = 'postgres'
-
-# on Mac - set to macOS Username
-user = '$(whoami)'
+CREATE SINK average_price_sink
+INTO avg_price_bid_ask_spread_table
+FROM avg_price_bid_ask_spread;
 ```
 
 ```sql
-password = set password / remove line if no password set
+CREATE SINK volatility_sink
+INTO rolling_volatility_table
+FROM rolling_volatility;
 ```
 
 ```sql
-CREATE SINK sink_avg_price
-FROM avg_price_bid_ask_spread
-WITH (
-  connector = 'postgres',
-  type = 'append-only',
-  force_append_only = 'true',
-  host = 'localhost',
-  port = 5432,
-  user = 'postgres', 
-  password = 'pgpass',
-  database = 'postgres',
-  table = 'avg_price_sink'
-);
+CREATE SINK enrichment_sink 
+INTO enriched_market_data_table
+FROM enriched_market_data;
 ```
 
-```sql
-CREATE SINK sink_rolling_volatility
-FROM rolling_volatility
-WITH (
-  connector = 'postgres',
-  type = 'append-only',
-  force_append_only = 'true',
-  host = 'localhost',
-  port = 5432,
-  user = 'postgres',
-  password = 'pgpass',
-  database = 'postgres',
-  table = 'rolling_volatility_sink'
-);
-```
-
-```sql
-CREATE SINK sink_enriched
-FROM enriched_market_data
-WITH (
-  connector = 'postgres',
-  type = 'append-only',
-  force_append_only = 'true',
-  host = 'localhost',
-  port = 5432,
-  user = 'postgres',
-  password = 'pgpass',
-  database = 'postgres',
-  table = 'enriched_market_data_sink'
-);
-```
-
-## Step 9: Using Superset
+## Step 8: Using Superset
 
 Launch superset at [http://localhost:8088](http://localhost:8088).
 
@@ -210,26 +160,23 @@ username = admin
 password = admin
 ```
 
-Next, follow Data -> Databases -> +Databases and use the SQLAlchemy URI replacing pguser and pgpass with your corresponding inputs. 
-If there is no password, remove ":pgpass".
-On Mac, replace "pguser" with MacOS username.
-On Ubuntu, replace "host.docker.internal" with "localhost".
+Next, follow Data -> Databases -> +Databases and use the SQLAlchemy URI:
 ```terminal
-postgresql://pguser:pgpass@host.docker.internal:5432/postgres
+risingwave://root@risingwave:4566/dev
 ```
 Click test connection to ensure that the database can connect to Superset, and then click connect. 
 
 Now Superset is ready for chart creation. 
 
-## Step 10: Example Chart Creation 
+## Step 9: Example Chart Creation 
 
 From the home page, head to Data -> Create Dataset.
 
 Select
 ```terminal
-Database: postgres #or whatever chosen name for the database created in last step.
+Database: RisingWave #or whatever chosen name for the database created in last step.
 Schema: public
-Table: avg_price_sink
+Table: avg_price_bid_ask_spread_table
 ```
 Then, Click Add. 
 
