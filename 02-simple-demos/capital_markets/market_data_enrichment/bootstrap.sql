@@ -18,32 +18,13 @@ CREATE SOURCE enrichment_data (
     historical_volatility DOUBLE,
     sector_performance DOUBLE,
     sentiment_score DOUBLE,
-    timestamp TIMESTAMP
+    timestamp TIMESTAMPTZ
 ) WITH (
     connector = 'kafka',
     topic = 'enrichment_data',
     properties.bootstrap.servers = 'localhost:9092',
     scan.startup.mode = 'earliest-offset'
 ) FORMAT PLAIN ENCODE JSON;
-
--- Base tables
-CREATE TABLE IF NOT EXISTS raw_market_data (
-  asset_id INT,
-  timestamp TIMESTAMPTZ,
-  price NUMERIC,
-  volume INT,
-  bid_price NUMERIC,
-  ask_price NUMERIC
-);
-
-CREATE TABLE IF NOT EXISTS enrichment_data (
-  asset_id INT,
-  sector VARCHAR,
-  historical_volatility NUMERIC,
-  sector_performance NUMERIC,
-  sentiment_score NUMERIC,
-  timestamp TIMESTAMPTZ
-);
 
 -- Materialized Views (live entirely inside RisingWave)
 CREATE MATERIALIZED VIEW IF NOT EXISTS avg_price_bid_ask_spread AS
