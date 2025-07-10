@@ -33,6 +33,11 @@ tasks:
         fi
       done
 
+      until docker exec kafka kafka-topics.sh --bootstrap-server kafka:9092 --list >/dev/null 2>&1; do
+        echo "Waiting for Kafka…"
+        sleep 2
+      done
+
       echo "Installing Python + psycopg2"
       sudo apt-get update
       sudo apt-get install -y python3-pip uuid-runtime jq postgresql-client
