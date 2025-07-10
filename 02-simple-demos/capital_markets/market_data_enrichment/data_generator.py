@@ -6,9 +6,11 @@ import time
 
 producer = KafkaProducer(
     bootstrap_servers=['kafka:9092'],
-    value_serializer=lambda v: json.dumps(v).encode('utf-8')
+    value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+    acks='all',
+    retries=3,
+    max_in_flight_requests_per_connection=1
 )
-
 # Define assets and sectors
 asset_ids = [1, 2, 3, 4, 5]
 sectors = ["Technology", "Finance", "Healthcare", "Energy"]
@@ -16,8 +18,8 @@ sectors = ["Technology", "Finance", "Healthcare", "Energy"]
 try:
     while True:
         # Insert raw market data
+        current_timestamp = datetime.utcnow().isoformat() + "Z"
         for asset_id in asset_ids:
-            timestamp = datetime.utcnow().isoformat() + "Z"
             price = round(random.uniform(50, 150), 2)
             volume = random.randint(100, 5000)
             bid_price = round(price - random.uniform(0.1, 0.5), 2)
@@ -25,7 +27,7 @@ try:
 
             data = {
                 "asset_id": asset_id,
-                "timestamp": timestamp,
+                "timestamp": current_timestamp,
                 "price": price, 
                 "volume": volume,
                 "bid_price": bid_price, 
@@ -35,7 +37,6 @@ try:
 
         # Insert enrichment data
         for asset_id in asset_ids:
-            timestamp = datetime.utcnow().isoformat() + "Z"
             sector = random.choice(sectors)
             historical_volatility = round(random.uniform(0.1, 0.5), 2)
             sector_performance = round(random.uniform(-0.05, 0.05), 2)
@@ -47,7 +48,7 @@ try:
                 "historical_volatility": historical_volatility,
                 "sector_performance": sector_performance,
                 "sentiment_score": sentiment_score,
-                "timestamp": timestamp
+                "timestamp": current_timestamp
             }
             producer.send('enrichment_data', data)
 

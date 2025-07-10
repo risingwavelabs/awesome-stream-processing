@@ -8,7 +8,7 @@ CREATE SOURCE raw_market_data (
 ) WITH (
   connector = 'kafka',
   topic = 'raw_market_data',
-  properties.bootstrap.servers = 'localhost:9092',
+  properties.bootstrap.servers = 'kafka:9092',
   scan.startup.mode = 'earliest-offset'
 ) FORMAT PLAIN ENCODE JSON;
 
@@ -22,7 +22,7 @@ CREATE SOURCE enrichment_data (
 ) WITH (
     connector = 'kafka',
     topic = 'enrichment_data',
-    properties.bootstrap.servers = 'localhost:9092',
+    properties.bootstrap.servers = 'kafka:9092',
     scan.startup.mode = 'earliest-offset'
 ) FORMAT PLAIN ENCODE JSON;
 
@@ -67,13 +67,13 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS enriched_market_data AS
   FROM raw_market_data AS rmd
   JOIN avg_price_bid_ask_spread AS ap
     ON rmd.asset_id = ap.asset_id
-    AND rmd.timestamp BETWEEN ap.timestamp - INTERVAL '2 seconds' AND ap.timestamp + INTERVAL '2 seconds'
+    AND rmd.timestamp BETWEEN ap.timestamp - INTERVAL '10 seconds' AND ap.timestamp + INTERVAL '10 seconds'
   JOIN rolling_volatility AS rv
     ON rmd.asset_id = rv.asset_id
-    AND rmd.timestamp BETWEEN rv.timestamp - INTERVAL '2 seconds' AND rv.timestamp + INTERVAL '2 seconds'
+    AND rmd.timestamp BETWEEN rv.timestamp - INTERVAL '10 seconds' AND rv.timestamp + INTERVAL '10 seconds'
   JOIN enrichment_data AS ed
     ON rmd.asset_id = ed.asset_id
-    AND rmd.timestamp BETWEEN ed.timestamp - INTERVAL '2 seconds' AND ed.timestamp + INTERVAL '2 seconds';
+    AND rmd.timestamp BETWEEN ed.timestamp - INTERVAL '10 seconds' AND ed.timestamp + INTERVAL '10 seconds';
 
 
 CREATE TABLE IF NOT EXISTS enriched_market_data_table (
