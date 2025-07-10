@@ -26,7 +26,7 @@ CREATE SOURCE enrichment_data (
     scan.startup.mode = 'earliest-offset'
 ) FORMAT PLAIN ENCODE JSON;
 
--- Materialized Views (live entirely inside RisingWave)
+-- MVs entirely in RW
 CREATE MATERIALIZED VIEW IF NOT EXISTS avg_price_bid_ask_spread AS
   SELECT
     asset_id,
@@ -74,3 +74,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS enriched_market_data AS
   JOIN enrichment_data AS ed
     ON rmd.asset_id = ed.asset_id
     AND rmd.timestamp BETWEEN ed.timestamp - INTERVAL '2 seconds' AND ed.timestamp + INTERVAL '2 seconds';
+
+CREATE SINK enriched_market_data_table
+INTO enriched_market_data_table
+FROM enriched_market_data;
