@@ -1,32 +1,31 @@
-
 DROP SOURCE IF EXISTS raw_market_data;
 CREATE SOURCE raw_market_data (
   asset_id     INT,
   timestamp    TIMESTAMPTZ,
-  price        DOUBLE PRECISION,
+  price        DOUBLE,
   volume       INT,
-  bid_price    DOUBLE PRECISION,
-  ask_price    DOUBLE PRECISION
+  bid_price    DOUBLE,
+  ask_price    DOUBLE,
 ) WITH (
-  connector                       = 'kafka',
-  topic                           = 'raw_market_data',
-  "properties.bootstrap.servers"  = 'localhost:9092',
-  "scan.startup.mode"             = 'earliest'
+  connector                   = 'kafka',
+  topic                       = 'raw_market_data',
+  properties.bootstrap.server = 'kafka:9092',
+  scan.startup.mode           = 'earliest-offset'
 ) FORMAT PLAIN ENCODE JSON;
 
 DROP SOURCE IF EXISTS enrichment_data;
 CREATE SOURCE enrichment_data (
   asset_id              INT,
   sector                VARCHAR,
-  historical_volatility DOUBLE PRECISION,
-  sector_performance    DOUBLE PRECISION,
-  sentiment_score       DOUBLE PRECISION,
+  historical_volatility DOUBLE,
+  sector_performance    DOUBLE,
+  sentiment_score       DOUBLE,
   timestamp             TIMESTAMPTZ
 ) WITH (
-  connector                       = 'kafka',
-  topic                           = 'enrichment_data',
-  "properties.bootstrap.servers"  = 'localhost:9092',
-  "scan.startup.mode"             = 'earliest'
+  connector                   = 'kafka',
+  topic                       = 'enrichment_data',
+  properties.bootstrap.server = 'kafka:9092',
+  scan.startup.mode           = 'earliest-offset'
 ) FORMAT PLAIN ENCODE JSON;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS avg_price_bid_ask_spread AS
