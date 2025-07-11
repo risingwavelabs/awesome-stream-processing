@@ -8,8 +8,8 @@ CREATE SOURCE raw_market_data (
 ) WITH (
   connector = 'kafka',
   topic = 'raw_market_data',
-  properties.bootstrap.servers = 'kafka:9092',
-  scan.startup.mode = 'earliest-offset'
+  "properties.bootstrap.server" = 'kafka:9092',
+  "scan.startup.mode"           = 'earliest-offset'
 ) FORMAT PLAIN ENCODE JSON;
 
 CREATE SOURCE enrichment_data (
@@ -22,8 +22,8 @@ CREATE SOURCE enrichment_data (
 ) WITH (
     connector = 'kafka',
     topic = 'enrichment_data',
-    properties.bootstrap.servers = 'kafka:9092',
-    scan.startup.mode = 'earliest-offset'
+    "properties.bootstrap.server" = 'kafka:9092',
+    "scan.startup.mode"           = 'earliest-offset'
 ) FORMAT PLAIN ENCODE JSON;
 
 -- MVs entirely in RW
