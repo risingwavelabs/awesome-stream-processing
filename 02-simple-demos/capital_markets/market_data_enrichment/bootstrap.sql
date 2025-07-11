@@ -10,8 +10,8 @@ CREATE TABLE IF NOT EXISTS raw_market_data (
   connector = 'kafka',
   topic     = 'raw_market_data',
   properties.bootstrap.server = 'kafka:9092',
-  scan.startup.mode          = 'earliest-offset'
-) FORMAT PLAIN ENCODE JSON; :contentReference[oaicite:0]{index=0}
+  scan.startup.mode          = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
 
 
 CREATE TABLE IF NOT EXISTS enrichment_data (
@@ -26,8 +26,8 @@ CREATE TABLE IF NOT EXISTS enrichment_data (
   connector = 'kafka',
   topic     = 'enrichment_data',
   properties.bootstrap.server = 'kafka:9092',
-  scan.startup.mode          = 'earliest-offset'
-) FORMAT PLAIN ENCODE JSON; :contentReference[oaicite:1]{index=1}
+  scan.startup.mode          = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS avg_price_bid_ask_spread AS
   SELECT
