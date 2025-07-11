@@ -34,14 +34,16 @@ SELECT
   ROUND(AVG(price)::NUMERIC, 2)          AS average_price,
   ROUND(AVG(ask_price - bid_price)::NUMERIC, 2) AS bid_ask_spread,
   timestamp
-FROM raw_market_data;
+FROM raw_market_data
+GROUP BY asset_id, timestamp;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS rolling_volatility AS
 SELECT
   asset_id,
   ROUND(stddev_samp(price)::NUMERIC, 2) AS rolling_volatility,
   timestamp
-FROM raw_market_data;
+FROM raw_market_data
+GROUP BY asset_id, timestamp;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS enriched_market_data AS
 SELECT
