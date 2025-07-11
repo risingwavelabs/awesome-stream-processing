@@ -161,11 +161,6 @@ tasks:
             psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
           fi
 
-          # Run data generator if it exists
-          if [ -f "data_generator.py" ]; then
-            echo "Running Market Enrichment data generator"
-            python3 data_generator.py &
-          fi
               # After everything is ready
           echo "Setting up Superset dashboard"
           chmod +x superset_scripts/market_enrichment_script.sh
