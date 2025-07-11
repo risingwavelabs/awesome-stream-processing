@@ -18,7 +18,8 @@ sectors = ["Technology", "Finance", "Healthcare", "Energy"]
 try:
     while True:
         # Insert raw market data
-        current_timestamp = datetime.utcnow().isoformat() + "Z"
+        ts = datetime.now(timezone.utc).isoformat()
+        timestamp = ts.replace('+00:00', 'Z')
         for asset_id in asset_ids:
             price = round(random.uniform(50, 150), 2)
             volume = random.randint(100, 5000)
