@@ -28,43 +28,44 @@ CREATE SOURCE enrichment_data (
   scan.startup.mode           = 'earliest'
 ) FORMAT PLAIN ENCODE JSON;
 
-CREATE MATERIALIZED VIEW avg_price_bid_ask_spread AS
+CREATE MATERIALIZED VIEW IF NOT EXISTS avg_price_bid_ask_spread AS
 SELECT
-    asset_id,
-    ROUND(AVG(price) OVER (PARTITION BY asset_id ORDER BY timestamp RANGE INTERVAL '5 MINUTES' PRECEDING), 2) AS average_price,
-    ROUND(AVG(ask_price - bid_price) OVER (PARTITION BY asset_id ORDER BY timestamp RANGE INTERVAL '5 MINUTES' PRECEDING), 2) AS bid_ask_spread,
-    timestamp
-FROM
-    raw_market_data;
+  asset_id,
+  ROUND(AVG(price)::NUMERIC, 2)          AS average_price,
+  ROUND(AVG(ask_price - bid_price)::NUMERIC, 2) AS bid_ask_spread,
+  timestamp
+FROM raw_market_data
+GROUP BY asset_id, timestamp;
 
-CREATE MATERIALIZED VIEW rolling_volatility AS
+CREATE MATERIALIZED VIEW IF NOT EXISTS rolling_volatility AS
 SELECT
-    asset_id,
-    ROUND(stddev_samp(price) OVER (PARTITION BY asset_id ORDER BY timestamp RANGE INTERVAL '15 MINUTES' PRECEDING), 2) AS rolling_volatility,
-    timestamp
-FROM
-    raw_market_data;
+  asset_id,
+  ROUND(stddev_samp(price)::NUMERIC, 2) AS rolling_volatility,
+  timestamp
+FROM raw_market_data
+GROUP BY asset_id, timestamp;
 
-CREATE MATERIALIZED VIEW enriched_market_data AS
+CREATE MATERIALIZED VIEW IF NOT EXISTS enriched_market_data AS
 SELECT
-  rmd.asset_id,
-  aps.average_price,
-  (rmd.price - aps.average_price) / aps.average_price * 100 AS price_change,
-  aps.bid_ask_spread,
+  r.asset_id,
+  ap.average_price,
+  (r.price - ap.average_price) / ap.average_price * 100 AS price_change,
+  ap.bid_ask_spread,
   rv.rolling_volatility,
-  ed.sector_performance,
-  ed.sentiment_score,
-  rmd.timestamp
-FROM raw_market_data AS rmd
-JOIN avg_price_bid_ask_spread AS aps
-  ON rmd.asset_id = aps.asset_id
-  AND rmd.timestamp BETWEEN aps.timestamp - INTERVAL '2 seconds'
-                      AND aps.timestamp + INTERVAL '2 seconds'
+  e.sector_performance,
+  e.sentiment_score,
+  r.timestamp
+FROM raw_market_data AS r
+JOIN avg_price_bid_ask_spread AS ap
+  ON r.asset_id = ap.asset_id
+ AND r.timestamp BETWEEN ap.timestamp - INTERVAL '2 seconds'
+                     AND ap.timestamp + INTERVAL '2 seconds'
 JOIN rolling_volatility AS rv
-  ON rmd.asset_id = rv.asset_id
-  AND rmd.timestamp BETWEEN rv.timestamp - INTERVAL '2 seconds'
-                      AND rv.timestamp + INTERVAL '2 seconds'
-JOIN enrichment_data AS ed
-  ON rmd.asset_id = ed.asset_id
-  AND rmd.timestamp BETWEEN ed.timestamp - INTERVAL '2 seconds'
-                      AND ed.timestamp + INTERVAL '2 seconds';
+  ON r.asset_id = rv.asset_id
+ AND r.timestamp BETWEEN rv.timestamp - INTERVAL '2 seconds'
+                     AND rv.timestamp + INTERVAL '2 seconds'
+JOIN enrichment_data AS e
+  ON r.asset_id = e.asset_id
+ AND r.timestamp BETWEEN e.timestamp - INTERVAL '2 seconds'
+                     AND e.timestamp + INTERVAL '2 seconds';
+
