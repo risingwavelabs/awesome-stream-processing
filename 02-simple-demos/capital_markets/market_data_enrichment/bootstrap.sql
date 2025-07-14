@@ -62,7 +62,7 @@ SELECT
   ) AS rolling_volatility
 FROM raw_market_data;
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS enriched_market_data AS
+CREATE MATERIALIZED VIEW enriched_market_data AS
 SELECT
   r.asset_id,
   ap.average_price,
@@ -75,14 +75,14 @@ SELECT
 FROM raw_market_data AS r
 JOIN avg_price_bid_ask_spread AS ap
   ON r.asset_id = ap.asset_id
- AND r.timestamp BETWEEN ap.timestamp - INTERVAL '2 seconds'
-                     AND ap.timestamp + INTERVAL '2 seconds'
+ AND r.timestamp BETWEEN ap.timestamp - INTERVAL '3 seconds'
+                     AND ap.timestamp + INTERVAL '3 seconds'
 JOIN rolling_volatility AS rv
   ON r.asset_id = rv.asset_id
- AND r.timestamp BETWEEN rv.timestamp - INTERVAL '2 seconds'
-                     AND rv.timestamp + INTERVAL '2 seconds'
+ AND r.timestamp BETWEEN rv.timestamp - INTERVAL '3 seconds'
+                     AND rv.timestamp + INTERVAL '3 seconds'
 JOIN enrichment_data AS e
   ON r.asset_id = e.asset_id
- AND r.timestamp BETWEEN e.timestamp - INTERVAL '2 seconds'
-                     AND e.timestamp + INTERVAL '2 seconds';
+ AND r.timestamp BETWEEN e.timestamp - INTERVAL '3 seconds'
+                     AND e.timestamp + INTERVAL '3 seconds';
 
