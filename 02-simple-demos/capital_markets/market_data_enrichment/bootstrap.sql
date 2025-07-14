@@ -57,7 +57,7 @@ SELECT
     stddev_samp(price) OVER (
       PARTITION BY asset_id
       ORDER BY timestamp
-      RANGE BETWEEN INTERVAL '2 seconds' PRECEDING AND CURRENT ROW
+      RANGE BETWEEN INTERVAL '3 seconds' PRECEDING AND CURRENT ROW
     )::NUMERIC, 2
   ) AS rolling_volatility
 FROM raw_market_data;
