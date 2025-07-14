@@ -45,26 +45,26 @@ SELECT
 FROM
     raw_market_data;
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS enriched_market_data AS
+CREATE MATERIALIZED VIEW enriched_market_data AS
 SELECT
-  r.asset_id,
-  ap.average_price,
-  (r.price - ap.average_price) / ap.average_price * 100 AS price_change,
-  ap.bid_ask_spread,
+  rmd.asset_id,
+  aps.average_price,
+  (rmd.price - aps.average_price) / aps.average_price * 100 AS price_change,
+  aps.bid_ask_spread,
   rv.rolling_volatility,
-  e.sector_performance,
-  e.sentiment_score,
-  r.timestamp
-FROM raw_market_data AS r
-JOIN avg_price_bid_ask_spread AS ap
-  ON r.asset_id = ap.asset_id
- AND r.timestamp BETWEEN ap.timestamp - INTERVAL '2 seconds'
-                     AND ap.timestamp + INTERVAL '2 seconds'
+  ed.sector_performance,
+  ed.sentiment_score,
+  rmd.timestamp
+FROM raw_market_data AS rmd
+JOIN avg_price_bid_ask_spread AS aps
+  ON rmd.asset_id = aps.asset_id
+  AND rmd.timestamp BETWEEN aps.timestamp - INTERVAL '2 seconds'
+                      AND aps.timestamp + INTERVAL '2 seconds'
 JOIN rolling_volatility AS rv
-  ON r.asset_id = rv.asset_id
- AND r.timestamp BETWEEN rv.timestamp - INTERVAL '2 seconds'
-                     AND rv.timestamp + INTERVAL '2 seconds'
-JOIN enrichment_data AS e
-  ON r.asset_id = e.asset_id
- AND r.timestamp BETWEEN e.timestamp - INTERVAL '2 seconds'
-                     AND e.timestamp + INTERVAL '2 seconds';
+  ON rmd.asset_id = rv.asset_id
+  AND rmd.timestamp BETWEEN rv.timestamp - INTERVAL '2 seconds'
+                      AND rv.timestamp + INTERVAL '2 seconds'
+JOIN enrichment_data AS ed
+  ON rmd.asset_id = ed.asset_id
+  AND rmd.timestamp BETWEEN ed.timestamp - INTERVAL '2 seconds'
+                      AND ed.timestamp + INTERVAL '2 seconds';
