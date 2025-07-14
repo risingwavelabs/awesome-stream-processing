@@ -52,7 +52,6 @@ try:
                 "timestamp": timestamp
             }
             producer.send('enrichment_data', data)
-            print("Sent to enrichment_data:", data)
 
         producer.flush()
         time.sleep(2)
