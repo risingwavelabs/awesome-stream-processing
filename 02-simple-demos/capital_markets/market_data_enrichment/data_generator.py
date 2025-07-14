@@ -1,7 +1,7 @@
 import json
 from kafka import KafkaProducer
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import time
 
 producer = KafkaProducer(
