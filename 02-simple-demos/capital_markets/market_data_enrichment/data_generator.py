@@ -35,7 +35,6 @@ try:
                 "ask_price": ask_price
             }
             producer.send('raw_market_data', data)
-            print("Sent to raw_market_data:", data)
 
         # Insert enrichment data
         for asset_id in asset_ids:

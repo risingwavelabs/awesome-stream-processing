@@ -58,16 +58,16 @@ SELECT
 FROM raw_market_data AS r
 JOIN avg_price_bid_ask_spread AS ap
   ON r.asset_id = ap.asset_id
- AND r.timestamp BETWEEN ap.timestamp - INTERVAL '10 seconds'
-                     AND ap.timestamp + INTERVAL '10 seconds'
+ AND r.timestamp BETWEEN ap.timestamp - INTERVAL '2 seconds'
+                     AND ap.timestamp + INTERVAL '2 seconds'
 JOIN rolling_volatility AS rv
   ON r.asset_id = rv.asset_id
- AND r.timestamp BETWEEN rv.timestamp - INTERVAL '10 seconds'
-                     AND rv.timestamp + INTERVAL '10 seconds'
+ AND r.timestamp BETWEEN rv.timestamp - INTERVAL '2 seconds'
+                     AND rv.timestamp + INTERVAL '2 seconds'
 JOIN enrichment_data AS e
   ON r.asset_id = e.asset_id
- AND r.timestamp BETWEEN e.timestamp - INTERVAL '10 seconds'
-                     AND e.timestamp + INTERVAL '10 seconds';
+ AND r.timestamp BETWEEN e.timestamp - INTERVAL '2 seconds'
+                     AND e.timestamp + INTERVAL '2 seconds';
 
 CREATE TABLE IF NOT EXISTS enriched_market_data_table (
   asset_id            INT,
