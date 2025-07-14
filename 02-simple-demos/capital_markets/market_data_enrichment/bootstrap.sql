@@ -68,19 +68,3 @@ JOIN enrichment_data AS e
   ON r.asset_id = e.asset_id
  AND r.timestamp BETWEEN e.timestamp - INTERVAL '2 seconds'
                      AND e.timestamp + INTERVAL '2 seconds';
-
-CREATE TABLE IF NOT EXISTS enriched_market_data_table (
-  asset_id            INT,
-  average_price       NUMERIC,
-  price_change        NUMERIC,
-  bid_ask_spread      NUMERIC,
-  rolling_volatility  NUMERIC,
-  sector_performance  NUMERIC,
-  sentiment_score     NUMERIC,
-  timestamp           TIMESTAMPTZ,
-  PRIMARY KEY (asset_id, timestamp)
-);
-
-CREATE SINK IF NOT EXISTS enriched_market_data_table
-INTO enriched_market_data_table
-FROM enriched_market_data;
