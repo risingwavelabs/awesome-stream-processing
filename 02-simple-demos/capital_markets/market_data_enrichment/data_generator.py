@@ -18,9 +18,9 @@ sectors = ["Technology", "Finance", "Healthcare", "Energy"]
 try:
     while True:
         # Insert raw market data
-        ts = datetime.now(timezone.utc).isoformat()
-        timestamp = ts.replace('+00:00', 'Z')
         for asset_id in asset_ids:
+            ts = datetime.now(timezone.utc).isoformat()
+            timestamp = ts.replace('+00:00', 'Z')
             price = round(random.uniform(50, 150), 2)
             volume = random.randint(100, 5000)
             bid_price = round(price - random.uniform(0.1, 0.5), 2)
@@ -38,6 +38,8 @@ try:
 
         # Insert enrichment data
         for asset_id in asset_ids:
+            ts = datetime.now(timezone.utc).isoformat()
+            timestamp = ts.replace('+00:00', 'Z')
             sector = random.choice(sectors)
             historical_volatility = round(random.uniform(0.1, 0.5), 2)
             sector_performance = round(random.uniform(-0.05, 0.05), 2)
