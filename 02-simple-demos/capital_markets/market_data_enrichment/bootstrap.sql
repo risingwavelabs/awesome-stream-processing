@@ -28,22 +28,22 @@ CREATE SOURCE enrichment_data (
   scan.startup.mode           = 'earliest'
 ) FORMAT PLAIN ENCODE JSON;
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS avg_price_bid_ask_spread AS
+CREATE MATERIALIZED VIEW avg_price_bid_ask_spread AS
 SELECT
-  asset_id,
-  ROUND(AVG(price)::NUMERIC, 2)          AS average_price,
-  ROUND(AVG(ask_price - bid_price)::NUMERIC, 2) AS bid_ask_spread,
-  timestamp
-FROM raw_market_data
-GROUP BY asset_id, timestamp;
+    asset_id,
+    ROUND(AVG(price) OVER (PARTITION BY asset_id ORDER BY timestamp RANGE INTERVAL '5 MINUTES' PRECEDING), 2) AS average_price,
+    ROUND(AVG(ask_price - bid_price) OVER (PARTITION BY asset_id ORDER BY timestamp RANGE INTERVAL '5 MINUTES' PRECEDING), 2) AS bid_ask_spread,
+    timestamp
+FROM
+    raw_market_data;
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS rolling_volatility AS
+CREATE MATERIALIZED VIEW rolling_volatility AS
 SELECT
-  asset_id,
-  ROUND(stddev_samp(price)::NUMERIC, 2) AS rolling_volatility,
-  timestamp
-FROM raw_market_data
-GROUP BY asset_id, timestamp;
+    asset_id,
+    ROUND(stddev_samp(price) OVER (PARTITION BY asset_id ORDER BY timestamp RANGE INTERVAL '15 MINUTES' PRECEDING), 2) AS rolling_volatility,
+    timestamp
+FROM
+    raw_market_data;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS enriched_market_data AS
 SELECT
