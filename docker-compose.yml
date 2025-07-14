@@ -66,13 +66,3 @@ services:
         superset init &&
         superset run -h 0.0.0.0 -p 8088"
 
-  data_generator:
-    build:
-      context: ./02-simple-demos/capital_markets/market_data_enrichment
-    container_name: data_generator
-    depends_on:
-      - kafka
-    environment:
-      - PYTHONUNBUFFERED=1
-    command: python data_generator.py
-

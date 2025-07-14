@@ -155,6 +155,11 @@ tasks:
             psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
           fi
 
+          if [ -f "data_generator.py" ]; then
+            echo "Running Marketing Analysis data generator"
+            python3 data_generator.py &
+          fi
+
           # Load RisingWave bootstrap if it exists
           if [ -f "bootstrap.sql" ]; then
             echo "Loading RisingWave bootstrap for Market Enrichment..."
