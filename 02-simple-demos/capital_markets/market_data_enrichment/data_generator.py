@@ -53,6 +53,7 @@ try:
                 "sentiment_score": sentiment_score,
                 "timestamp": timestamp
             }
+            print(f"[RAW]  asset_id={asset_id}, timestamp={timestamp}")
             producer.send('enrichment_data', data)
 
         producer.flush()
