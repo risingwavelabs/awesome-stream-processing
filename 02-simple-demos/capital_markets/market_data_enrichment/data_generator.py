@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import time
 
 producer = KafkaProducer(
-    bootstrap_servers='localhost:9092',
+    bootstrap_servers='kafka:9092',
     value_serializer=lambda v: json.dumps(v).encode('utf-8'),
     acks='all',
     retries=3,
@@ -35,6 +35,7 @@ try:
                 "ask_price": ask_price
             }
             producer.send('raw_market_data', data)
+            print("Sent to raw_market_data:", data)
 
         # Insert enrichment data
         for asset_id in asset_ids:
@@ -52,6 +53,7 @@ try:
                 "timestamp": timestamp
             }
             producer.send('enrichment_data', data)
+            print("Sent to enrichment_data:", data)
 
         producer.flush()
         time.sleep(2)
