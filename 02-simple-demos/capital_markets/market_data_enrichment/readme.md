@@ -6,34 +6,61 @@ Follow the instructions below to learn how to run this demo.
 
 For more details about the process and the use case, see the [official documentation](https://docs.risingwave.com/demos/market-data-enrichment). (Note: Automated Gitpod Setup at end of page)
 
-## Step 1: Install and run a RisingWave instance
+## Step 1: Install and run a RisingWave nstance and Kafka instance
 
 See the [installation guide](/00-get-started/00-install-kafka-pg-rw.md#install-risingwave) for more details.
 
-## Step 2: Create tables in RisingWave
+## Step 2: Create topics in Kafka
+
+Run the following commands in kafka to create two kafka topics.
+
+```terminal
+# On Ubuntu
+bin/kafka-topics.sh --create --topic raw_market_data --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+
+bin/kafka-topics.sh --create --topic enriched_market_data --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+
+# On Mac 
+/opt/homebrew/opt/kafka/bin/kafka-topics --create --topic raw_market_data --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+
+/opt/homebrew/opt/kafka/bin/kafka-topics --create --topic enriched_market_data --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+```
+
+
+## Step 2: Create sources in RisingWave
 
 Run the following two queries to set up your tables in RisingWave.
 
 ```sql
-CREATE TABLE raw_market_data (
-    asset_id INT,
-    timestamp TIMESTAMPTZ,
-    price NUMERIC,
-    volume INT,
-    bid_price NUMERIC,
-    ask_price NUMERIC
-);
+CREATE SOURCE raw_market_data (
+  asset_id     INT,
+  timestamp    TIMESTAMPTZ,
+  price        DOUBLE,
+  volume       INT,
+  bid_price    DOUBLE,
+  ask_price    DOUBLE
+) WITH (
+  connector                   = 'kafka',
+  topic                       = 'raw_market_data',
+  properties.bootstrap.server = 'localhost:9092',
+  scan.startup.mode           = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
 ```
 
 ```sql
-CREATE TABLE enrichment_data (
-    asset_id INT,
-    sector VARCHAR,
-    historical_volatility NUMERIC,
-    sector_performance NUMERIC,
-    sentiment_score NUMERIC,
-    timestamp TIMESTAMPTZ
-);
+CREATE SOURCE enrichment_data (
+  asset_id              INT,
+  sector                VARCHAR,
+  historical_volatility DOUBLE,
+  sector_performance    DOUBLE,
+  sentiment_score       DOUBLE,
+  timestamp             TIMESTAMPTZ
+) WITH (
+  connector                   = 'kafka',
+  topic                       = 'enrichment_data',
+  properties.bootstrap.server = 'localhost:9092',
+  scan.startup.mode           = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
 ```
 
 ## Step 3: Run the data generator
@@ -49,108 +76,71 @@ Run the following queries to create materialized views to analyze the data.
 ```sql
 CREATE MATERIALIZED VIEW avg_price_bid_ask_spread AS
 SELECT
-    asset_id,
-    ROUND(AVG(price) OVER (PARTITION BY asset_id ORDER BY timestamp RANGE INTERVAL '5 MINUTES' PRECEDING), 2) AS average_price,
-    ROUND(AVG(ask_price - bid_price) OVER (PARTITION BY asset_id ORDER BY timestamp RANGE INTERVAL '5 MINUTES' PRECEDING), 2) AS bid_ask_spread,
-    timestamp
-FROM
-    raw_market_data;
+  asset_id,
+  timestamp,
+  ROUND(
+    AVG(price) OVER (
+      PARTITION BY asset_id
+      ORDER BY timestamp
+      RANGE BETWEEN INTERVAL '3 seconds' PRECEDING AND CURRENT ROW
+    )::NUMERIC, 2
+  ) AS average_price,
+  ROUND(
+    AVG(ask_price - bid_price) OVER (
+      PARTITION BY asset_id
+      ORDER BY timestamp
+      RANGE BETWEEN INTERVAL '3 seconds' PRECEDING AND CURRENT ROW
+    )::NUMERIC, 2
+  ) AS bid_ask_spread
+FROM raw_market_data;
 ```
 
 ```sql
 CREATE MATERIALIZED VIEW rolling_volatility AS
 SELECT
-    asset_id,
-    ROUND(stddev_samp(price) OVER (PARTITION BY asset_id ORDER BY timestamp RANGE INTERVAL '15 MINUTES' PRECEDING), 2) AS rolling_volatility,
-    timestamp
-FROM
-    raw_market_data;
+  asset_id,
+  timestamp,
+  ROUND(
+    stddev_samp(price) OVER (
+      PARTITION BY asset_id
+      ORDER BY timestamp
+      RANGE BETWEEN INTERVAL '3 seconds' PRECEDING AND CURRENT ROW
+    )::NUMERIC, 2
+  ) AS rolling_volatility
+FROM raw_market_data;
 ```
 
 ```sql
 CREATE MATERIALIZED VIEW enriched_market_data AS
 SELECT
-    rmd.asset_id,
-    ap.average_price,
-    (rmd.price - ap.average_price) / ap.average_price * 100 AS price_change,
-    ap.bid_ask_spread,
-    rv.rolling_volatility,
-    ed.sector_performance,
-    ed.sentiment_score,
-    rmd.timestamp
-FROM
-    raw_market_data AS rmd
-JOIN 
-    avg_price_bid_ask_spread AS ap ON rmd.asset_id = ap.asset_id
-    AND rmd.timestamp BETWEEN ap.timestamp - INTERVAL '2 seconds' AND ap.timestamp + INTERVAL '2 seconds'
-JOIN 
-    rolling_volatility AS rv ON rmd.asset_id = rv.asset_id
-    AND rmd.timestamp BETWEEN rv.timestamp - INTERVAL '2 seconds' AND rv.timestamp + INTERVAL '2 seconds'
-JOIN 
-    enrichment_data AS ed ON rmd.asset_id = ed.asset_id
-    AND rmd.timestamp BETWEEN ed.timestamp - INTERVAL '2 seconds' AND ed.timestamp + INTERVAL '2 seconds';
+  r.asset_id,
+  ap.average_price,
+  (r.price - ap.average_price) / ap.average_price * 100 AS price_change,
+  ap.bid_ask_spread,
+  rv.rolling_volatility,
+  e.sector_performance,
+  e.sentiment_score,
+  r.timestamp
+FROM raw_market_data AS r
+JOIN avg_price_bid_ask_spread AS ap
+  ON r.asset_id = ap.asset_id
+ AND r.timestamp BETWEEN ap.timestamp - INTERVAL '3 seconds'
+                     AND ap.timestamp + INTERVAL '3 seconds'
+JOIN rolling_volatility AS rv
+  ON r.asset_id = rv.asset_id
+ AND r.timestamp BETWEEN rv.timestamp - INTERVAL '3 seconds'
+                     AND rv.timestamp + INTERVAL '3 seconds'
+JOIN enrichment_data AS e
+  ON r.asset_id = e.asset_id
+ AND r.timestamp BETWEEN e.timestamp - INTERVAL '3 seconds'
+                     AND e.timestamp + INTERVAL '3 seconds';
 ```
+
 ## Step 5: Visualization using Superset (optional)
 
 See the [Official Superset Quickstart guide](https://superset.apache.org/docs/quickstart/) for Superset installation and start up.
 
-## Step 6: Create Sinks in RisingWave
-Run the following queries in RisingWave to set up tables. 
-```sql
-CREATE TABLE avg_price_bid_ask_spread_table (
-  asset_id INT,
-  average_price NUMERIC,
-  bid_ask_spread NUMERIC,
-  timestamp TIMESTAMPTZ,
-  PRIMARY KEY(asset_id, timestamp)
-);
-```
-
-```sql
-CREATE TABLE rolling_volatility_table (
-  asset_id INT,
-  rolling_volatility NUMERIC,
-  timestamp TIMESTAMPTZ,
-  PRIMARY KEY(asset_id, timestamp)
-);
-```
-
-```sql
-CREATE TABLE enriched_market_data_table (
-  asset_id INT,
-  average_price NUMERIC,
-  price_change NUMERIC,
-  bid_ask_spread NUMERIC,
-  rolling_volatility NUMERIC,
-  sector_performance NUMERIC,
-  sentiment_score NUMERIC,
-  timestamp TIMESTAMPTZ,
-  PRIMARY KEY(asset_id, timestamp)
-);
-```
-
-## Step 7: Sink Materialized Views into Tables
-Run these queries to set up the sinks.
-
-```sql
-CREATE SINK average_price_sink
-INTO avg_price_bid_ask_spread_table
-FROM avg_price_bid_ask_spread;
-```
-
-```sql
-CREATE SINK volatility_sink
-INTO rolling_volatility_table
-FROM rolling_volatility;
-```
-
-```sql
-CREATE SINK enrichment_sink 
-INTO enriched_market_data_table
-FROM enriched_market_data;
-```
-
-## Step 8: Using Superset
+## Step 6: Using Superset
 
 Launch superset at [http://localhost:8088](http://localhost:8088).
 
@@ -168,7 +158,7 @@ Click test connection to ensure that the database can connect to Superset, and t
 
 Now Superset is ready for chart creation. 
 
-## Step 9: Example Chart Creation 
+## Step 7: Example Chart Creation 
 
 From the home page, head to Data -> Create Dataset.
 
