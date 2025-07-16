@@ -18,13 +18,30 @@ Run the following commands in kafka to create two kafka topics.
 # On Ubuntu
 bin/kafka-topics.sh --create --topic raw_market_data --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
 
-bin/kafka-topics.sh --create --topic enriched_market_data --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+bin/kafka-topics.sh --create --topic enrichment_data --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
 
 # On Mac 
 /opt/homebrew/opt/kafka/bin/kafka-topics --create --topic raw_market_data --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
 
-/opt/homebrew/opt/kafka/bin/kafka-topics --create --topic enriched_market_data --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+/opt/homebrew/opt/kafka/bin/kafka-topics --create --topic enrichment_data --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
 ```
+
+Next, start the producer program in another terminal so that we can send messages to the topic. If you named your topic something different, be sure to adjust it accordingly.
+
+```terminal
+# Note: Run each command in a seperate terminal window. 
+
+# On Ubuntu
+bin/kafka-console-producer.sh --topic raw_market_data --bootstrap-server localhost:9092
+
+bin/kafka-console-producer.sh --topic enrichment_data --bootstrap-server localhost:9092
+
+# On Mac
+/opt/homebrew/opt/kafka/bin/kafka-console-producer --topic raw_market_data --bootstrap-server localhost:9092
+
+/opt/homebrew/opt/kafka/bin/kafka-console-producer --topic enrichment_data --bootstrap-server localhost:9092
+```
+
 
 
 ## Step 2: Create sources in RisingWave
@@ -66,6 +83,10 @@ CREATE SOURCE enrichment_data (
 ## Step 3: Run the data generator
 
 Ensure that you have a Python environment set up and have installed the psycopg2 library. Run the data generator.
+```terminal
+# Note: Replace line 8 with
+bootstrap_servers='localhost:9092',
+```
 
 This will start inserting mock data into the tables created above.
 
@@ -152,7 +173,7 @@ password = admin
 
 Next, follow Data -> Databases -> +Databases and use the SQLAlchemy URI:
 ```terminal
-risingwave://root@risingwave:4566/dev
+risingwave://root@host.docker.internal:4566/dev
 ```
 Click test connection to ensure that the database can connect to Superset, and then click connect. 
 
