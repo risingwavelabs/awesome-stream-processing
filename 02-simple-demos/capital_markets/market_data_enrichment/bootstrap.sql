@@ -86,3 +86,18 @@ JOIN enrichment_data AS e
  AND r.timestamp BETWEEN e.timestamp - INTERVAL '3 seconds'
                      AND e.timestamp + INTERVAL '3 seconds';
 
+
+
+CREATE SOURCE enriched_market_data (
+  asset_id              INT,
+  sector                VARCHAR,
+  historical_volatility DOUBLE,
+  sector_performance    DOUBLE,
+  sentiment_score       DOUBLE,
+  timestamp             TIMESTAMPTZ
+) WITH (
+  connector                   = 'kafka',
+  topic                       = 'enriched_market_data',
+  properties.bootstrap.server = 'localhost:9092',
+  scan.startup.mode           = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
