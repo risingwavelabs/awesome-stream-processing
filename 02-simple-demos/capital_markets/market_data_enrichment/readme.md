@@ -6,91 +6,85 @@ Follow the instructions below to learn how to run this demo.
 
 For more details about the process and the use case, see the [official documentation](https://docs.risingwave.com/demos/market-data-enrichment). (Note: Automated Gitpod Setup at end of page)
 
-## Step 1: Install and run a RisingWave nstance and Kafka instance
+## Step 1: Launch Gitpod
+Click the link below to open the Gitpod development environment and wait for environment set up.
 
-See the [installation guide](/00-get-started/00-install-kafka-pg-rw.md#install-risingwave) for more details.
+[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/tinytimcodes/awesome-stream-processing)
+
 
 ## Step 2: Create topics in Kafka
 
-Run the following commands in kafka to create two kafka topics.
+Run the following commands in the terminal to create the kafka topics.
 
 ```terminal
-# On Ubuntu
-bin/kafka-topics.sh --create --topic raw_market_data --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
-
-bin/kafka-topics.sh --create --topic enrichment_data --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
-
-# On Mac 
-/opt/homebrew/opt/kafka/bin/kafka-topics --create --topic raw_market_data --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
-
-/opt/homebrew/opt/kafka/bin/kafka-topics --create --topic enrichment_data --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+docker-compose exec kafka kafka-topics.sh \
+  --create \
+  --topic raw_market_data \
+  --bootstrap-server localhost:9092 \
+  --partitions 1 \
+  --replication-factor 1
 ```
 
-Next, start the producer program in another terminal so that we can send messages to the topic. If you named your topic something different, be sure to adjust it accordingly.
-
 ```terminal
-# Note: Run each command in a seperate terminal window. 
-
-# On Ubuntu
-bin/kafka-console-producer.sh --topic raw_market_data --bootstrap-server localhost:9092
-
-bin/kafka-console-producer.sh --topic enrichment_data --bootstrap-server localhost:9092
-
-# On Mac
-/opt/homebrew/opt/kafka/bin/kafka-console-producer --topic raw_market_data --bootstrap-server localhost:9092
-
-/opt/homebrew/opt/kafka/bin/kafka-console-producer --topic enrichment_data --bootstrap-server localhost:9092
+docker-compose exec kafka kafka-topics.sh \
+  --create \
+  --topic enrichment_data \
+  --bootstrap-server localhost:9092 \
+  --partitions 1 \
+  --replication-factor 1
 ```
 
 
+## Step 3: Create Sources in RisingWave
 
-## Step 2: Create sources in RisingWave
+In a seperate terminal, load the sources in RisingWave.
 
-Run the following two queries to set up your tables in RisingWave.
+```terminal
+docker-compose exec postgres psql \
+  -h risingwave -p 4566 -U root -d dev
+```
 
 ```sql
 CREATE SOURCE raw_market_data (
-  asset_id     INT,
-  timestamp    TIMESTAMPTZ,
-  price        DOUBLE,
-  volume       INT,
-  bid_price    DOUBLE,
-  ask_price    DOUBLE
+ asset_id     INT,
+ timestamp    TIMESTAMPTZ,
+ price        DOUBLE,
+ volume       INT,
+ bid_price    DOUBLE,
+ ask_price    DOUBLE
 ) WITH (
-  connector                   = 'kafka',
-  topic                       = 'raw_market_data',
-  properties.bootstrap.server = 'localhost:9092',
-  scan.startup.mode           = 'earliest'
+ connector                   = 'kafka',
+ topic                       = 'raw_market_data',
+ properties.bootstrap.server = 'kafka:9092',
+ scan.startup.mode           = 'earliest'
 ) FORMAT PLAIN ENCODE JSON;
 ```
 
 ```sql
 CREATE SOURCE enrichment_data (
-  asset_id              INT,
-  sector                VARCHAR,
-  historical_volatility DOUBLE,
-  sector_performance    DOUBLE,
-  sentiment_score       DOUBLE,
-  timestamp             TIMESTAMPTZ
+ asset_id              INT,
+ sector                VARCHAR,
+ historical_volatility DOUBLE,
+ sector_performance    DOUBLE,
+ sentiment_score       DOUBLE,
+ timestamp             TIMESTAMPTZ
 ) WITH (
-  connector                   = 'kafka',
-  topic                       = 'enrichment_data',
-  properties.bootstrap.server = 'localhost:9092',
-  scan.startup.mode           = 'earliest'
+ connector                   = 'kafka',
+ topic                       = 'enrichment_data',
+ properties.bootstrap.server = 'kafka:9092',
+ scan.startup.mode           = 'earliest'
 ) FORMAT PLAIN ENCODE JSON;
 ```
 
-## Step 3: Run the data generator
+## Step 4: Run the Data Generator
 
-Ensure that you have a Python environment set up and have installed the psycopg2 library. Run the data generator.
+Navigate to the market_data_enrichment directory and run the data generator.
 ```terminal
-# Note: Replace line 8 with
-bootstrap_servers='localhost:9092',
+python3 data_generator.py
 ```
-
 This will start inserting mock data into the tables created above.
 
-## Step 4: Create materialized views
+## Step 5: Create Materialized Views
 
 Run the following queries to create materialized views to analyze the data.
 
@@ -157,15 +151,9 @@ JOIN enrichment_data AS e
                      AND e.timestamp + INTERVAL '3 seconds';
 ```
 
-## Step 5: Visualization using Superset (optional)
+## Step 6: Visualization using Superset (optional)
 
-See the [Official Superset Quickstart guide](https://superset.apache.org/docs/quickstart/) for Superset installation and start up.
-
-## Step 6: Using Superset
-
-Launch superset at [http://localhost:8088](http://localhost:8088).
-
-If prompted,
+Using the preloaded window that opened at the beginning of the demo, enter the username and password below:
 ```terminal
 username = admin
 password = admin
@@ -173,7 +161,7 @@ password = admin
 
 Next, follow Data -> Databases -> +Databases and use the SQLAlchemy URI:
 ```terminal
-risingwave://root@host.docker.internal:4566/dev
+risingwave://root@risingwave:4566/dev
 ```
 Click test connection to ensure that the database can connect to Superset, and then click connect. 
 
@@ -187,15 +175,18 @@ Select
 ```terminal
 Database: RisingWave #or whatever chosen name for the database created in last step.
 Schema: public
-Table: avg_price_bid_ask_spread_table
+Table: enriched_market_data
 ```
 Then, Click Add. 
 
 Go to: Charts -> +Chart and select "Line Chart"
 In Chart Editor: 
 ```terminal
-x axis = Timestamp: Seconds
-Metric: AVG(average_price) under simple
+Time Column = Timestamp
+Time Grain = Seconds
+Metrics (simple):
+Column = average_price
+Aggregate = AVG
 ```
 Click "Update Chart" and the chart will generate. 
 
