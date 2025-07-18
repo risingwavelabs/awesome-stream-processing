@@ -170,7 +170,6 @@ tasks:
           echo "Setting up Superset dashboard"
           chmod +x superset_scripts/market_enrichment_script.sh
           ./superset_scripts/market_enrichment_script.sh
-
           ;;
 
         "marketing_analysis")
@@ -195,6 +194,10 @@ tasks:
           fi
 
           # Any additional marketing analysis specific setup
+          echo "Setting up Superset dashboard"
+          chmod +x superset_scripts/market_analysis_script.sh
+          ./superset_scripts/market_analysis_script.sh
+          ;;
           echo "Marketing Analysis demo ready."
           ;;
 

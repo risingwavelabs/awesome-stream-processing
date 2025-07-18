@@ -1,17 +1,23 @@
-CREATE TABLE marketing_events (
-    event_id varchar PRIMARY KEY,
-    user_id integer,
-    campaign_id varchar,
-    channel_type varchar,  
-    event_type varchar,    
-    amount numeric,        
-    utm_source varchar,
-    utm_medium varchar,
-    utm_campaign varchar,
-    timestamp timestamptz DEFAULT CURRENT_TIMESTAMP
-);
 
-CREATE TABLE campaigns (
+CREATE SOURCE marketing_events (
+  event_id       VARCHAR,
+  user_id        INT,
+  campaign_id    VARCHAR,
+  channel_type   VARCHAR,
+  event_type     VARCHAR,
+  amount         NUMERIC,
+  utm_source     VARCHAR,
+  utm_medium     VARCHAR,
+  utm_campaign   VARCHAR,
+  timestamp      TIMESTAMPTZ
+) WITH (
+  connector                   = 'kafka',
+  topic                       = 'enrichment_data',
+  properties.bootstrap.server = 'kafka:9092',
+  scan.startup.mode           = 'earliest'
+) FORMAT PLAIN ENCODE JSON;
+
+CREATE SORUCE campaigns (
     campaign_id varchar PRIMARY KEY,
     campaign_name varchar,
     campaign_type varchar,  
@@ -19,7 +25,12 @@ CREATE TABLE campaigns (
     end_date timestamptz,
     budget numeric,
     target_audience varchar
-);
+); WITH (
+  connector                   = 'kafka',
+  topic                       = 'campaigns',
+  properties.bootstrap.server = 'kafka:9092',
+  scan.startup.mode           = 'earliest-offset'
+) FORMAT PLAIN ENCODE JSON;
 
 CREATE TABLE ab_test_variants (
     variant_id varchar PRIMARY KEY,
@@ -27,7 +38,12 @@ CREATE TABLE ab_test_variants (
     variant_name varchar, 
     variant_type varchar,  
     content_details varchar
-);
+); WITH (
+  connector                   = 'kafka',
+  topic                       = 'campaigns',
+  properties.bootstrap.server = 'kafka:9092',
+  scan.startup.mode           = 'earliest-offset'
+) FORMAT PLAIN ENCODE JSON;
 
 CREATE MATERIALIZED VIEW campaign_performance AS
 SELECT
