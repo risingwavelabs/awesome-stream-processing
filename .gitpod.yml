@@ -197,7 +197,6 @@ tasks:
           echo "Setting up Superset dashboard"
           chmod +x superset_scripts/market_analysis_script.sh
           ./superset_scripts/market_analysis_script.sh
-          ;;
           echo "Marketing Analysis demo ready."
           ;;
 
