@@ -73,10 +73,15 @@ done
 CH_NAME="Events Over Time"
 CH_FILTER="q=$(jq -n --arg name "$CH_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
 CH_PARAMS=$(jq -n --argjson ds_id "$MARKETING_EVENTS_DS_ID" '{
-  viz_type:"line",datasource:"\($ds_id)__table",
-  granularity_sqla:"timestamp",time_range:"No filter",
-  metrics:["COUNT(event_id)"],groupby:["event_type"],
-  time_grain_sqla:"PT1M",row_limit:10000,show_legend:true
+  viz_type:"line",
+  datasource:"\($ds_id)__table",
+  granularity_sqla:"timestamp",
+  time_range:"No filter",
+  metrics:["COUNT(event_id)"],
+  groupby:["event_type"],
+  time_grain_sqla:"PT1M",
+  row_limit:10000,
+  show_legend:true
 }')
 CH_PAYLOAD=$(jq -n --arg name "$CH_NAME" --argjson ds_id "$MARKETING_EVENTS_DS_ID" --argjson params "$CH_PARAMS" \
   '{slice_name:$name,viz_type:"line",datasource_id:$ds_id,datasource_type:"table",params:($params|tostring),owners:[1]}')
@@ -99,23 +104,37 @@ CH_2_ID=$(get_or_create_asset chart "$CH_NAME" "$CH_FILTER" "$CH_PAYLOAD")
 CH_NAME="Channel Attribution"
 CH_FILTER="q=$(jq -n --arg name "$CH_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
 CH_PARAMS=$(jq -n --argjson ds_id "$CHANNEL_ATTRIBUTION_DS_ID" '{
-  viz_type:"bar",datasource:"\($ds_id)__table",
-  granularity_sqla:"window_start",time_range:"No filter",
-  metrics:["revenue"],groupby:["channel_type"],
-  time_grain_sqla:"PT1H",row_limit:10000,show_legend:true
+  viz_type:"bar",
+  datasource:"\($ds_id)__table",
+  granularity_sqla:"window_start",
+  time_range:"No filter",
+  metrics:["revenue"],
+  groupby:["channel_type"],
+  time_grain_sqla:"PT1H",
+  row_limit:10000,
+  show_legend:true
 }')
 CH_PAYLOAD=$(jq -n --arg name "$CH_NAME" --argjson ds_id "$CHANNEL_ATTRIBUTION_DS_ID" --argjson params "$CH_PARAMS" \
-  '{slice_name:$name,viz_type:"bar",datasource_id:$ds_id,datasource_type:"table",params:($params|tostring),owners:[1]}')
+  '{slice_name:$name,
+  viz_type:"bar",
+  datasource_id:$ds_id,
+  datasource_type:"table",
+  params:($params|tostring),
+  owners:[1]}')
 CH_3_ID=$(get_or_create_asset chart "$CH_NAME" "$CH_FILTER" "$CH_PAYLOAD")
 
 # 4.4 A/B Test Comparison
 CH_NAME="AB Test Variant Comparison"
 CH_FILTER="q=$(jq -n --arg name "$CH_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
 CH_PARAMS=$(jq -n --argjson ds_id "$AB_TEST_RESULTS_DS_ID" '{
-  viz_type:"bar",datasource:"\($ds_id)__table",
-  granularity_sqla:"window_start",time_range:"No filter",
-  metrics:["conversion_rate"],groupby:["variant_name"],
-  row_limit:10000,show_legend:true
+  viz_type:"bar",
+  datasource:"\($ds_id)__table",
+  granularity_sqla:"window_start",
+  time_range:"No filter",
+  metrics:["conversion_rate"],
+  groupby:["variant_name"],
+  row_limit:10000,
+  show_legend:true
 }')
 CH_PAYLOAD=$(jq -n --arg name "$CH_NAME" --argjson ds_id "$AB_TEST_RESULTS_DS_ID" --argjson params "$CH_PARAMS" \
   '{slice_name:$name,viz_type:"bar",datasource_id:$ds_id,datasource_type:"table",params:($params|tostring),owners:[1]}')
