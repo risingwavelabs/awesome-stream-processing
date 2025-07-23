@@ -101,7 +101,7 @@ CH_PARAMS=$(jq -n --argjson ds_id "$CAMPAIGN_PERFORMANCE_DS_ID" '{
     {
       label: "Revenue over Time",
       expressionType: "SQL",
-      sqlExpression: "SUM(amount)"
+      sqlExpression: "SUM(revenue)"
     }
   ],
   groupby:["campaign_id"],
@@ -125,7 +125,7 @@ CH_PARAMS=$(jq -n --argjson ds_id "$CHANNEL_ATTRIBUTION_DS_ID" '{
     {
       label: "Revenue by Channel",
       expressionType: "SQL",
-      sqlExpression: "SUM(amount)"
+      sqlExpression: "SUM(revenue)"
     }
   ],
   groupby:["channel_type"],
