@@ -63,7 +63,7 @@ for ds in marketing_events campaign_performance channel_attribution ab_test_resu
   PAYLOAD=$(jq -n --arg db "$DB_ID" --arg tn "$ds" --arg schema "public" \
     '{database:($db|tonumber),table_name:$tn,schema:$schema,owners:[1]}')
   ID_VAR="\${ds^^}_DS_ID"
-  declare $ID_VAR=$(get_or_create_asset dataset "$ds" "$FILTER" "$PAYLOAD")
+  eval "${ds^^}_DS_ID=$(get_or_create_asset dataset "$ds" "$FILTER" "$PAYLOAD")"
   curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/\${!ID_VAR}/refresh" \
     -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" >/dev/null
 done
