@@ -7,7 +7,7 @@ SUPERSET_URL="${SUPERSET_URL:-http://localhost:8088}"
 SUPERSET_USERNAME="${SUPERSET_USERNAME:-admin}"
 SUPERSET_PASSWORD="${SUPERSET_PASSWORD:-admin}"
 DB_NAME="Marketing_Events"
-SQLALCHEMY_URI="risingwave://root@localhost:4566/dev"
+SQLALCHEMY_URI="risingwave://root@risingwave:4566/dev"
 
 # --- Pre-requisites ---
 for cmd in curl jq; do

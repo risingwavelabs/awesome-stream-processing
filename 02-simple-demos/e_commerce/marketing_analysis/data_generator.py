@@ -94,7 +94,6 @@ if __name__ == "__main__":
             for _ in range(EVENTS_PER_BATCH):
                 generate_event(campaign_ids)
             producer.flush()
-            print(f"→ Sent {EVENTS_PER_BATCH} events @ {now_ts()}")
             time.sleep(BATCH_INTERVAL_SEC)
 
     except KeyboardInterrupt:

@@ -25,7 +25,7 @@ CREATE SOURCE campaigns (
     end_date timestamptz,
     budget numeric,
     target_audience varchar
-); WITH (
+) WITH (
   connector                   = 'kafka',
   topic                       = 'campaigns',
   properties.bootstrap.server = 'kafka:9092',
@@ -38,7 +38,7 @@ CREATE SOURCE ab_test_variants (
     variant_name varchar, 
     variant_type varchar,  
     content_details varchar
-); WITH (
+) WITH (
   connector = 'kafka',
   topic = 'ab_test_variants',
   properties.bootstrap.server = 'kafka:9092',
@@ -60,7 +60,7 @@ SELECT
         NULLIF(COUNT(DISTINCT CASE WHEN event_type = 'impression' THEN me.event_id END), 0) as ctr,
     COUNT(DISTINCT CASE WHEN event_type = 'conversion' THEN me.event_id END)::float /
         NULLIF(COUNT(DISTINCT CASE WHEN event_type = 'click' THEN me.event_id END), 0) as conversion_rate
-FROM TUMBLE(marketing_events me, timestamp, INTERVAL '1 HOUR')
+FROM TUMBLE(marketing_events, timestamp, INTERVAL '1 HOUR')
 JOIN campaigns c ON me.campaign_id = c.campaign_id
 GROUP BY
     window_start,
