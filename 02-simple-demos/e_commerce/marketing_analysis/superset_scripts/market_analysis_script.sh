@@ -56,8 +56,6 @@ curl -s -X PUT "$SUPERSET_URL/api/v1/database/$DB_ID" -H "Authorization: Bearer 
 curl -s -X POST "$SUPERSET_URL/api/v1/database/$DB_ID/refresh" \
   -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" >/dev/null
 
-# 3) Create/Retrieve Datasets
-# marketing_events raw table
 for ds in marketing_events campaign_performance channel_attribution ab_test_results; do
   FILTER="q=$(jq -n --arg tn "$ds" '{filters:[{col:"table_name",opr:"eq",value:$tn}]}')"
   PAYLOAD=$(jq -n --arg db "$DB_ID" --arg tn "$ds" --arg schema "public" \
@@ -77,7 +75,13 @@ CH_PARAMS=$(jq -n --argjson ds_id "$MARKETING_EVENTS_DS_ID" '{
   datasource:"\($ds_id)__table",
   granularity_sqla:"timestamp",
   time_range:"No filter",
-  metrics:["COUNT(event_id)"],
+  metrics: [
+    {
+      label: "Total Events",
+      expressionType: "SQL",
+      sqlExpression: "COUNT(event_id)"
+    }
+  ],
   groupby:["event_type"],
   time_grain_sqla:"PT1M",
   row_limit:10000,
@@ -93,8 +97,17 @@ CH_FILTER="q=$(jq -n --arg name "$CH_NAME" '{filters:[{col:"slice_name",opr:"eq"
 CH_PARAMS=$(jq -n --argjson ds_id "$CAMPAIGN_PERFORMANCE_DS_ID" '{
   viz_type:"line",datasource:"\($ds_id)__table",
   granularity_sqla:"window_start",time_range:"No filter",
-  metrics:["revenue"],groupby:["campaign_id"],
-  time_grain_sqla:"PT1H",row_limit:10000,show_legend:true
+  metrics: [
+    {
+      label: "Revenue over Time",
+      expressionType: "SQL",
+      sqlExpression: "SUM(amount)"
+    }
+  ],
+  groupby:["campaign_id"],
+  time_grain_sqla:"PT1H",
+  row_limit:10000,
+  show_legend:true
 }')
 CH_PAYLOAD=$(jq -n --arg name "$CH_NAME" --argjson ds_id "$CAMPAIGN_PERFORMANCE_DS_ID" --argjson params "$CH_PARAMS" \
   '{slice_name:$name,viz_type:"line",datasource_id:$ds_id,datasource_type:"table",params:($params|tostring),owners:[1]}')
@@ -108,7 +121,13 @@ CH_PARAMS=$(jq -n --argjson ds_id "$CHANNEL_ATTRIBUTION_DS_ID" '{
   datasource:"\($ds_id)__table",
   granularity_sqla:"window_start",
   time_range:"No filter",
-  metrics:["revenue"],
+  metrics: [
+    {
+      label: "Revenue by Channel",
+      expressionType: "SQL",
+      sqlExpression: "SUM(amount)"
+    }
+  ],
   groupby:["channel_type"],
   time_grain_sqla:"PT1H",
   row_limit:10000,
@@ -131,7 +150,13 @@ CH_PARAMS=$(jq -n --argjson ds_id "$AB_TEST_RESULTS_DS_ID" '{
   datasource:"\($ds_id)__table",
   granularity_sqla:"window_start",
   time_range:"No filter",
-  metrics:["conversion_rate"],
+  metrics: [
+    {
+      label: "Total Events",
+      expressionType: "SQL",
+      sqlExpression: "AVG(conversion_rate)"
+    }
+  ],
   groupby:["variant_name"],
   row_limit:10000,
   show_legend:true
