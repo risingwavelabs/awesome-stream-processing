@@ -18,7 +18,7 @@ CREATE SOURCE marketing_events (
 ) FORMAT PLAIN ENCODE JSON;
 
 CREATE SOURCE campaigns (
-    campaign_id varchar PRIMARY KEY,
+    campaign_id varchar,
     campaign_name varchar,
     campaign_type varchar,  
     start_date timestamptz,
@@ -33,7 +33,7 @@ CREATE SOURCE campaigns (
 ) FORMAT PLAIN ENCODE JSON;
 
 CREATE SOURCE ab_test_variants (
-    variant_id varchar PRIMARY KEY,
+    variant_id varchar,
     campaign_id varchar,
     variant_name varchar, 
     variant_type varchar,  
@@ -103,7 +103,7 @@ SELECT
     SUM(CASE WHEN event_type = 'conversion' THEN amount ELSE 0 END) as revenue,
     COUNT(DISTINCT CASE WHEN event_type = 'conversion' THEN me.event_id END)::float /
         NULLIF(COUNT(DISTINCT CASE WHEN event_type = 'click' THEN me.event_id END), 0) as conversion_rate
-FROM TUMBLE(marketing_events me, timestamp, INTERVAL '1 HOUR')
+FROM TUMBLE(marketing_events, timestamp, INTERVAL '1 HOUR')
 JOIN campaigns c ON me.campaign_id = c.campaign_id
 JOIN ab_test_variants av ON c.campaign_id = av.campaign_id
 WHERE c.campaign_type = 'ab_test'
