@@ -60,7 +60,7 @@ SELECT
     NULLIF(COUNT(DISTINCT CASE WHEN event_type = 'impression' THEN event_id END), 0) AS ctr,
   COUNT(DISTINCT CASE WHEN event_type = 'conversion' THEN event_id END)::FLOAT /
     NULLIF(COUNT(DISTINCT CASE WHEN event_type = 'click' THEN event_id END), 0) AS conversion_rate
-FROM TUMBLE(marketing_events, timestamp, INTERVAL '1 HOUR')
+FROM TUMBLE(marketing_events, timestamp, INTERVAL '5 MINUTES')
 JOIN campaigns c ON marketing_events.campaign_id = c.campaign_id
 GROUP BY
   window_start,
@@ -81,7 +81,7 @@ SELECT
   SUM(CASE WHEN event_type = 'conversion' THEN amount ELSE 0 END) AS revenue,
   SUM(CASE WHEN event_type = 'conversion' THEN amount ELSE 0 END) /
     NULLIF(COUNT(DISTINCT CASE WHEN event_type = 'conversion' THEN event_id END), 0) AS avg_order_value
-FROM TUMBLE(marketing_events, timestamp, INTERVAL '1 HOUR')
+FROM TUMBLE(marketing_events, timestamp, INTERVAL '5 MINUTES')
 GROUP BY
   window_start,
   window_end,
@@ -103,7 +103,7 @@ SELECT
   SUM(CASE WHEN event_type = 'conversion' THEN amount ELSE 0 END) AS revenue,
   COUNT(DISTINCT CASE WHEN event_type = 'conversion' THEN event_id END)::FLOAT /
     NULLIF(COUNT(DISTINCT CASE WHEN event_type = 'click' THEN event_id END), 0) AS conversion_rate
-FROM TUMBLE(marketing_events, timestamp, INTERVAL '1 HOUR')
+FROM TUMBLE(marketing_events, timestamp, INTERVAL '5 MINUTES')
 JOIN campaigns c ON marketing_events.campaign_id = c.campaign_id
 JOIN ab_test_variants av ON c.campaign_id = av.campaign_id
 WHERE c.campaign_type = 'ab_test'
