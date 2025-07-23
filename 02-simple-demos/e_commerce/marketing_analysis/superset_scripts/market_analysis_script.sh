@@ -105,7 +105,7 @@ CH_PARAMS=$(jq -n --argjson ds_id "$CAMPAIGN_PERFORMANCE_DS_ID" '{
     }
   ],
   groupby:["campaign_id"],
-  time_grain_sqla:"PT1H",
+  time_grain_sqla:"PT1M",
   row_limit:10000,
   show_legend:true
 }')
