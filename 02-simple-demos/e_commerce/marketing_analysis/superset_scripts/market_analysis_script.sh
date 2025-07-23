@@ -140,7 +140,6 @@ CH_PAYLOAD=$(jq -n --arg name "$CH_NAME" --argjson ds_id "$AB_TEST_RESULTS_DS_ID
   '{slice_name:$name,viz_type:"bar",datasource_id:$ds_id,datasource_type:"table",params:($params|tostring),owners:[1]}')
 CH_4_ID=$(get_or_create_asset chart "$CH_NAME" "$CH_FILTER" "$CH_PAYLOAD")
 
-# 5) Output
 cat <<EOF
 Superset charts created:
 - Events Over Time:        $SUPERSET_URL/explore/?slice_id=$CH_1_ID
