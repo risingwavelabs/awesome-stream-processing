@@ -17,10 +17,10 @@ NUM_CAMPAIGNS       = 10
 EVENTS_PER_BATCH    = 50
 BATCH_INTERVAL_SEC  = 2
 
-CHANNELS     = ['email', 'social', 'search', 'display']
-EVENT_TYPES  = ['impression', 'click', 'conversion']
-UTM_SOURCES  = ['google', 'facebook', 'instagram', 'email', 'linkedin']
-UTM_MEDIUMS  = ['cpc', 'organic', 'social', 'email', 'display']
+CHANNELS       = ['email', 'social', 'search', 'display']
+EVENT_TYPES    = ['impression', 'click', 'conversion']
+UTM_SOURCES    = ['google', 'facebook', 'instagram', 'email', 'linkedin']
+UTM_MEDIUMS    = ['cpc', 'organic', 'social', 'email', 'display']
 CAMPAIGN_TYPES = ['regular', 'ab_test']
 VARIANT_TYPES  = ['subject_line', 'creative', 'landing_page']
 
@@ -33,7 +33,9 @@ def now_ts():
 
 def seed_campaigns(num_campaigns=NUM_CAMPAIGNS):
     """Emit campaigns (and AB variants) into Kafka once at startup."""
-    ids = []
+    campaign_ids = []
+    ab_variants_map = {}  # maps campaign_id → list of variants
+
     for i in range(num_campaigns):
         cid = f"camp_{uuid.uuid4().hex[:8]}"
         ctype = random.choice(CAMPAIGN_TYPES)
@@ -50,6 +52,7 @@ def seed_campaigns(num_campaigns=NUM_CAMPAIGNS):
         producer.send(TOPIC_CAMPAIGNS, campaign)
 
         if ctype == 'ab_test':
+            ab_variants_map[cid] = []
             for variant in ['A','B','Control']:
                 var = {
                     "variant_id":     str(uuid.uuid4()),
@@ -58,18 +61,31 @@ def seed_campaigns(num_campaigns=NUM_CAMPAIGNS):
                     "variant_type":   random.choice(VARIANT_TYPES),
                     "content_details": f"Content for variant {variant}"
                 }
+                ab_variants_map[cid].append(var)
                 producer.send(TOPIC_VARIANTS, var)
 
-        ids.append(cid)
+        campaign_ids.append(cid)
 
     producer.flush()
-    print(f"Seeded {len(ids)} campaigns + variants")
-    return ids
+    print(f"Seeded {len(campaign_ids)} campaigns + variants")
+    return campaign_ids, ab_variants_map
 
-def generate_event(campaign_ids):
+def generate_event(campaign_ids, ab_variants_map):
     """Build and send a single marketing event."""
     cid = random.choice(campaign_ids)
-    et  = random.choice(EVENT_TYPES)
+    et = random.choices(
+        population=['impression', 'click', 'conversion'],
+        weights=[0.6, 0.3, 0.1],
+        k=1
+    )[0]
+    variant_id = None
+    variant_name = None
+
+    if cid in ab_variants_map:
+        variant = random.choice(ab_variants_map[cid])
+        variant_id = variant["variant_id"]
+        variant_name = variant["variant_name"]
+
     ev = {
         "event_id":     str(uuid.uuid4()),
         "user_id":      random.randint(1,1000),
@@ -80,25 +96,26 @@ def generate_event(campaign_ids):
         "utm_source":   random.choice(UTM_SOURCES),
         "utm_medium":   random.choice(UTM_MEDIUMS),
         "utm_campaign": cid,
+        "variant_id":   variant_id,
+        "variant_name": variant_name,
         "timestamp":    now_ts()
     }
+
     producer.send(TOPIC_MARKETING_EVENTS, ev)
 
 if __name__ == "__main__":
-    #seed campaigns
-    campaign_ids = seed_campaigns()
+    campaign_ids, ab_variants_map = seed_campaigns()
 
-    print("Starting marketing event stream… )")
+    print("Starting marketing event stream…")
     try:
         while True:
             for _ in range(EVENTS_PER_BATCH):
-                generate_event(campaign_ids)
+                generate_event(campaign_ids, ab_variants_map)
             producer.flush()
             time.sleep(BATCH_INTERVAL_SEC)
 
     except KeyboardInterrupt:
         print("\nData generation stopped by user.")
-
     finally:
         producer.flush()
         producer.close()
