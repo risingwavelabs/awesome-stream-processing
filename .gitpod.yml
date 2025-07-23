@@ -174,6 +174,30 @@ tasks:
 
         "marketing_analysis")
           echo "Running Marketing Analysis bootstrap"
+
+          docker exec kafka \
+            kafka-topics.sh \
+              --bootstrap-server kafka:9092 \
+              --create \
+              --topic marketing_events \
+              --partitions 1 \
+              --replication-factor 1
+
+          docker exec kafka \
+            kafka-topics.sh \
+              --bootstrap-server kafka:9092 \
+              --create \
+              --topic campaigns \
+              --partitions 1 \
+              --replication-factor 1
+          
+          docker exec kafka \
+            kafka-topics.sh \
+              --bootstrap-server kafka:9092 \
+              --create \
+              --topic ab_test_variants \
+              --partitions 1 \
+              --replication-factor 1
           
           # Load PostgreSQL bootstrap if it exists
           if [ -f "pg_bootstrap.sql" ]; then

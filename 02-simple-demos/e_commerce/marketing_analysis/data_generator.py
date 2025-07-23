@@ -88,7 +88,7 @@ if __name__ == "__main__":
     #seed campaigns
     campaign_ids = seed_campaigns()
 
-    print("Starting marketing event stream… (Ctrl+C to stop)")
+    print("Starting marketing event stream… )")
     try:
         while True:
             for _ in range(EVENTS_PER_BATCH):

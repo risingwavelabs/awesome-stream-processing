@@ -12,12 +12,12 @@ CREATE SOURCE marketing_events (
   timestamp      TIMESTAMPTZ
 ) WITH (
   connector                   = 'kafka',
-  topic                       = 'enrichment_data',
+  topic                       = 'marketing_events',
   properties.bootstrap.server = 'kafka:9092',
   scan.startup.mode           = 'earliest'
 ) FORMAT PLAIN ENCODE JSON;
 
-CREATE SORUCE campaigns (
+CREATE SOURCE campaigns (
     campaign_id varchar PRIMARY KEY,
     campaign_name varchar,
     campaign_type varchar,  
@@ -29,20 +29,20 @@ CREATE SORUCE campaigns (
   connector                   = 'kafka',
   topic                       = 'campaigns',
   properties.bootstrap.server = 'kafka:9092',
-  scan.startup.mode           = 'earliest-offset'
+  scan.startup.mode           = 'earliest'
 ) FORMAT PLAIN ENCODE JSON;
 
-CREATE TABLE ab_test_variants (
+CREATE SOURCE ab_test_variants (
     variant_id varchar PRIMARY KEY,
     campaign_id varchar,
     variant_name varchar, 
     variant_type varchar,  
     content_details varchar
 ); WITH (
-  connector                   = 'kafka',
-  topic                       = 'campaigns',
+  connector = 'kafka',
+  topic = 'ab_test_variants',
   properties.bootstrap.server = 'kafka:9092',
-  scan.startup.mode           = 'earliest-offset'
+  scan.startup.mode = 'earliest'
 ) FORMAT PLAIN ENCODE JSON;
 
 CREATE MATERIALIZED VIEW campaign_performance AS
