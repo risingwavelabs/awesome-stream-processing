@@ -57,13 +57,33 @@ curl -s -X POST "$SUPERSET_URL/api/v1/database/$DB_ID/refresh" \
   -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" >/dev/null
 
 for ds in marketing_events campaign_performance channel_attribution ab_test_results; do
-  FILTER="q=$(jq -n --arg tn "$ds" '{filters:[{col:"table_name",opr:"eq",value:$tn}]}')"
-  PAYLOAD=$(jq -n --arg db "$DB_ID" --arg tn "$ds" --arg schema "public" \
-    '{database:($db|tonumber),table_name:$tn,schema:$schema,owners:[1]}')
+  FILTER=$(jq -n \
+    --arg tn "$ds" \
+    --arg db "$DB_ID" \
+    --arg schema "public" \
+    '{
+      filters: [
+        {col:"table_name",  opr:"eq", value:$tn},
+        {col:"database_id", opr:"eq", value:($db|tonumber)},
+        {col:"schema",      opr:"eq", value:$schema}
+      ]
+    }')
+  PAYLOAD=$(jq -n \
+    --arg db "$DB_ID" \
+    --arg tn "$ds" \
+    --arg schema "public" \
+    '{
+      database:($db|tonumber),
+      table_name:$tn,
+      schema:$schema,
+      owners:[1]
+    }')
   ID_VAR="\${ds^^}_DS_ID"
-  eval "${ds^^}_DS_ID=$(get_or_create_asset dataset "$ds" "$FILTER" "$PAYLOAD")"
-  curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/\${!ID_VAR}/refresh" \
-    -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" >/dev/null
+  eval "${ds^^}_DS_ID=\$(get_or_create_asset dataset \"$ds\" \"$FILTER\" \"$PAYLOAD\")"
+  curl -s -X PUT \
+    "$SUPERSET_URL/api/v1/dataset/\${!ID_VAR}/refresh" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "X-CSRFToken: $CSRF_TOKEN" >/dev/null
 done
 echo
 echo "Dataset IDs:"
