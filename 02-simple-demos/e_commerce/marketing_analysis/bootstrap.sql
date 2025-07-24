@@ -9,6 +9,8 @@ CREATE SOURCE marketing_events (
   utm_source     VARCHAR,
   utm_medium     VARCHAR,
   utm_campaign   VARCHAR,
+  variant_id     VARCHAR,
+  variant_name   VARCHAR,
   timestamp      TIMESTAMPTZ
 ) WITH (
   connector                   = 'kafka',
@@ -91,26 +93,35 @@ GROUP BY
 
 CREATE MATERIALIZED VIEW ab_test_results AS
 SELECT
-  window_start,
-  window_end,
+  w.window_start,
+  w.window_end,
   c.campaign_id,
   c.campaign_name,
+  av.variant_id,
   av.variant_name,
-  av.variant_type,
-  COUNT(DISTINCT CASE WHEN event_type = 'impression' THEN event_id END) AS impressions,
-  COUNT(DISTINCT CASE WHEN event_type = 'click' THEN event_id END) AS clicks,
-  COUNT(DISTINCT CASE WHEN event_type = 'conversion' THEN event_id END) AS conversions,
-  SUM(CASE WHEN event_type = 'conversion' THEN amount ELSE 0 END) AS revenue,
-  COUNT(DISTINCT CASE WHEN event_type = 'conversion' THEN event_id END)::FLOAT /
-    NULLIF(COUNT(DISTINCT CASE WHEN event_type = 'click' THEN event_id END), 0) AS conversion_rate
-FROM TUMBLE(marketing_events, timestamp, INTERVAL '5 MINUTES')
-JOIN campaigns c ON marketing_events.campaign_id = c.campaign_id
-JOIN ab_test_variants av ON c.campaign_id = av.campaign_id
+  COUNT(DISTINCT CASE WHEN e.event_type = 'impression' THEN e.event_id END) AS impressions,
+  COUNT(DISTINCT CASE WHEN e.event_type = 'click'      THEN e.event_id END) AS clicks,
+  COUNT(DISTINCT CASE WHEN e.event_type = 'conversion' THEN e.event_id END) AS conversions,
+  SUM(CASE WHEN e.event_type = 'conversion' THEN e.amount ELSE 0 END) AS revenue,
+  COUNT(DISTINCT CASE WHEN e.event_type = 'conversion' THEN e.event_id END)::DOUBLE
+    / NULLIF(COUNT(DISTINCT CASE WHEN e.event_type = 'click' THEN e.event_id END), 0)
+    AS conversion_rate
+FROM TUMBLE(
+  TABLE marketing_events,
+  DESCRIPTOR(timestamp),
+  INTERVAL '5 MINUTES'
+) AS w
+JOIN marketing_events AS e
+  ON e.timestamp BETWEEN w.window_start AND w.window_end
+JOIN campaigns AS c
+  ON e.campaign_id = c.campaign_id
+JOIN ab_test_variants AS av
+  ON e.variant_id = av.variant_id
 WHERE c.campaign_type = 'ab_test'
 GROUP BY
-  window_start,
-  window_end,
+  w.window_start,
+  w.window_end,
   c.campaign_id,
   c.campaign_name,
-  av.variant_name,
-  av.variant_type;
+  av.variant_id,
+  av.variant_name;
