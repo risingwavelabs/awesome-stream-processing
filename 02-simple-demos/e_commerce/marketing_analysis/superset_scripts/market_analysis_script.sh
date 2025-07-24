@@ -65,7 +65,13 @@ for ds in marketing_events campaign_performance channel_attribution ab_test_resu
   curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/\${!ID_VAR}/refresh" \
     -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" >/dev/null
 done
-
+echo
+echo "Dataset IDs:"
+echo "  MARKETING_EVENTS_DS_ID= $MARKETING_EVENTS_DS_ID"
+echo "  CAMPAIGN_PERFORMANCE_DS_ID= $CAMPAIGN_PERFORMANCE_DS_ID"
+echo "  CHANNEL_ATTRIBUTION_DS_ID= $CHANNEL_ATTRIBUTION_DS_ID"
+echo "  AB_TEST_RESULTS_DS_ID= $AB_TEST_RESULTS_DS_ID"
+echo
 # 4) Create Charts
 # 4.1 Events Over Time
 CH_NAME="Events Over Time"
