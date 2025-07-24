@@ -64,15 +64,8 @@ for ds in marketing_events campaign_performance channel_attribution ab_test_resu
   eval "${ds^^}_DS_ID=$(get_or_create_asset dataset "$ds" "$FILTER" "$PAYLOAD")"
   curl -s -X PUT "$SUPERSET_URL/api/v1/dataset/\${!ID_VAR}/refresh" \
     -H "Authorization: Bearer $TOKEN" -H "X-CSRFToken: $CSRF_TOKEN" >/dev/null
-    
 done
-echo
-echo "Dataset IDs:"
-echo "  MARKETING_EVENTS_DS_ID= $MARKETING_EVENTS_DS_ID"
-echo "  CAMPAIGN_PERFORMANCE_DS_ID= $CAMPAIGN_PERFORMANCE_DS_ID"
-echo "  CHANNEL_ATTRIBUTION_DS_ID= $CHANNEL_ATTRIBUTION_DS_ID"
-echo "  AB_TEST_RESULTS_DS_ID= $AB_TEST_RESULTS_DS_ID"
-echo
+
 # 4) Create Charts
 # 4.1 Events Over Time
 CH_NAME="Events Over Time"
@@ -149,7 +142,6 @@ CH_PAYLOAD=$(jq -n --arg name "$CH_NAME" --argjson ds_id "$CHANNEL_ATTRIBUTION_D
   owners:[1]}')
 CH_3_ID=$(get_or_create_asset chart "$CH_NAME" "$CH_FILTER" "$CH_PAYLOAD")
 
-# 4.4 A/B Test Comparison
 CH_NAME="AB Test Variant Comparison"
 CH_FILTER="q=$(jq -n --arg name "$CH_NAME" '{filters:[{col:"slice_name",opr:"eq",value:$name}]}')"
 CH_PARAMS=$(jq -n --argjson ds_id "$AB_TEST_RESULTS_DS_ID" '{
