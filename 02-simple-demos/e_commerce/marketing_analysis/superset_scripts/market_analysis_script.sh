@@ -153,18 +153,28 @@ CH_FILTER="q=$(jq -n --arg name "$CH_NAME" '{filters:[{col:"slice_name",opr:"eq"
 CH_PARAMS=$(jq -n --argjson ds_id "$AB_TEST_RESULTS_DS_ID" '{
   viz_type:"bar",
   datasource:"\($ds_id)__table",
-  granularity_sqla:"window_start",
-  time_range:"No filter",
+  time_range:"Last 1 hour",
   metrics: [
     {
-      label: "Total Events",
+      label: "Average Conversion Rate",
       expressionType: "SQL",
       sqlExpression: "AVG(conversion_rate)"
+    },
+    {
+      label: "Total Conversions", 
+      expressionType: "SQL",
+      sqlExpression: "SUM(conversions)"
+    },
+    {
+      label: "Total Revenue",
+      expressionType: "SQL", 
+      sqlExpression: "SUM(revenue)"
     }
   ],
   groupby:["variant_name"],
   row_limit:10000,
-  show_legend:true
+  show_legend:true,
+  adhoc_filters: []
 }')
 CH_PAYLOAD=$(jq -n --arg name "$CH_NAME" --argjson ds_id "$AB_TEST_RESULTS_DS_ID" --argjson params "$CH_PARAMS" \
   '{slice_name:$name,viz_type:"bar",datasource_id:$ds_id,datasource_type:"table",params:($params|tostring),owners:[1]}')
