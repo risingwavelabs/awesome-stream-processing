@@ -28,6 +28,9 @@ TOPIC_CAMPAIGNS        = 'campaigns'
 TOPIC_VARIANTS         = 'ab_test_variants'
 TOPIC_MARKETING_EVENTS = 'marketing_events'
 
+campaign_info = {}
+variant_info = {}
+
 def now_ts():
     return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
 
@@ -48,17 +51,23 @@ def seed_campaigns(num_campaigns=NUM_CAMPAIGNS):
             "target_audience": random.choice(['new_customers','existing_customers','all'])
         }
         producer.send(TOPIC_CAMPAIGNS, campaign)
+        
+        # Store campaign info
+        campaign_info[cid] = ctype
+        variant_info[cid] = []
 
         if ctype == 'ab_test':
             for variant in ['A','B','Control']:
+                vid = str(uuid.uuid4())
                 var = {
-                    "variant_id":     str(uuid.uuid4()),
+                    "variant_id":     vid,
                     "campaign_id":    cid,
                     "variant_name":   variant,
                     "variant_type":   random.choice(VARIANT_TYPES),
                     "content_details": f"Content for variant {variant}"
                 }
                 producer.send(TOPIC_VARIANTS, var)
+                variant_info[cid].append(vid)
 
         ids.append(cid)
 
@@ -70,10 +79,16 @@ def generate_event(campaign_ids):
     """Build and send a single marketing event."""
     cid = random.choice(campaign_ids)
     et  = random.choices(
-    population=['impression', 'click', 'conversion'],
-    weights=[0.6, 0.3, 0.1],
-    k=1
-)[0]
+        population=['impression', 'click', 'conversion'],
+        weights=[0.6, 0.3, 0.1],
+        k=1
+    )[0]
+    
+    # For A/B test campaigns, assign a variant_id
+    variant_id = None
+    if campaign_info.get(cid) == 'ab_test' and variant_info.get(cid):
+        variant_id = random.choice(variant_info[cid])
+    
     ev = {
         "event_id":     str(uuid.uuid4()),
         "user_id":      random.randint(1,1000),
@@ -84,15 +99,16 @@ def generate_event(campaign_ids):
         "utm_source":   random.choice(UTM_SOURCES),
         "utm_medium":   random.choice(UTM_MEDIUMS),
         "utm_campaign": cid,
+        "variant_id":   variant_id,  # NEW: Add variant_id for A/B test events
         "timestamp":    now_ts()
     }
     producer.send(TOPIC_MARKETING_EVENTS, ev)
 
 if __name__ == "__main__":
-    #seed campaigns
+    # Seed campaigns
     campaign_ids = seed_campaigns()
 
-    print("Starting marketing event stream… )")
+    print("Starting marketing event stream...")
     try:
         while True:
             for _ in range(EVENTS_PER_BATCH):
