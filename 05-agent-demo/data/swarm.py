@@ -130,7 +130,6 @@ async def run_swarm(rwMCP: MCPServer, kafkaMCP: MCPServer):
                     )
                 elif isinstance(new_item, ToolCallItem):
                     print(f"{agent_name}: Calling a tool")
-                    print(f"calling {ToolCallItem}")
                 elif isinstance(new_item, ToolCallOutputItem):
                     print(f"{agent_name}: Tool call output: {new_item.output}")
                 
