@@ -1,0 +1,372 @@
+image:
+  file: .gitpod.Dockerfile
+
+tasks:
+  - name: Auto Bootstrap Demo
+    init: |
+      echo "starting Docker containers"
+      docker-compose up -d
+
+      echo "creating .pgpass file for PostgreSQL auth"
+      echo "localhost:5432:pgdb:pguser:pgpass" > ~/.pgpass
+      chmod 600 ~/.pgpass
+
+      echo "Waiting for PostgreSQL to be ready..."
+      for i in {1..15}; do
+        if psql -h localhost -p 5432 -U pguser -d pgdb -c '\q' 2>/dev/null; then
+          echo "PostgreSQL is ready."
+          break
+        else
+          echo "Attempt $i: PostgreSQL not ready yet"
+          sleep 3
+        fi
+      done
+
+      echo "Waiting for RisingWave to be ready..."
+      for i in {1..15}; do
+        if psql -h localhost -p 4566 -U root -d dev -c '\q' 2>/dev/null; then
+          echo "RisingWave is ready."
+          break
+        else
+          echo "Attempt $i: RisingWave not ready yet"
+          sleep 3
+        fi
+      done
+
+      until docker exec kafka kafka-topics.sh --bootstrap-server kafka:9092 --list >/dev/null 2>&1; do
+        echo "Waiting for Kafka…"
+        sleep 2
+      done
+
+      echo "Installing Python + psycopg2"
+      sudo apt-get update
+      sudo apt-get install -y python3-pip uuid-runtime jq postgresql-client
+      pip3 install psycopg2-binary kafka-python
+
+      echo "Starting demo bootstrap"
+
+      # Extract demo path from GITPOD_WORKSPACE_CONTEXT
+      if [[ -n "$GITPOD_WORKSPACE_CONTEXT" ]]; then
+        DEMO_PATH=$(echo "$GITPOD_WORKSPACE_CONTEXT" | python3 -c "import sys, json; print(json.load(sys.stdin)['path'])" 2>/dev/null)
+        echo "Auto-detected DEMO_PATH from workspace context: ${DEMO_PATH}"
+      elif [[ "$GITPOD_REPO_ROOT" != "$PWD" ]]; then
+        DEMO_PATH="${PWD#$GITPOD_REPO_ROOT/}"
+        echo "Auto-detected DEMO_PATH from PWD: ${DEMO_PATH}"
+      else
+      echo "No demo folder selected."
+      echo "Opening shell."
+      exec bash
+      fi
+
+
+      # Navigate to the demo directory
+      if [[ -d "${DEMO_PATH}" ]]; then
+        cd "${DEMO_PATH}"
+        echo "Changed to demo directory: $(pwd)"
+      else
+        echo "No specific demo chosen"
+        echo "Opening shell."
+        exec bash
+      fi
+
+      # Determine which demo we're running based on the path
+      DEMO_NAME=""
+      if [[ "$DEMO_PATH" == *"market_surveillance"* ]]; then
+        DEMO_NAME="market_surveillance"
+        echo "Detected Market Surveillance demo"
+      elif [[ "$DEMO_PATH" == *"market_enrichment"* ]]; then
+        DEMO_NAME="market_enrichment"
+        echo "Detected Market Enrichment demo"
+      elif [[ "$DEMO_PATH" == *"marketing_analysis"* ]]; then
+        DEMO_NAME="marketing_analysis"
+        echo "Detected Marketing Analysis demo"
+      elif [[ "$DEMO_PATH" == *"energy_grid"* ]]; then
+        DEMO_NAME="energy_grid"
+        echo "Detected energy_grid demo"
+      elif [[ "$DEMO_PATH" == *"market_data_enrichment"* ]]; then
+        DEMO_NAME="market_data_enrichment"
+        echo "⚡ Detected market data enrichment demo"
+      elif [[ "$DEMO_PATH" == *"warehouse_inventory_mgmt"* ]]; then
+        DEMO_NAME="warehouse_inventory_mgmt"
+        echo "⚡ Detected warehouse inventory management demo"
+      elif [[ "$DEMO_PATH" == *"position_risk_management"* ]]; then
+        DEMO_NAME="position_risk_management"
+        echo "⚡ Detected position risk management demo"
+      elif [[ "$DEMO_PATH" == *"user_betting_behavior"* ]]; then
+        DEMO_NAME="user_betting_behavior"
+        echo "⚡ Detected user betting behavior demo"
+      else
+        echo "Unknown demo type, using generic bootstrap"
+        DEMO_NAME="generic"
+      fi
+
+      # Run demo-specific bootstrap
+      case $DEMO_NAME in
+        "market_surveillance")
+          echo "Running Market Surveillance bootstrap"
+          
+          # Load PostgreSQL bootstrap if it exists
+          if [ -f "pg_bootstrap.sql" ]; then
+            echo "Loading Postgres bootstrap for Market Surveillance"
+            psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+          fi
+
+          # Load RisingWave bootstrap if it exists
+          if [ -f "bootstrap.sql" ]; then
+            echo "Loading RisingWave bootstrap for Market Surveillance"
+            psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
+          fi
+
+          # Run data generator if it exists
+          if [ -f "data_generator.py" ]; then
+            echo "Running Market Surveillance data generator"
+            python3 data_generator.py &
+          fi
+
+          # Any additional market surveillance specific setup
+          echo "Market Surveillance demo ready!"
+          ;;
+
+        "market_data_enrichment")
+          echo "Running Market Enrichment bootstrap"
+          # Any additional market enrichment specific setup
+          # Create the raw_market_data topic
+          docker exec kafka \
+            kafka-topics.sh \
+              --bootstrap-server kafka:9092 \
+              --create \
+              --topic raw_market_data \
+              --partitions 1 \
+              --replication-factor 1
+
+          # Create the enrichment_data topic
+          docker exec kafka \
+            kafka-topics.sh \
+              --bootstrap-server kafka:9092 \
+              --create \
+              --topic enrichment_data \
+              --partitions 1 \
+              --replication-factor 1
+          # Verify
+          docker exec kafka kafka-topics.sh --bootstrap-server kafka:9092 --list
+          # Load PostgreSQL bootstrap if it exists
+          if [ -f "pg_bootstrap.sql" ]; then
+            echo "Loading Postgres bootstrap for Market Enrichment..."
+            psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+          fi
+
+          if [ -f "data_generator.py" ]; then
+            echo "Running Marketing Analysis data generator"
+            python3 data_generator.py &
+          fi
+
+          # Load RisingWave bootstrap if it exists
+          if [ -f "bootstrap.sql" ]; then
+            echo "Loading RisingWave bootstrap for Market Enrichment..."
+            psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
+          fi
+
+              # After everything is ready
+          echo "Setting up Superset dashboard"
+          chmod +x superset_scripts/market_enrichment_script.sh
+          ./superset_scripts/market_enrichment_script.sh
+          ;;
+
+        "marketing_analysis")
+          echo "Running Marketing Analysis bootstrap"
+
+          docker exec kafka \
+            kafka-topics.sh \
+              --bootstrap-server kafka:9092 \
+              --create \
+              --topic marketing_events \
+              --partitions 1 \
+              --replication-factor 1
+
+          docker exec kafka \
+            kafka-topics.sh \
+              --bootstrap-server kafka:9092 \
+              --create \
+              --topic campaigns \
+              --partitions 1 \
+              --replication-factor 1
+          
+          docker exec kafka \
+            kafka-topics.sh \
+              --bootstrap-server kafka:9092 \
+              --create \
+              --topic ab_test_variants \
+              --partitions 1 \
+              --replication-factor 1
+          
+          # Load PostgreSQL bootstrap if it exists
+          if [ -f "pg_bootstrap.sql" ]; then
+            echo "Loading Postgres bootstrap for Marketing Analysis"
+            psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+          fi
+
+          # Load RisingWave bootstrap if it exists
+          if [ -f "bootstrap.sql" ]; then
+            echo "Loading RisingWave bootstrap for Marketing Analysis"
+            psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
+          fi
+
+          # Run data generator if it exists
+          if [ -f "data_generator.py" ]; then
+            echo "Running Marketing Analysis data generator"
+            python3 data_generator.py &
+          fi
+
+          # Any additional marketing analysis specific setup
+          echo "Setting up Superset dashboard"
+          chmod +x superset_scripts/market_analysis_script.sh
+          ./superset_scripts/market_analysis_script.sh
+          echo "Marketing Analysis demo ready."
+          ;;
+
+          "position_risk_management")
+          echo "Running position risk management bootstrap"
+          
+          # Load PostgreSQL bootstrap if it exists
+          if [ -f "pg_bootstrap.sql" ]; then
+            echo "Loading Postgres bootstrap for position risk management"
+            psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+          fi
+
+          # Load RisingWave bootstrap if it exists
+          if [ -f "bootstrap.sql" ]; then
+            echo "Loading RisingWave bootstrap for position risk management"
+            psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
+          fi
+
+          # Run data generator if it exists
+          if [ -f "data_generator.py" ]; then
+            echo "Running position risk management data generator"
+            python3 data_generator.py &
+          fi
+
+          # Any additional position risk managementspecific setup
+          echo "position risk management demo ready"
+          ;;
+
+        "warehouse_inventory_mgmt")
+          echo "Running warehouse management"
+          
+          # Load PostgreSQL bootstrap if it exists
+          if [ -f "pg_bootstrap.sql" ]; then
+            echo "Loading Postgres bootstrap for warehouse management"
+            psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+          fi
+
+          # Load RisingWave bootstrap if it exists
+          if [ -f "bootstrap.sql" ]; then
+            echo "Loading RisingWave bootstrap for warehouse management"
+            psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
+          fi
+
+          # Run data generator if it exists
+          if [ -f "data_generator.py" ]; then
+            echo "Running warehouse management data generator"
+            python3 data_generator.py &
+          fi
+
+          echo "warehouse management demo ready!"
+          ;;
+
+          "user_betting_behavior")
+          echo "Running user betting behavior bootstrap"
+          
+          # Load PostgreSQL bootstrap if it exists
+          if [ -f "pg_bootstrap.sql" ]; then
+            echo "Loading Postgres bootstrap for user betting behavior"
+            psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+          fi
+
+          # Load RisingWave bootstrap if it exists
+          if [ -f "bootstrap.sql" ]; then
+            echo "Loading RisingWave bootstrap for user betting behavior"
+            psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
+          fi
+
+          # Run data generator if it exists
+          if [ -f "data_generator.py" ]; then
+            echo "Running user betting behavior data generator"
+            python3 data_generator.py &
+          fi
+
+          # Any additional user betting behavior specific setup
+          echo "user betting behavior demo ready."
+          ;;
+
+          "energy_grid")
+          echo " Running Energy Grid bootstrap"
+          # Prepare Postgres (household data)
+          if [ -f "postgres_prepare.sql" ]; then
+            echo "Loading Postgres household data"
+            psql -h localhost -p 5432 -U pguser -d pgdb < postgres_prepare.sql
+          fi
+
+          # Load RisingWave sources
+          if [ -f "create_source.sql" ]; then
+            echo "Loading RisingWave sources"
+            psql -h localhost -p 4566 -U root -d dev < create_source.sql
+          fi
+
+          # Load RisingWave MVs
+          if [ -f "create_mv.sql" ]; then
+            echo "Loading RisingWave MVs"
+            psql -h localhost -p 4566 -U root -d dev < create_mv.sql
+          fi
+
+          # Run Kafka producers
+          if [ -f "data-producers/run-producers.py" ]; then
+            echo "Starting energy data producers"
+            python3 data-producers/run-producers.py &
+          fi
+
+          echo "Energy Grid demo ready! Access Grafana at http://localhost:3000"
+          ;;
+
+        *)
+          echo "Running generic bootstrap"
+          
+          # Generic bootstrap logic
+          if [ -f "pg_bootstrap.sql" ]; then
+            echo "Loading Postgres bootstrap"
+            psql -h localhost -p 5432 -U pguser -d pgdb < pg_bootstrap.sql
+          fi
+
+          if [ -f "bootstrap.sql" ]; then
+            echo "Loading RisingWave bootstrap"
+            psql -h localhost -p 4566 -U root -d dev < bootstrap.sql
+          fi
+
+          if [ -f "data_generator.py" ]; then
+            echo "Running data generator"
+            python3 data_generator.py &
+          fi
+
+          echo "Installations only applied."
+          ;;
+      esac
+
+      echo "Demo bootstrap completed."
+    command: bash
+
+ports:
+  - port: 8088
+    onOpen: open-preview
+  - port: 4566
+    onOpen: ignore
+  - port: 5432
+    onOpen: ignore
+  - port: 9092
+    onOpen: ignore
+  - port: 2181
+    onOpen: ignore
+  - port: 3000
+    onOpen: ignore
+
+vscode:
+  extensions:
+    - ms-azuretools.vscode-docker
