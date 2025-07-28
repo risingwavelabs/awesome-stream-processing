@@ -110,3 +110,8 @@ docker-compose down -v
 - **Provision** an Iceberg catalog: set `hosted_catalog = true`.
 - **Create** streaming tables that write in Iceberg format straight to S3, GCS, Azure, or MinIO.
 - **Query** the data from RisingWave or any Iceberg‑aware engine—no lock‑in, no extra services.
+
+## Further Reading
+
+[Create a streaming Iceberg Table in 3 Steps with RisingWave](https://risingwave.com/blog/create-iceberg-table-3-steps/)
+
