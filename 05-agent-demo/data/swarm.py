@@ -1,26 +1,21 @@
-from __future__ import annotations as _annotations
+"""Data engineering agent swarm with RisingWave and Kafka integration."""
 
-import asyncio
-import random
-import uuid
-from dotenv import load_dotenv
-from pydantic import BaseModel
-
-load_dotenv()
 from agents import (
     Agent,
     HandoffOutputItem,
     ItemHelpers,
     MessageOutputItem,
-    RunContextWrapper,
     Runner,
     ToolCallItem,
     ToolCallOutputItem,
     TResponseInputItem,
-    function_tool,
     handoff,
     trace,
 )
+import asyncio
+import uuid
+from dotenv import load_dotenv
+from __future__ import annotations as _annotations
 from agents.mcp import MCPServer, MCPServerStdio
 from agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 
@@ -28,7 +23,10 @@ from agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 
 planner = Agent(
     name="Planner Agent",
-    handoff_description="Strategic planning agent that analyzes requirements and delegates specialized tasks.",
+    handoff_description=(
+        "Strategic planning agent that analyzes requirements and delegates "
+        "specialized tasks."
+    ),
     instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
     You are a strategic planning agent for data engineering tasks. Your role is to:
     
@@ -63,13 +61,14 @@ planner = Agent(
     3. Create a logical sequence of operations
     4. Communicate the plan clearly before execution""",
     handoffs=[],
-    tools=[], 
+    tools=[],
 )
 
-async def run_swarm(rwMCP: MCPServer, kafkaMCP: MCPServer):
+async def run_swarm(rw_mcp: MCPServer, kafka_mcp: MCPServer):
+    """Run the data engineering agent swarm."""
     # Create agents with MCP servers
     tools_executor = Agent(
-        name="Tool Execution Agent", 
+        name="Tool Execution Agent",
         handoff_description="A helpful agent that can execute kafka or risingwave tools",
         instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
         You are a tool execution agent with access to Kafka and RisingWave tools. 
@@ -86,24 +85,40 @@ async def run_swarm(rwMCP: MCPServer, kafkaMCP: MCPServer):
         **MANDATORY SCHEMA INFERENCE WORKFLOW:**
         When asked to create a Kafka table/source in RisingWave:
         a) ALWAYS FIRST use consume_messages to get sample data from the topic
-        b) CAREFULLY ANALYZE the actual JSON structure in the consumed messages
-        c) EXTRACT the exact field names from the JSON (e.g., if you see "total_amount": 123.45, use "total_amount", NOT "sale_amount")
-        d) INFER SQL data types based on values:
+           - IMPORTANT: Set consumer_timeout parameter to at least 15 seconds to 
+             ensure messages are captured
+           - The consume_messages tool returns verbose debug strings in format:
+             "Message received: topic=X, partition=Y, offset=Z, key=K, value={{JSON}}"
+        b) PARSE the consumed message strings to EXTRACT only the JSON value part after "value="
+           - Look for the pattern "value=" and extract everything after it
+           - This extracted part contains the actual JSON message data
+        c) CAREFULLY ANALYZE the actual JSON structure in the extracted message values
+        d) EXTRACT the exact field names from the JSON (e.g., if you see 
+           "total_amount": 123.45, use "total_amount", NOT "sale_amount")
+        e) INFER SQL data types based on values:
            - Numbers with decimals → DECIMAL or NUMERIC
            - Whole numbers → INT or BIGINT  
            - Text/strings → VARCHAR
            - ISO timestamps → TIMESTAMP
            - Booleans → BOOLEAN
-        e) CREATE column definitions using EXACT field names from the JSON
-        f) THEN use create_kafka_table with the correctly inferred schema
+        f) CREATE column definitions using EXACT field names from the JSON
+        g) THEN use create_kafka_table with the correctly inferred schema
         
-        **CRITICAL**: Never assume field names - always use the exact JSON field names from consumed messages.
+        **CRITICAL MESSAGE PARSING EXAMPLE:**
+        If consume_messages returns: "Message received: topic=product_sales, 
+        partition=0, offset=123, key=abc, value={{"product_id": 456,
+        "sale_amount": 99.99}}"
+        You must extract: {{"product_id": 456, "sale_amount": 99.99}}
+        And use field names: product_id (INT), sale_amount (DECIMAL)
+        
+        **CRITICAL**: Never assume field names - always use the exact JSON 
+        field names from consumed messages.
         
         6. Report the ACTUAL results back to the planner
         
         Do NOT create checklists or plans - EXECUTE the tools directly and provide results.
         """,
-        mcp_servers=[rwMCP, kafkaMCP],
+        mcp_servers=[rw_mcp, kafka_mcp],
         handoffs=[handoff(planner)]
     )
 
@@ -126,17 +141,19 @@ async def run_swarm(rwMCP: MCPServer, kafkaMCP: MCPServer):
                     print(f"{agent_name}: {ItemHelpers.text_message_output(new_item)}")
                 elif isinstance(new_item, HandoffOutputItem):
                     print(
-                        f"Handed off from {new_item.source_agent.name} to {new_item.target_agent.name}"
+                        f"Handed off from {new_item.source_agent.name} to "
+                        f"{new_item.target_agent.name}"
                     )
                 elif isinstance(new_item, ToolCallItem):
                     print(f"{agent_name}: Calling a tool")
                 elif isinstance(new_item, ToolCallOutputItem):
                     print(f"{agent_name}: Tool call output: {new_item.output}")
-                
             input_items = result.to_input_list()
             current_agent = planner  # Always reset to planner for next user input
 
 async def main():
+    """Main function to start the data engineering agent swarm."""
+    load_dotenv()
     async with MCPServerStdio(
         name="RisingWave MCP Server",
         params={
@@ -152,7 +169,7 @@ async def main():
                 "RISINGWAVE_TIMEOUT": "60"
             }
         }
-    ) as rwMCP:
+    ) as rw_mcp:
         async with MCPServerStdio(
             name="Kafka MCP Server",
             params={
@@ -164,8 +181,8 @@ async def main():
                     "--password="
                 ],
             },
-        ) as kafkaMCP:
-            await run_swarm(rwMCP, kafkaMCP)
+        ) as kafka_mcp:
+            await run_swarm(rw_mcp, kafka_mcp)
 
 
 if __name__ == "__main__":
