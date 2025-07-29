@@ -17,6 +17,7 @@ A multi-agent system for data engineering tasks with RisingWave and Kafka integr
    
    # Clone Kafka MCP server:
    git clone https://github.com/kanapuli/mcp-kafka
+   
    # Make sure you run:
    make build
    ```
