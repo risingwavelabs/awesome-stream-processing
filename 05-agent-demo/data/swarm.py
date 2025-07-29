@@ -1,5 +1,6 @@
 """Data engineering agent swarm with RisingWave and Kafka integration."""
 
+from __future__ import annotations as _annotations
 from agents import (
     Agent,
     HandoffOutputItem,
@@ -15,8 +16,8 @@ from agents import (
 import asyncio
 import uuid
 from dotenv import load_dotenv
-from __future__ import annotations as _annotations
 from agents.mcp import MCPServer, MCPServerStdio
+import time
 from agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 
 ### AGENTS
@@ -127,7 +128,7 @@ async def run_swarm(rw_mcp: MCPServer, kafka_mcp: MCPServer):
     # Initialize conversation
     current_agent: Agent = planner
     input_items: list[TResponseInputItem] = []
-    conversation_id = uuid.uuid4().hex[:16]
+    conversation_id = int(time.time()) 
 
     while True:
         user_input = input("Enter your message: ")
