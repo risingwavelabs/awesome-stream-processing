@@ -1,0 +1,4 @@
+agents
+asyncio
+python-dotenv
+kafka-python
