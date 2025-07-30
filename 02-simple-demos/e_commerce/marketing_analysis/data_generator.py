@@ -1,122 +1,125 @@
-import psycopg2
+import json
 import random
-from datetime import datetime, timedelta
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
+from kafka import KafkaProducer
 
-# Database connection parameters
-conn_params = {
-    "dbname": "dev",
-    "user": "root",
-    "password": "",
-    "host": "localhost",
-    "port": "4566"
-}
+producer = KafkaProducer(
+    bootstrap_servers='localhost:29092',
+    value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+    acks='all',
+    retries=3,
+    max_in_flight_requests_per_connection=1
+)
 
-# Sample data
-CHANNELS = ['email', 'social', 'search', 'display']
-EVENT_TYPES = ['impression', 'click', 'conversion']
-UTM_SOURCES = ['google', 'facebook', 'instagram', 'email', 'linkedin']
-UTM_MEDIUMS = ['cpc', 'organic', 'social', 'email', 'display']
+NUM_CAMPAIGNS       = 10
+EVENTS_PER_BATCH    = 50
+BATCH_INTERVAL_SEC  = 2
+
+CHANNELS     = ['email', 'social', 'search', 'display']
+EVENT_TYPES  = ['impression', 'click', 'conversion']
+UTM_SOURCES  = ['google', 'facebook', 'instagram', 'email', 'linkedin']
+UTM_MEDIUMS  = ['cpc', 'organic', 'social', 'email', 'display']
 CAMPAIGN_TYPES = ['regular', 'ab_test']
-VARIANT_TYPES = ['subject_line', 'creative', 'landing_page']
+VARIANT_TYPES  = ['subject_line', 'creative', 'landing_page']
 
-def create_campaigns(conn, num_campaigns=10):
-    cur = conn.cursor()
-    campaigns = []
-    
+TOPIC_CAMPAIGNS        = 'campaigns'
+TOPIC_VARIANTS         = 'ab_test_variants'
+TOPIC_MARKETING_EVENTS = 'marketing_events'
+
+campaign_info = {}
+variant_info = {}
+
+def now_ts():
+    return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
+
+def seed_campaigns(num_campaigns=NUM_CAMPAIGNS):
+    """Emit campaigns (and AB variants) into Kafka once at startup."""
+    ids = []
     for i in range(num_campaigns):
-        campaign_id = f"camp_{uuid.uuid4().hex[:8]}"
-        is_ab_test = random.choice(CAMPAIGN_TYPES) == 'ab_test'
+        cid = f"camp_{uuid.uuid4().hex[:8]}"
+        ctype = random.choice(CAMPAIGN_TYPES)
+        campaign = {
+            "campaign_id":   cid,
+            "campaign_name": f"Campaign {i+1}",
+            "campaign_type": ctype,
+            "start_date":    now_ts(),
+            "end_date":      (datetime.now(timezone.utc) + timedelta(days=random.randint(1,30)))
+                                .isoformat().replace('+00:00','Z'),
+            "budget":        round(random.uniform(1000,10000),2),
+            "target_audience": random.choice(['new_customers','existing_customers','all'])
+        }
+        producer.send(TOPIC_CAMPAIGNS, campaign)
         
-        cur.execute("""
-            INSERT INTO campaigns 
-            (campaign_id, campaign_name, campaign_type, start_date, end_date, budget, target_audience)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (
-            campaign_id,
-            f"Campaign {i+1}",
-            'ab_test' if is_ab_test else 'regular',
-            datetime.now() - timedelta(days=random.randint(1, 30)),
-            datetime.now() + timedelta(days=random.randint(1, 30)),
-            random.uniform(1000, 10000),
-            random.choice(['new_customers', 'existing_customers', 'all'])
-        ))
-        
-        if is_ab_test:
-            # Create variants for A/B test campaigns
-            for variant in ['A', 'B', 'Control']:
-                cur.execute("""
-                    INSERT INTO ab_test_variants
-                    (variant_id, campaign_id, variant_name, variant_type, content_details)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (
-                    str(uuid.uuid4()),
-                    campaign_id,
-                    variant,
-                    random.choice(VARIANT_TYPES),
-                    f"Content for variant {variant}"
-                ))
-        
-        campaigns.append(campaign_id)
-    
-    conn.commit()
-    return campaigns
+        # Store campaign info
+        campaign_info[cid] = ctype
+        variant_info[cid] = []
 
-def generate_marketing_event(campaign_ids):
-    campaign_id = random.choice(campaign_ids)
-    event_type = random.choice(EVENT_TYPES)
+        if ctype == 'ab_test':
+            for variant in ['A','B','Control']:
+                vid = str(uuid.uuid4())
+                var = {
+                    "variant_id":     vid,
+                    "campaign_id":    cid,
+                    "variant_name":   variant,
+                    "variant_type":   random.choice(VARIANT_TYPES),
+                    "content_details": f"Content for variant {variant}"
+                }
+                producer.send(TOPIC_VARIANTS, var)
+                variant_info[cid].append(vid)
+
+        ids.append(cid)
+
+    producer.flush()
+    print(f"Seeded {len(ids)} campaigns + variants")
+    return ids
+
+def generate_event(campaign_ids):
+    """Build and send a single marketing event."""
+    cid = random.choice(campaign_ids)
+    et  = random.choices(
+        population=['impression', 'click', 'conversion'],
+        weights=[0.6, 0.3, 0.1],
+        k=1
+    )[0]
     
-    return {
-        'event_id': str(uuid.uuid4()),
-        'user_id': random.randint(1, 1000),
-        'campaign_id': campaign_id,
-        'channel_type': random.choice(CHANNELS),
-        'event_type': event_type,
-        'amount': round(random.uniform(50, 500), 2) if event_type == 'conversion' else 0,
-        'utm_source': random.choice(UTM_SOURCES),
-        'utm_medium': random.choice(UTM_MEDIUMS)
+    # For A/B test campaigns, assign a variant_id
+    variant_id = None
+    if campaign_info.get(cid) == 'ab_test' and variant_info.get(cid):
+        variant_id = random.choice(variant_info[cid])
+    
+    ev = {
+        "event_id":     str(uuid.uuid4()),
+        "user_id":      random.randint(1,1000),
+        "campaign_id":  cid,
+        "channel_type": random.choice(CHANNELS),
+        "event_type":   et,
+        "amount":       round(random.uniform(50,500),2) if et=='conversion' else 0,
+        "utm_source":   random.choice(UTM_SOURCES),
+        "utm_medium":   random.choice(UTM_MEDIUMS),
+        "utm_campaign": cid,
+        "variant_id":   variant_id,  # NEW: Add variant_id for A/B test events
+        "timestamp":    now_ts()
     }
+    producer.send(TOPIC_MARKETING_EVENTS, ev)
 
-def simulate_marketing_events(conn, duration_minutes=60, events_per_minute=50):
-    cur = conn.cursor()
-    
-    # Create campaigns first
-    campaign_ids = create_campaigns(conn)
-    
-    start_time = datetime.now()
-    end_time = start_time + timedelta(minutes=duration_minutes)
-    
-    print(f"Starting marketing event simulation for {duration_minutes} minutes...")
-    
-    while datetime.now() < end_time:
-        for _ in range(events_per_minute):
-            event = generate_marketing_event(campaign_ids)
-            cur.execute("""
-                INSERT INTO marketing_events 
-                (event_id, user_id, campaign_id, channel_type, event_type, 
-                amount, utm_source, utm_medium, utm_campaign)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                event['event_id'], event['user_id'], event['campaign_id'],
-                event['channel_type'], event['event_type'], event['amount'],
-                event['utm_source'], event['utm_medium'], event['campaign_id']
-            ))
-        
-        conn.commit()
-        print(f"Generated {events_per_minute} events. Timestamp: {datetime.now()}")
-        time.sleep(1)
+if __name__ == "__main__":
+    # Seed campaigns
+    campaign_ids = seed_campaigns()
 
-conn = psycopg2.connect(**conn_params)
-print("Connected to RisingWave successfully!")
+    print("Starting marketing event stream...")
+    try:
+        while True:
+            for _ in range(EVENTS_PER_BATCH):
+                generate_event(campaign_ids)
+            producer.flush()
+            time.sleep(BATCH_INTERVAL_SEC)
 
+    except KeyboardInterrupt:
+        print("\nData generation stopped by user.")
 
-try:
-    while True:
-        simulate_marketing_events(conn)
-except KeyboardInterrupt:
-    print("Data generation stopped.")
-finally:
-    cursor.close()
-    conn.close()
-    print("Connection closed.")
+    finally:
+        producer.flush()
+        producer.close()
+        print("Kafka producer closed.")

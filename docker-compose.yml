@@ -1,0 +1,71 @@
+
+services:
+  zookeeper:
+    image: bitnami/zookeeper:3.8
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: yes
+
+  kafka:
+    image: bitnami/kafka:3.4.0-debian-11-r0
+    container_name: kafka
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_CFG_LISTENERS: PLAINTEXT_INTERNAL://:9092,PLAINTEXT_EXTERNAL://:29092
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT_INTERNAL://kafka:9092,PLAINTEXT_EXTERNAL://localhost:29092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT_INTERNAL:PLAINTEXT,PLAINTEXT_EXTERNAL:PLAINTEXT
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_BROKER_ID: 1
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    depends_on:
+      - zookeeper
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_USER: pguser
+      POSTGRES_PASSWORD: pgpass
+      POSTGRES_DB: pgdb
+    ports:
+      - "5432:5432"
+
+  risingwave:
+    image: ghcr.io/risingwavelabs/risingwave:latest
+    container_name: risingwave
+    command: playground
+    depends_on:
+      - kafka
+      - zookeeper
+    ports:
+      - "4566:4566"
+      - "5691:5691"
+
+  superset:
+    image: apache/superset:2.1.0
+    container_name: superset
+    ports:
+      - "8088:8088"
+    environment:
+      SUPERSET_SECRET_KEY: "supersecret"
+      ADMIN_USERNAME: admin
+      ADMIN_FIRST_NAME: admin
+      ADMIN_LAST_NAME: user
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: admin
+      FLASK_ENV: development
+    depends_on:
+      - risingwave
+    command: >
+      sh -c "
+        pip install sqlalchemy-risingwave psycopg2-binary &&
+        superset db upgrade &&
+        superset fab create-admin --username admin --firstname admin --lastname user --email admin@example.com --password admin || true &&
+        superset init &&
+        superset run -h 0.0.0.0 -p 8088"
+
