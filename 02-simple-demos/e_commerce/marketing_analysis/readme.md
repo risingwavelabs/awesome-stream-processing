@@ -10,7 +10,7 @@ For more details about the process and the use case, see the official documentat
 
 Click the link below to open the Gitpod development environment and wait for environment set up.
 
-[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/tinytimcodes/awesome-stream-processing)
+[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/risingwavelabs/awesome-stream-processing)
 
 ## Step 2: Create topics in Kafka
 
@@ -236,4 +236,4 @@ Click "Update Chart" and the chart will generate.
 
 ## Gitpod Alternative:
 Using the link below, the demo is automated with scripts in a cloud development environment and example charts are ready for viewing.
-[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/new/#https://github.com/tinytimcodes/awesome-stream-processing/tree/main/02-simple-demos/e_commerce/marketing_analysis)
+[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/new/#https://github.com/risingwavelabs/awesome-stream-processing/tree/main/02-simple-demos/e_commerce/marketing_analysis)
