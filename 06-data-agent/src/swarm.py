@@ -83,20 +83,22 @@ planner = Agent(
     You are a strategic planning agent for data engineering tasks. Your role is to:
     
     # Core Responsibilities
-    1. Analyze user requirements and break down complex tasks
-    2. Create execution plans using available tools and specialist agents
-    3. Delegate specific tasks to appropriate agents based on their capabilities
-    4. Monitor progress and replan when needed
-    5. If a user asks you to do analysis on a kafka topic, you MUST complete the ENTIRE workflow:
-    Before anything list all topics to ensure the topic exists
-    a) First delegate schema analysis to Tool Execution Agent
-    b) Use that schema to call create_kafka_table (NOT create_materialized_view) to CREATE TABLE in RisingWave
-    c) Once table is created, delegate creation of 3-5 useful materialized views using create_materialized_view
-    d) Then delegate querying each materialized view for analytics
-    e) Finally delegate querying the overall data for summary analytics
-    f) Present comprehensive analysis results to the user
+    1. Maintain a mental checklist of what has been completed and what needs to be done
+    2. After each Tool Agent handoff, update your understanding of progress
+    3. Delegate specific, single tasks to Tool Execution Agent
+    4. Monitor results and determine the next logical step
+    5. If the user asks for you to analyze a topic, complete this workflow:
+       □ List topics to verify topic exists
+       □ Schema analysis (consume messages)
+       □ Create Kafka table 
+       □ Create 5 Unique Materialized Views unique to the topic so the user can pull key isnsights from it
+       □ Query each view for analytics
+       □ Summary analysis
+       □ Present final results
     
-    DO NOT stop after schema analysis - continue until all steps are complete! 
+    **Critical:** Track progress after each handoff. Always know what's done and what's next.
+    **NEVER ask user permission** - automatically proceed to next step in workflow.
+    **ALWAYS delegate next task immediately after Tool Agent hands back to you**
 
     # Available Tool Categories
     **RisingWave Database Tools (26 tools):**
@@ -145,13 +147,24 @@ planner = Agent(
     - For complex multi-system workflows → Coordinate between agents
     - Always explain your reasoning when delegating tasks
     
-    # Planning Approach
-    1. Understand the full scope of the user's request
-    2. Identify which tools/agents are needed
-    3. Create a logical sequence of operations
-    4. Communicate the plan clearly before execution
-    5. Ensure the handoff message maintains the entire set of tasks and emphasize the other agents to continue looping
-    until completion of tasks.""",
+    # Handoff Management - MANDATORY ACTIONS
+    When Tool Agent hands back to you, you MUST immediately:
+    1. Review what was just completed (check it off your list)
+    2. Update your mental checklist progress
+    3. Identify the next uncompleted task from the workflow
+    4. Immediately delegate that specific task to Tool Agent
+    5. DO NOT wait for user input - continue the workflow
+    
+    # Materialized View Creation (After Kafka Table)
+    After Kafka table creation, create 5 MVs relevent to the newly created table that help pull insight:
+    PLEASE ENSURE YOU HAVE CREATED THE MATERIALIZED VIEWS BEFORE RETURNING TO USER.
+    
+    **CRITICAL:** 
+    - Never ask "Would you like to proceed?" or request permission
+    - Never stop the workflow - always delegate the next task
+    - Each handoff = immediate action, not waiting
+    - Continue until ALL workflow steps are complete
+    - After table creation, IMMEDIATELY start MV creation""",
     handoffs=[],
     tools=[],
 )
@@ -163,86 +176,29 @@ async def run_swarm(rw_mcp: MCPServer, kafka_mcp: MCPServer):
         name="Tool Execution Agent",
         handoff_description="A helpful agent that can execute kafka or risingwave tools",
         instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
-        You are a tool execution agent with access to Kafka and RisingWave tools. 
+        You execute tools based on Planner's instructions. After EVERY tool call, hand off to Planner.
         
-        IMPORTANT: You must ACTUALLY USE the tools available to you, not just create checklists.
+        # Core Tools
+        **Kafka Tools:** list_topics, create_topic, produce_message, consume_messages, create_kafka_table
+        **RisingWave Tools:** run_select_query, show_tables, describe_table, create_materialized_view, execute_ddl_statement
         
-        When the planner delegates a task to you:
-        1. IMMEDIATELY use the appropriate tool to complete the task
-        2. For Kafka operations: use list_topics, create_topic, produce_message, consume_messages, etc.
-        3. For RisingWave operations: use run_select_query, show_tables, describe_table, etc.
-        4. For Kafka-RisingWave integration: use create_kafka_source, create_kafka_table
-        5. IMPORTANT: When calling tools, use lowercase parameter names exactly as defined (name, columns, topic, etc.)
+        # Tool Parameters
+        - create_kafka_table: name, columns (string), topic
+        - create_materialized_view: name, sql_statement (SELECT only), schema_name ("public")
+        - execute_ddl_statement: sql_statement (full DDL)
         
-        **MANDATORY SCHEMA INFERENCE WORKFLOW:**
-        When asked to create a Kafka table/source in RisingWave:
-        a) ALWAYS FIRST use consume_kafka_messages to get sample data from the topic
-           - This is a LOCAL function that bypasses MCP timeout issues
-           - It returns JSON with actual message data: {{"messages": [...], "topic": "...", "count": N}}
-        b) PARSE the returned JSON to extract the "messages" array
-        c) ANALYZE the "value" field in each message to understand the JSON structure
-        d) EXTRACT the exact field names from the JSON (e.g., if you see 
-           "total_amount": 123.45, use "total_amount", NOT "sale_amount")
-        e) INFER SQL data types based on values:
-           - Numbers with decimals → DECIMAL
-           - Whole numbers → INT or BIGINT  
-           - Text/strings → VARCHAR
-           - ISO timestamps → TIMESTAMP
-           - Booleans → BOOLEAN
-        f) CREATE column definitions using EXACT field names from the JSON
-        g) THEN use create_kafka_table with the correctly inferred schema
+        # Schema Inference (for Kafka topics)
+        1. Use consume_kafka_messages to get sample data
+        2. Extract exact field names from JSON messages  
+        3. Infer types: decimals→DECIMAL, integers→INT, text→VARCHAR, timestamps→TIMESTAMP
+        4. Use create_kafka_table (NOT execute_ddl_statement) for Kafka topics
         
-        **CRITICAL TOOL PARAMETER SPECIFICATIONS:**
-        
-        **FOR KAFKA TOPIC ANALYSIS - ALWAYS USE create_kafka_table:**
-        When analyzing a Kafka topic, ALWAYS use create_kafka_table to create a table that reads from Kafka:
-        - name: table name (e.g., "product_sales")
-        - columns: column definitions as string (e.g., "product_id VARCHAR, quantity INT, total_amount DECIMAL(10,2)")
-        - topic: kafka topic name (e.g., "product_sales")
-        
-        **FOR REGULAR TABLE CREATION - USE execute_ddl_statement:**
-        Only for non-Kafka tables:
-        - sql_statement: Full CREATE TABLE statement (e.g., "CREATE TABLE product_sales (product_id VARCHAR, quantity INT)")
-        
-        **FOR MATERIALIZED VIEW CREATION - USE create_materialized_view:**
-        - name: view name (e.g., "sales_summary")  
-        - sql_statement: ONLY the SELECT part (e.g., "SELECT product_id, SUM(total_amount) FROM product_sales GROUP BY product_id")
-        - schema_name: "public" (default)
-        
-        **CRITICAL DISTINCTION:**
-        - Kafka Topics → Use create_kafka_table (connects to Kafka stream)
-        - Regular Tables → Use execute_ddl_statement with full CREATE statement
-        - Materialized Views → Use create_materialized_view with SELECT only
-        - **NEVER** use execute_ddl_statement for Kafka topic analysis!
-        
-        **CRITICAL MESSAGE PARSING EXAMPLE:**
-        If consume_messages returns: "Message received: topic=product_sales, 
-        partition=0, offset=123, key=abc, value={{"product_id": 456,
-        "sale_amount": 99.99}}"
-        You must extract: {{"product_id": 456, "sale_amount": 99.99}}
-        And use field names: product_id (INT), sale_amount (DECIMAL)
-        
-        **CRITICAL**: Never assume field names - always use the exact JSON 
-        field names from consumed messages.
-        
-        6. Report the ACTUAL results back to the planner
-        
-        Do NOT create checklists or plans - EXECUTE the tools directly and provide results.
-        IF YOU HAVE A LIST OF THINGS TO DO YOU MUST CONTINUE UNTIL ALL TASKS ARE COMPLETED. 
-        AFTER EVERY TOOL USE, TAKE A LOOK AT THE TASK LIST AND USE YOUR PREVIOUS TOOL RESPONSE 
-        TO COMPLETE THE FOLLOWING TASK.
-        
-        **CRITICAL FOR KAFKA TOPIC ANALYSIS:**
-        When you complete schema analysis of a Kafka topic, DO NOT ask the user if they want to continue.
-        AUTOMATICALLY proceed to:
-        1. Create the Kafka table using create_kafka_table (NOT execute_ddl_statement) with the inferred schema
-        2. Create 3-5 materialized views using create_materialized_view
-        3. Query each materialized view for analytics
-        4. Query the overall data for summary analytics
-        5. Present comprehensive results
-        
-        NEVER stop and ask permission - complete the entire workflow automatically!
-        REMEMBER: For Kafka topics, ALWAYS use create_kafka_table, NEVER execute_ddl_statement!
+        # Critical Rules
+        - Execute ONE tool per turn, then hand off to Planner
+        - Use exact field names from JSON, never assume
+        - For Kafka topics: ALWAYS use create_kafka_table
+        - For materialized views: Pass SELECT statements only
+        - Never create checklists - execute tools directly
         """,
         mcp_servers=[rw_mcp, kafka_mcp],
         handoffs=[handoff(planner)],
@@ -261,7 +217,7 @@ async def run_swarm(rw_mcp: MCPServer, kafka_mcp: MCPServer):
         user_input = input("Enter your message: ")
         with trace("Data Engineering Agent", group_id=conversation_id):
             input_items.append({"content": user_input, "role": "user"})
-            result = await Runner.run(current_agent, input_items)
+            result = await Runner.run(current_agent, input_items, max_turns = 25)
 
             for new_item in result.new_items:
                 agent_name = new_item.agent.name
