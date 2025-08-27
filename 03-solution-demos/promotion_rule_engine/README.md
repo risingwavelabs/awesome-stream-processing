@@ -65,7 +65,7 @@ A real-time promotion rule engine for membership and loyalty use cases, built on
 ### Deploy the SQL
 Import the script into the database (example with `psql`):
 ```bash
-psql -h <host> -p <port> -U <user> -d <database> -f casino_promotion_system_fixed.sql
+psql -h <host> -p <port> -U <user> -d <database> -f pipeline.sql
 ```
 
 ### Ingest events (sample JSON)
