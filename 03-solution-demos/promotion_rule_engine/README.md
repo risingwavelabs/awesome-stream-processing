@@ -1,13 +1,3 @@
-I'll translate the README into English while keeping neutral terminology, update the file, then run a quick lint check.
-
-[1 tool called]
-
-I'll open the current README to translate it fully into English while keeping terminology neutral, then update the file.
-
-[1 tool called]
-
-I opened the current README and prepared the full English translation below.
-
 ## Real-time Promotion Rule Engine (RisingWave-based)
 
 A real-time promotion rule engine for membership and loyalty use cases, built on RisingWave streaming with Kafka events. When members perform actions such as signup, activity, or points updates, the engine matches against configurable promotion rules using member profiles, computes capped rewards, and exposes queryable results and analytics views.
