@@ -1,7 +1,7 @@
 version: "3.8"
 
 x-image: &image
-  image: ${RW_IMAGE:-risingwavelabs/risingwave:v2.4.0}
+  image: ${RW_IMAGE:-risingwavelabs/risingwave:v2.5.0}
 
 services:
   risingwave-standalone:
