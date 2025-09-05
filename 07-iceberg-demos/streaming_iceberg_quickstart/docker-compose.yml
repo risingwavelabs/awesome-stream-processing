@@ -1,0 +1,143 @@
+version: "3.8"
+
+x-image: &image
+  image: ${RW_IMAGE:-risingwavelabs/risingwave:v2.5.0}
+
+services:
+  risingwave-standalone:
+    <<: *image
+    command: "standalone --meta-opts=\" \
+                    --listen-addr 0.0.0.0:5690 \
+                    --advertise-addr 0.0.0.0:5690 \
+                    --dashboard-host 0.0.0.0:5691 \
+                    --backend sql \
+                    --sql-endpoint postgres://postgres:123@postgres-0:5432/metadata \
+                    --state-store hummock+minio://hummockadmin:hummockadmin@minio-0:9301/hummock001 \
+                    --data-directory hummock_001 \
+                    --config-path /risingwave.toml\" \
+                 --compute-opts=\" \
+                    --config-path /risingwave.toml \
+                    --listen-addr 0.0.0.0:5688 \
+                    --advertise-addr 0.0.0.0:5688 \
+                    --async-stack-trace verbose \
+                    --parallelism 8 \
+                    --total-memory-bytes 21474836480 \
+                    --role both \
+                    --meta-address http://0.0.0.0:5690 \
+                    --memory-manager-target-bytes 22333829939\" \
+                 --frontend-opts=\" \
+                    --config-path /risingwave.toml \
+                    --listen-addr 0.0.0.0:4566 \
+                    --advertise-addr 0.0.0.0:4566 \
+                    --health-check-listener-addr 0.0.0.0:6786 \
+                    --meta-addr http://0.0.0.0:5690 \
+                    --frontend-total-memory-bytes=4294967296\" \
+                 --compactor-opts=\" \
+                    --listen-addr 0.0.0.0:6660 \
+                    --advertise-addr 0.0.0.0:6660 \
+                    --meta-address http://0.0.0.0:5690 \
+                    --compactor-total-memory-bytes=4294967296\""
+    expose:
+      - "6660"
+      - "4566"
+      - "5688"
+      - "5690"
+      - "5691"
+    ports:
+      - "4566:4566"
+      - "5690:5690"
+      - "5691:5691"
+    depends_on:
+      - postgres-0
+      - minio-0
+    volumes:
+      - "./risingwave.toml:/risingwave.toml"
+    environment:
+      RUST_BACKTRACE: "1"
+      ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
+      RW_TELEMETRY_TYPE: ${RW_TELEMETRY_TYPE:-"docker-compose"}
+      RW_SECRET_STORE_PRIVATE_KEY_HEX: ${RW_SECRET_STORE_PRIVATE_KEY_HEX:-0123456789abcdef0123456789abcdef}
+      RW_LICENSE_KEY: ${RW_LICENSE_KEY:-}
+    container_name: risingwave-standalone
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - bash -c 'printf "GET / HTTP/1.1\n\n" > /dev/tcp/127.0.0.1/6660; exit $$?;'
+        - bash -c 'printf "GET / HTTP/1.1\n\n" > /dev/tcp/127.0.0.1/5688; exit $$?;'
+        - bash -c '> /dev/tcp/127.0.0.1/4566; exit $$?;'
+        - bash -c 'printf "GET / HTTP/1.1\n\n" > /dev/tcp/127.0.0.1/5690; exit $$?;'
+      interval: 1s
+      timeout: 5s
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 28G
+        reservations:
+          memory: 28G
+
+  postgres-0:
+    image: "postgres:15-alpine"
+    environment:
+      - POSTGRES_HOST_AUTH_METHOD=trust
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=metadata
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    expose:
+      - "5432"
+    ports:
+      - "8432:5432"
+    volumes:
+      - "postgres-0:/var/lib/postgresql/data"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  minio-0:
+    image: "quay.io/minio/minio:latest"
+    command:
+      - server
+      - "--address"
+      - "0.0.0.0:9301"
+      - "--console-address"
+      - "0.0.0.0:9400"
+      - /data
+    expose:
+      - "9301"
+      - "9400"
+    ports:
+      - "9301:9301"
+      - "9400:9400"
+    volumes:
+      - "minio-0:/data"
+    entrypoint: |
+      /bin/sh -c '
+      set -e
+      mkdir -p "/data/hummock001"
+      mkdir -p "/data/icebergdata/demo"
+
+      /usr/bin/docker-entrypoint.sh "$$0" "$$@"
+      '
+    environment:
+      MINIO_CI_CD: "1"
+      MINIO_ROOT_PASSWORD: hummockadmin
+      MINIO_ROOT_USER: hummockadmin
+      MINIO_DOMAIN: "minio-0"
+    container_name: minio-0
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - bash -c 'printf "GET / HTTP/1.1\n\n" > /dev/tcp/127.0.0.1/9301; exit $$?;'
+      interval: 1s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+volumes:
+  postgres-0:
+    external: false
+  minio-0:
+    external: false
