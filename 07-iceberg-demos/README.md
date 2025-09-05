@@ -1,11 +1,8 @@
-# 07-iceberg-demos
-
-This directory contains end-to-end **Iceberg** pipelines with **RisingWave**. Each folder is a self-contained demo (Docker Compose + SQL) unless noted.
-
-## Demos
+# RisingWave + Apache Iceberg — End-to-End Streaming Lakehouse Demos
+This directory contains end-to-end **Iceberg** pipelines with **RisingWave**. Each folder is a self-contained demo (Docker Compose + SQL).
 
 - [streaming_iceberg_quickstart](./streaming_iceberg_quickstart/) — Build your first **streaming Iceberg table** with RisingWave (`hosted_catalog`) and query it with Spark.
-- [postgres_to_rw_iceberg_spark](./postgres_to_rw_iceberg_spark/) — **PostgreSQL CDC → RisingWave → Iceberg → Spark** using the Iceberg table engine and hosted catalog.
+- [postgres_to_rw_iceberg_spark](./postgres_to_rw_iceberg_spark/) — **PostgreSQL CDC → RisingWave → Iceberg → Spark** using the Iceberg Table Engine and Hosted Catalog.
 - [postgres-cdc-rw-iceberg-rest-spark](./postgres-cdc-rw-iceberg-rest-spark/) — Same flow with the **Iceberg REST catalog** (MinIO) + a **round-trip** back into RisingWave.
 - [mongodb_to_rw_iceberg_spark](./mongodb_to_rw_iceberg_spark/) — **MongoDB change streams → RisingWave → Iceberg → Spark** with JSON→typed projection included.
 - [mysql_to_rw_iceberg_spark](./mysql_to_rw_iceberg_spark/) — **MySQL binlog CDC → RisingWave → Iceberg → Spark** end-to-end.
