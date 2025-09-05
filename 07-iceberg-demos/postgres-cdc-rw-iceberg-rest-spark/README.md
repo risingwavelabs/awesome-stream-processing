@@ -22,7 +22,8 @@ This setup avoids Kafka/Flink, simplifies your stack, and handles schema changes
 
 ```bash
 git clone https://github.com/risingwavelabs/awesome-stream-processing.git
-cd awesome-stream-processing/03-solution-demos/postgres_cdc_iceberg
+cd awesome-stream-processing/07-iceberg-demos/postgres-cdc-rw-iceberg-rest-spark
+
 
 # Launch demo stack
 docker compose up -d
