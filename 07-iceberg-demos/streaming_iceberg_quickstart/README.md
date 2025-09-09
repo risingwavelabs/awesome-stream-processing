@@ -56,11 +56,15 @@ Activate the connection for your session and add `ENGINE = iceberg`:
 -- Use the connection
 SET iceberg_engine_connection = 'public.my_iceberg_connection';
 
--- Define the streaming table
-CREATE TABLE machine_sensors (
-  sensor_id   INT PRIMARY KEY,
-  temperature DOUBLE,
-  reading_ts  TIMESTAMP
+-- Define the streaming table (crypto use case)
+CREATE TABLE crypto_trades (
+  trade_id  BIGINT PRIMARY KEY,
+  symbol    VARCHAR,
+  price     DOUBLE,
+  quantity  DOUBLE,
+  side      VARCHAR,     -- e.g., 'BUY' or 'SELL'
+  exchange  VARCHAR,     -- e.g., 'binance', 'coinbase'
+  trade_ts  TIMESTAMP
 )
 WITH (commit_checkpoint_interval = 1)  -- low-latency commits
 ENGINE = iceberg;
@@ -73,21 +77,22 @@ The table is ready to accept streaming inserts and incremental merges.
 Insert this data into the Iceberg table:
 
 ```sql
-INSERT INTO machine_sensors
+INSERT INTO crypto_trades
 VALUES
-  (101, 25.5, NOW()),
-  (102, 70.2, NOW());
+  (1000001, 'BTCUSDT', 57321.25, 0.005, 'BUY',  'binance', NOW()),
+  (1000002, 'ETHUSDT',  2578.10, 0.250, 'SELL', 'coinbase', NOW());
+
 ```
 
 Verify the commit:
 
 ```sql
-SELECT * FROM machine_sensors;
+SELECT * FROM crypto_trades;
+ trade_id | symbol  |  price   | quantity | side | exchange |        trade_ts
+----------+---------+----------+----------+------+----------+----------------------------
+  1000001 | BTCUSDT | 57321.25 |   0.005  | BUY  | binance  | 2025-07-17 15:04:56.123
+  1000002 | ETHUSDT |  2578.10 |   0.250  | SELL | coinbase | 2025-07-17 15:04:56.456
 
- sensor_id | temperature |        reading_ts
--------------+-------------+---------------------------
-       101 |        25.5 | 2025-07-17 15:04:56.123…
-       102 |        70.2 | 2025-07-17 15:04:56.456…
 ```
 
 Because the table resides in an open Iceberg format, you can immediately query it from Spark, Trino, or Dremio by pointing them at the same warehouse path and hosted catalog endpoint.
@@ -168,7 +173,7 @@ spark-sql \
 Then run a query:
 
 ```sql
-select * from dev.public.machine_sensors;
+select * from dev.public.crypto_trades;
 ```
 
 ## Optional: Clean up (Docker)
