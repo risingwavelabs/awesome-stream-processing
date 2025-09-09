@@ -1,55 +1,51 @@
-# Real-Time PostgreSQL → Apache Iceberg CDC
+# PostgreSQL CDC → Iceberg (REST Catalog) → Spark (Round-Trip)
 
-Stream change-data-capture (CDC) events from PostgreSQL into Apache Iceberg using RisingWave’s native PostgreSQL CDC source and Iceberg sink. Query the continuously updated Iceberg lakehouse table with Spark, Trino, or Dremio, and ingest the results back into RisingWave using its source connector.
+Stream change-data-capture (CDC) events from **PostgreSQL** into **Apache Iceberg** using **RisingWave’s** `postgres-cdc` source and an **Iceberg REST catalog** (MinIO as the object store). Query the continuously updated Iceberg table with **Spark SQL**—and bring Iceberg data **back into RisingWave** via the Iceberg source connector.
 
-This setup is faster than existing CDC tools, eliminates the need for Kafka or Flink, simplifies your stack and reduces overhead, and smoothly handles schema changes, scalability, and streaming workloads.
+This setup avoids Kafka/Flink, simplifies your stack, and handles schema changes and scale for streaming workloads.
+
 ## Real-world use cases
-This architecture is applicable across several industries for real-time and historical analytics:
 
-| Industry | Application |
-| --- | --- |
-| E-commerce | Real-time order tracking, reporting, & analysis |
-| FinTech | Transaction auditing |
-| Healthcare | Patient record changes |
-| SaaS | Billing and usage updates |
+| Industry  | Application                                   |
+|-----------|-----------------------------------------------|
+| E-commerce | Real-time order tracking & analytics          |
+| FinTech   | Transaction auditing                          |
+| Healthcare| Patient record changes                        |
+| SaaS      | Billing and usage updates                     |
 
-## **Prerequisites**
+## Prerequisites
 
-Ensure you have the following installed:
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/): Docker Compose is included with Docker Desktop for Windows and macOS. Ensure Docker Desktop is running if you're using it.
+- [PostgreSQL interactive terminal (psql)](https://www.postgresql.org/download/): This will allow you to connect to RisingWave for stream management and queries.
 
-- **[Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/):** Docker Compose is included with Docker Desktop for Windows and macOS. Ensure Docker Desktop is running if you're using it.
-- **[PostgreSQL interactive terminal (psql)](https://www.postgresql.org/download/):** This will allow you to connect to RisingWave for stream management and queries.
-
-## 1. Launch the demo cluster
-
-### Clone the repo
+## Clone the demo repo and start the stack
 
 ```bash
 git clone https://github.com/risingwavelabs/awesome-stream-processing.git
-```
+cd awesome-stream-processing/07-iceberg-demos/postgres-cdc-rw-iceberg-rest-spark
 
-### Start the stack
 
-```bash
-cd awesome-stream-processing/03-solution-demos/postgres_cdc_iceberg
+# Launch demo stack
 docker compose up -d
-```
+````
 
 The Compose file launches:
 
-- **RisingWave** (single-node) on **localhost:4566**
-- **PostgreSQL** (CDC-enabled) on **localhost:5432**
-- **Iceberg REST catalog** + **MinIO** object store
-- **Spark-Iceberg** client image
+* **RisingWave** (single-node) on **localhost:4566**
+* **PostgreSQL** (CDC-enabled) on **localhost:5432**
+* **Iceberg REST catalog** + **MinIO** object store
+* **Spark-Iceberg** client image
 
-| Service | Container port | Localhost |
-| --- | --- | --- |
-| RisingWave | 4566 | 4566 |
-| PostgreSQL | 5432 | 5432 |
-| Iceberg REST API | 8181 | 8181 |
-| MinIO API | 9000 | 9000 |
+| Service          | Container port | Localhost |
+| ---------------- | -------------- | --------- |
+| RisingWave       | 4566           | 4566      |
+| PostgreSQL       | 5432           | 5432      |
+| Iceberg REST API | 8181           | 8181      |
+| MinIO API        | 9000           | 9000      |
 
-## 2. Prepare PostgreSQL
+## 1. Prepare PostgreSQL
+
+Connect:
 
 ```bash
 docker exec -it postgres psql -U myuser -d mydb
@@ -59,12 +55,10 @@ docker exec -it postgres psql -U myuser -d mydb
 
 `postgres_prepare` (from `docker-compose.yml`) runs `postgres_prepare.sql` once at start-up to:
 
-- Create `public.person` (PK `id`).
-- Enable **REPLICA IDENTITY FULL** for full-row UPDATE/DELETE.
-- Add the `rw_publication` publication.
-- Insert 100 demo rows.
-
-PostgreSQL is now ready for RisingWave replication.
+* Create `public.person` (PK `id`).
+* Enable **REPLICA IDENTITY FULL** for full-row UPDATE/DELETE.
+* Add the `rw_publication` publication.
+* Insert 100 demo rows.
 
 Verify:
 
@@ -72,7 +66,9 @@ Verify:
 SELECT * FROM person LIMIT 5;
 ```
 
-## 3. Create the CDC source table in RisingWave
+## 2. Create the CDC source table in RisingWave
+
+Connect to RisingWave:
 
 ```bash
 psql -h localhost -p 4566 -d dev -U root
@@ -95,10 +91,9 @@ CREATE TABLE person (
   password      = '123456',
   database.name = 'mydb',
   schema.name   = 'public',
-  table.name    = 'person',              -- Postgres table
-  slot.name     = 'person'               -- replication slot name
+  table.name    = 'person',    -- Postgres table
+  slot.name     = 'person'     -- replication slot name
 );
-
 ```
 
 Quick check:
@@ -107,7 +102,7 @@ Quick check:
 SELECT * FROM person LIMIT 5;
 ```
 
-Sink CDC data to Iceberg (REST catalog + MinIO)
+## 3. Sink CDC data to Iceberg (REST catalog + MinIO)
 
 ```sql
 CREATE SINK person_iceberg_sink
@@ -116,7 +111,7 @@ WITH (
     -- Iceberg sink
     connector              = 'iceberg',
     type                   = 'append-only',
-    force_append_only      = 'true',          -- ← required
+    force_append_only      = 'true',          -- required for append-only
 
     -- REST catalog
     catalog.type           = 'rest',
@@ -135,7 +130,7 @@ WITH (
     -- Target namespace + table
     database.name          = 'default',
     table.name             = 'person',
-    create_table_if_not_exists = true          -- Optional
+    create_table_if_not_exists = true
 );
 ```
 
@@ -158,13 +153,13 @@ sudo docker exec -it spark-iceberg spark-sql \
 Preview CDC data inside Spark:
 
 ```sql
-spark-sql ()> SELECT * FROM rest.default.person LIMIT 5;
+SELECT * FROM rest.default.person LIMIT 5;
 ```
 
 Create a demo Iceberg table (`employees`) and populate it:
 
 ```sql
-spark-sql ()> CREATE TABLE rest.default.employees (
+CREATE TABLE rest.default.employees (
   id       INT,
   name     STRING,
   dept     STRING,
@@ -176,8 +171,8 @@ INSERT INTO rest.default.employees VALUES
   (2, 'Bob',    'Marketing',   64000.0),
   (3, 'Carlos', 'Engineering', 88000.0),
   (4, 'Dina',   'HR',          70000.0);
-  
-spark-sql ()> SELECT * FROM rest.default.employees;
+
+SELECT * FROM rest.default.employees;
 ```
 
 ## 5. Bring Iceberg data back into RisingWave
@@ -206,19 +201,23 @@ WITH (
 );
 
 SELECT * FROM employees_iceberg_source;
-
 ```
 
-## **6. Clean up**
+## Optional: Clean up (Docker)
+
+> ⚠️ Only run this after you’ve fully tested.
+>
+> * `-v` deletes Docker volumes (all persisted data), in addition to stopping and removing containers and networks.
+
+**If you want a full cleanup (including volumes/data):**
 
 ```bash
-
-docker compose-down -v
+docker compose down -v
 ```
 
 ## Recap
 
-- **Capture** logical replication from PostgreSQL into RisingWave.
-- **Stream** CDC data into an Apache Iceberg table via RisingWave.
-- **Query** low-latency, open-format analytics using Spark, Trino, or Dremio.
-- **Ingest** results back into RisingWave from the Iceberg table using RisingWave's source connector.
+* **Capture**: Logical PostgreSQL CDC into RisingWave.
+* **Store**: Stream into **Iceberg** via the REST catalog (MinIO).
+* **Query**: Use **Spark SQL** to read the same open-format table.
+* **Round-trip**: Read Iceberg back into RisingWave via the Iceberg source.
