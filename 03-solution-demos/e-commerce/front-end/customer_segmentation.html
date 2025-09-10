@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Category People Statistics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#64748b',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .chart-container {
+                @apply w-full h-full min-h-[60vh] md:min-h-[70vh];
+            }
+            .loading-spinner {
+                @apply animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+<div class="container mx-auto p-4 md:p-6 max-w-7xl">
+    <!-- Only keep chart container and necessary controls -->
+    <div class="bg-white rounded-xl shadow-md p-4 md:p-6 mb-4">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Category People Statistics</h1>
+            <div class="flex space-x-4">
+                <button id="addDataBtn" class="flex items-center bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
+                    <i class="fa fa-plus mr-2"></i>
+                    <span>Add Data</span>
+                </button>
+                <button id="refreshBtn" class="flex items-center text-primary hover:text-primary/80 transition-colors">
+                    <i class="fa fa-refresh mr-2"></i>
+                    <span>Refresh Data</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chart container -->
+        <div class="chart-container">
+            <canvas id="categoryChart"></canvas>
+        </div>
+
+        <!-- Loading state -->
+        <div id="loading" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+            <div class="loading-spinner mx-auto"></div>
+            <p class="text-center mt-4 text-gray-600">Loading data...</p>
+        </div>
+
+        <!-- Error state -->
+        <div id="error" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+            <i class="fa fa-exclamation-triangle text-yellow-500 text-4xl mb-4"></i>
+            <p class="text-gray-700 mb-2">Failed to load data</p>
+            <p class="text-gray-500 text-sm" id="errorMessage">Please check connection and try again</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Global variables
+    let categoryChart = null;
+    const API_URL = 'http://localhost:8000/api/segmentation'; // Backend API address
+    const ADD_DATA_URL = 'http://localhost:8000/api/add'; // API for adding data
+
+    // Initialize chart
+    function initChart() {
+        const ctx = document.getElementById('categoryChart').getContext('2d');
+
+        // Destroy existing chart if any
+        if (categoryChart) {
+            categoryChart.destroy();
+        }
+
+        // Create new chart
+        categoryChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Number of People',
+                    data: [],
+                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 1000,
+                    easing: 'easeOutQuart'
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        },
+                        ticks: {
+                            precision: 0 // Ensure Y-axis shows integers
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        titleColor: '#1e293b',
+                        bodyColor: '#475569',
+                        borderColor: 'rgba(59, 130, 246, 0.2)',
+                        borderWidth: 1,
+                        padding: 12,
+                        displayColors: false,
+                        callbacks: {
+                            label: function(context) {
+                                return `People: ${context.raw}`;
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                }
+            }
+        });
+    }
+
+    // Load data from API
+    async function loadData() {
+        const chartContainer = document.querySelector('.chart-container');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+
+        // Show loading state
+        chartContainer.style.position = 'relative';
+        loading.classList.remove('hidden');
+        error.classList.add('hidden');
+
+        try {
+            const response = await fetch(API_URL);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            // Handle empty data
+            if (data.length === 0) {
+                throw new Error('No data available');
+            }
+
+            // Update chart data
+            categoryChart.data.labels = data.map(item => item.segment);
+            categoryChart.data.datasets[0].data = data.map(item => item.user_count);
+            categoryChart.update();
+
+        } catch (err) {
+            // Show error state
+            loading.classList.add('hidden');
+            error.classList.remove('hidden');
+            document.getElementById('errorMessage').textContent = err.message;
+            console.error('Failed to load data:', err);
+        } finally {
+            // Hide loading state
+            loading.classList.add('hidden');
+        }
+    }
+
+    // Add data to the backend
+    async function addData() {
+        // Show loading state
+
+        const chartContainer = document.querySelector('.chart-container');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+
+        // Show loading state
+        chartContainer.style.position = 'relative';
+        loading.classList.remove('hidden');
+        error.classList.add('hidden');
+
+        try {
+            const response = await fetch(ADD_DATA_URL);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            if(result === 1) {
+                alert('Data added successfully!');
+            }
+        } catch (err) {
+            // Show error state
+            loading.classList.add('hidden');
+            error.classList.remove('hidden');
+            document.getElementById('errorMessage').textContent = err.message;
+            console.error('Failed to add data:', err);
+        } finally {
+            // Hide loading state
+            loading.classList.add('hidden');
+        }
+
+    }
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        initChart();
+        loadData();
+
+        // Refresh button click event
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            loadData();
+        });
+
+        // Add data button click event
+        document.getElementById('addDataBtn').addEventListener('click', () => {
+            addData();
+        });
+
+        // Redraw chart on window resize
+        window.addEventListener('resize', () => {
+            if (categoryChart) {
+                categoryChart.resize();
+            }
+        });
+    });
+</script>
+</body>
+</html>
