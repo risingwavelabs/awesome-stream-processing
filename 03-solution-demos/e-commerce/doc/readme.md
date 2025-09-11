@@ -239,7 +239,7 @@ ON u.id = g.id;
 ```
 
 >
-> It should be noted here that **RisingWave** does not support **streaming nested loops with non-equijoin**. Therefore, when connecting these two **MV**s here, we need to specify an additional attribute.
+> It should be noted here that **RisingWave** does not support **streaming nested loops with non-equi joins**. Therefore, when connecting these two **MV**s here, we need to specify an additional attribute.
 >
 
 ### 4 - Scoring
