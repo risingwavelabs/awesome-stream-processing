@@ -190,7 +190,7 @@ def send_to_kafka(num_sessions, round):
 
 if __name__ == "__main__":
     print("Start generating data...")
-    send_to_kafka(1000, 1)  # 第一轮生成1000个会话
+    send_to_kafka(1000, 1)  # 1000 samples for round 1
     send_to_kafka(10000, 2)  # 10000 samples for round 2
     send_to_kafka(3000, 3)  # 3000 samples for round 3
     print("Succeed to generate data!")
