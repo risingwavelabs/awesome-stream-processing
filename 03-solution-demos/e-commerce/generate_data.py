@@ -62,7 +62,7 @@ def random_user_id(round):
     elif round == 2:
         USER_IDS = [f"U{i:05d}" for i in range(100, 501)]  # second round - user 100-500
     else:
-        USER_IDS = [f"U{i:05d}" for i in range(100, 601)]  # 第三轮100-600号用户
+        USER_IDS = [f"U{i:05d}" for i in range(100, 601)]  # third round - user 100-600
     return random.choice(USER_IDS)
 
 
