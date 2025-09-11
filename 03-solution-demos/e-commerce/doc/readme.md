@@ -1,6 +1,6 @@
 ## Background
 
-User segmentation in e-commerce is the operational method of dividing users into similar subgroups based on their characteristics, behaviors, or needs. It enables platforms to achieve precise marketing, optimize product categories, and provide personalized experiences. Additionally, it supports stratified operation throughout the user lifecycle and competitive analysis, serving as the core foundation for refined e-commerce operations and enhancing efficiency and user value.
+User segmentation in e-commerce is the operational method of dividing users into similar subgroups based on their characteristics, behaviors, or needs. It enables platforms to achieve precise marketing, optimize product categories, and provide personalized experiences. Additionally, it supports layered operation throughout the user lifecycle and competitive analysis, serving as the core foundation for refined e-commerce operations and enhancing efficiency and user value.
 
 ### **I. Customer Segmentation Framework**
 
