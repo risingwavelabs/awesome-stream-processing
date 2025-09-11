@@ -58,7 +58,7 @@ def random_event_time(round):
 
 def random_user_id(round):
     if round == 1:
-        USER_IDS = [f"U{i:05d}" for i in range(1, 501)]  # 第一轮1-500号用户
+        USER_IDS = [f"U{i:05d}" for i in range(1, 501)]  # first round - user 1-500
     elif round == 2:
         USER_IDS = [f"U{i:05d}" for i in range(100, 501)]  # 第二轮100-500号用户
     else:
