@@ -1,29 +1,20 @@
 # Build Real-Time Player Analytics with RisingWave
-Create a streaming table in RisingWave that ingests data from a Kafka topic, run windowed KPIs, and surface leaders & spikes — all in SQL, all in real time.
-
+In this demo, you’ll spin up a Docker stack, stream synthetic player-match events into Kafka, and have RisingWave ingest them into a streaming table via the Kafka connector. Then, using plain SQL, you’ll compute time-windowed KPIs (kills, headshot rate, damage-per-minute, sustain, and accuracy), slice by mental state, and surface leaders or sudden performance spikes with sliding windows and rankings.
 ## Prerequisites
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/): Docker Compose is included with Docker Desktop for Windows and macOS. Ensure Docker Desktop is running if you're using it.
 - [PostgreSQL interactive terminal (psql)](https://www.postgresql.org/download/): This will allow you to connect to RisingWave for stream management and queries.
-
 ## Launch the demo cluster
-
 ### Clone the repo
-
 ```bash
 git clone https://github.com/risingwavelabs/awesome-stream-processing.git
 cd awesome-stream-processing/03-solution-demos/streaming-game-analytics
 ```
-
 ### Start the Stack
-
-Run the Docker Compose file to set up all services, that start the data generator, which creates game data and publishes it to the Kafka topic `player_stats`. RisingWave ingests this data to create a source table.
-
+When we execute the following command, it sets up all services that generate synthetic game data and publish it to the Kafka topic `player_stats`. RisingWave ingests this data to create a source table. After that, we analyze this data to extract insights from it using RisingWave.
 ```bash
 docker compose up -d
 ```
-
 The sample data that the data generator creates and sends to a Kafka topic, and that RisingWave ingests using the Kafka connector, is as follows:
-
 ```json
 {
   "ts": "2025-09-11 06:53:44",
@@ -41,17 +32,12 @@ The sample data that the data generator creates and sends to a Kafka topic, and 
   "player_rank": 33
 }
 ```
-
 ## Connect with RisingWave via psql
-
 ```bash
 psql -h localhost -p 4566 -d dev -U root
 ```
-
 ## 1. Create the streaming table
-
 **Define schema for incoming match stats**
-
 ```sql
 CREATE TABLE player_match_stats (
   ts             TIMESTAMP,
@@ -73,11 +59,8 @@ CREATE TABLE player_match_stats (
     properties.bootstrap.server = 'kafka:9092'
 ) FORMAT PLAIN ENCODE JSON;
 ```
-
 ## 2. Team KPIs over time windows
-
 **10-minute team KPIs (kills, headshot rate, DPM, sustain, accuracy)**
-
 ```sql
 SELECT
   window_start,
@@ -91,9 +74,7 @@ FROM TUMBLE(player_match_stats, ts, INTERVAL '10' MINUTE)
 GROUP BY window_start, window_end
 ORDER BY window_start;
 ```
-
 **15-minute mental-state breakdown (accuracy, HS/kill, avg survival, placement)**
-
 ```sql
 SELECT
   window_start,
@@ -116,11 +97,8 @@ FROM TUMBLE(player_match_stats, ts, INTERVAL '15' MINUTE)
 GROUP BY window_start, window_end, mental_state
 ORDER BY window_start, mental_state;
 ```
-
 ## 3. Leaders & spikes (HOP windows + analytics)
-
 **Top 3 players per 20-minute sliding window (custom impact score)**
-
 ```sql
  WITH hop AS (
   SELECT
@@ -152,9 +130,7 @@ FROM ranked
 WHERE rn <= 3
 ORDER BY window_start, rn;
 ```
-
 **Spike detection: ≥50% jump in kills or damage vs prior 15-minute window**
-
 ```sql
 WITH w AS (
   SELECT
@@ -189,9 +165,7 @@ WHERE prev_elims IS NOT NULL
   AND (elims >= prev_elims * 1.5 OR dmg >= prev_dmg * 1.5)
 ORDER BY window_end, player_name;
 ```
-
 **Top-5 per match in each 10-minute window (tie-break by dmg, assists)**
-
 ```sql
 WITH win AS (
   SELECT
@@ -219,15 +193,11 @@ FROM ranked
 WHERE rk <= 5
 ORDER BY window_start, match_id, rk;
 ```
-
 ## Optional: Clean up (Docker)
-
 ```bash
 docker compose down -v
 ```
-
 ## Recap
-
 - **Create** a compact stream table for match stats.
 - **Measure** KPIs with `TUMBLE` and drill down by mental state.
 - **Highlight** leaders and detect performance spikes with `HOP`, window functions, and rankings.
