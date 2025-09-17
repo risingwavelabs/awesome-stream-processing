@@ -1,4 +1,4 @@
-# Build Real-Time Player Analytics  with RisingWave
+# Build Real-Time Player Analytics with RisingWave
 Create a streaming table in RisingWave that ingests data from a Kafka topic, run windowed KPIs, and surface leaders & spikes — all in SQL, all in real time.
 
 ## Prerequisites
