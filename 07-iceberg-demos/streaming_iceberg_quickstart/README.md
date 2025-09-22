@@ -146,11 +146,13 @@ source ~/.bashrc   # or: source ~/.zshrc
 ```bash
 spark-shell --version
 ```
-
 You should see the Spark version printed.
-
 ### 5. Configure & Run Spark SQL (Iceberg + MinIO + JDBC)
-
+If you see a “region not specified” error, set the region before running Spark:
+```bash
+export AWS_REGION=us-east-1
+```
+Now, run this to connect with the Spark:
 ```bash
 spark-sql \
   --packages "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.2,org.apache.iceberg:iceberg-aws-bundle:1.9.2,org.postgresql:postgresql:42.7.4" \
