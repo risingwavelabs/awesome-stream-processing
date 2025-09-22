@@ -1,5 +1,5 @@
 -- Airline_Flight_Counts: Aggregates the total number of flights per airline in hourly intervals, ordered by the highest flight counts.
-CREATE MATERIALIZED VIEW Airline_Flight_Counts
+CREATE MATERIALIZED VIEW Airline_Flight_Counts AS
 SELECT airline_name,
 COUNT(airline_name) AS total_flights,
 window_start, window_end

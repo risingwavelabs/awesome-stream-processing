@@ -16,7 +16,7 @@ api_key = "17582ef651bce84bcebe9fcee10efb6d"
 base_url = "http://api.aviationstack.com/v1/flights"
 
 # Number of records to fetch
-records_to_fetch = 5
+records_to_fetch = 100
 
 params = {
     "access_key": api_key,
