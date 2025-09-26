@@ -18,3 +18,4 @@ Here are the runnable demos so far:
 
 * [Traffic flow monitoring and predication](/03-solution-demos/traffic_prediction): Detect traffic flow by ingesting car speed events in real-time, and predict the traffic flow based historical data and a ML model.
 
+* [Real-time promotion rule engine](/03-solution-demos/promotion_rule_engine/): A real-time promotion rule engine on RisingWave + Kafka that matches member events to configurable rules, computes capped rewards, and exposes results and analytics views.
