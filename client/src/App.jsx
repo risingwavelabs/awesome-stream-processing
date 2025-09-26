@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from "react";
-import {CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,} from "recharts";
+import {CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 
 /** --------- helpers ---------- */
 const fmt = (n) => n.toLocaleString();
@@ -22,12 +22,8 @@ function Kpi({label, value, isAmount}) {
 
 function Card({title, className = "", children}) {
     return (
-        <div
-            className={`bg-white border border-gray-200 rounded-2xl shadow-md p-6 ${className}`}
-        >
-            {title ? (
-                <h2 className="text-xl font-bold mb-6">{title}</h2>
-            ) : null}
+        <div className={`bg-white border border-gray-200 rounded-2xl shadow-md p-6 ${className}`}>
+            {title ? <h2 className="text-xl font-bold mb-6">{title}</h2> : null}
             {children}
         </div>
     );
@@ -75,12 +71,41 @@ export default function App() {
                     <h1 className="text-4xl font-extrabold">
                         Transaction Dashboard <span className="text-blue-600">(Demo)</span>
                     </h1>
-                    {/*<input*/}
-                    {/*    type="text"*/}
-                    {/*    placeholder="Search by slot or signature…"*/}
-                    {/*    className="px-4 py-2 border border-gray-300 rounded-lg w-full lg:w-96 focus:outline-none focus:ring-2 focus:ring-blue-500"*/}
-                    {/*/>*/}
+                    {/*<input
+                        type="text"
+                        placeholder="Search by slot or signature…"
+                        className="px-4 py-2 border border-gray-300 rounded-lg w-full lg:w-96 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />*/}
                 </header>
+
+                {/* ===== About this Demo (added) ===== */}
+                <Card className="space-y-4">
+                    <h2 className="text-xl font-bold">About this Demo</h2>
+                    <div className="grid gap-4 md:grid-cols-3">
+                        <div className="bg-gray-50 rounded-xl p-4">
+                            <p className="font-semibold mb-2">User Story</p>
+                            <p className="text-sm leading-relaxed">
+                                This demo simulates a real-time Solana explorer. We capture the latest blocks, parse both SOL and SPL-Token transfers, load them into RisingWave, and present the results on this dashboard. Users can quickly view live transaction statistics and the recent blocks.
+                            </p>
+                        </div>
+                        <div className="bg-gray-50 rounded-xl p-4">
+                            <p className="font-semibold mb-2">Why It Matters</p>
+                            <p className="text-sm leading-relaxed">
+                                Blockchain produces high-velocity transaction streams. This demo shows how raw chain data can be turned into real-time analytics, combining ingestion, processing, and visualization in a streamlined pipeline.
+                            </p>
+                        </div>
+                        <div className="bg-gray-50 rounded-xl p-4">
+                            <p className="font-semibold mb-2">Why RisingWave</p>
+                            <ul className="list-disc list-inside text-sm space-y-1">
+                                <li><span className="font-medium">Unified streaming SQL</span>: one language for real-time and historical queries.</li>
+                                <li><span className="font-medium">Materialized views</span>: incremental results always fresh and query-ready.</li>
+                                <li><span className="font-medium">Efficient & cost-friendly</span>: avoids re-computation, lowers system overhead.</li>
+                                <li><span className="font-medium">Ecosystem compatible</span>: integrates with Kafka, PostgreSQL protocol tools.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </Card>
+                {/* ===== /About this Demo ===== */}
 
                 {/* overview stats */}
                 <section className="grid grid-cols-12 gap-6">
@@ -118,10 +143,7 @@ export default function App() {
                         className="col-span-12 lg:col-span-7 flex flex-col"
                     >
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart
-                                data={throughputSeries}
-                                margin={{top: 16, right: 20, left: 0, bottom: 8}}
-                            >
+                            <LineChart data={throughputSeries} margin={{top: 16, right: 20, left: 0, bottom: 8}}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb"/>
                                 <XAxis
                                     dataKey="window_start"
