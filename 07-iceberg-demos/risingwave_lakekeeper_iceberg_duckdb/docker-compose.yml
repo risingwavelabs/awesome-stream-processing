@@ -75,6 +75,8 @@ services:
           memory: 28G
         reservations:
           memory: 28G
+    networks:
+      iceberg_net: 
 
   postgres-0:
     image: "postgres:15-alpine"
@@ -95,7 +97,8 @@ services:
       timeout: 5s
       retries: 5
     restart: always
-
+    networks:
+      iceberg_net:
   minio-0:
     image: "quay.io/minio/minio:latest"
     command:
@@ -135,7 +138,9 @@ services:
       timeout: 5s
       retries: 5
     restart: always
-
+    networks:
+      iceberg_net:
+    
   lakekeeper:
     image: &lakekeeper-image ${LAKEKEEPER__SERVER_IMAGE:-quay.io/lakekeeper/catalog:latest-main}
     pull_policy: &lakekeeper-pull-policy always
@@ -177,11 +182,10 @@ services:
       iceberg_net:
 
   db:
-    image: bitnami/postgresql:16.6.0
+    image: "postgres:16-alpine"
     environment:
-      - POSTGRESQL_USERNAME=postgres
-      - POSTGRESQL_PASSWORD=postgres
-      - POSTGRESQL_DATABASE=postgres
+      - POSTGRES_PASSWORD=postgres
+      - PGDATA=/var/lib/postgresql/data/pgdata
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres -p 5432 -d postgres" ]
       interval: 2s
@@ -189,7 +193,7 @@ services:
       retries: 2
       start_period: 10s
     volumes:
-      - volume-lakekeeper:/bitnami/postgresql
+      - volume-lakekeeper:/var/lib/postgresql/datal
     networks:
       iceberg_net:
 
