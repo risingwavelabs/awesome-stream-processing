@@ -22,7 +22,14 @@ docker compose up -d
 The compose file starts Lakekeeper at **127.0.0.1:8181**, RisingWave at **127.0.0.1:4566**, and MinIO (S3-compatible) at **127.0.0.1:9301**, matching the commands used below.
 
 ## 1. Provision a Lakekeeper warehouse (MinIO backend)
-
+After deploying Lakekeeper, perform an initial bootstrap using the Management API. Call the `POST /management/v1/bootstrap` endpoint, for example:
+```bash
+# only needed once after deploying Lakekeeper
+curl -X POST http://127.0.0.1:8181/management/v1/bootstrap \
+  -H 'Content-Type: application/json' \
+  -d '{"accept-terms-of-use": true}'
+```
+Now, run this to create a warehouse:
 ```bash
 curl -X POST http://127.0.0.1:8181/management/v1/warehouse \
   -H 'content-type: application/json' \
