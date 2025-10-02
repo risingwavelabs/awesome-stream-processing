@@ -40,14 +40,13 @@ curl -X POST http://127.0.0.1:8181/management/v1/warehouse \
       "bucket": "icebergdata",
       "region": "us-east-1",
       "flavor": "s3-compat",
-      "endpoint": "http://127.0.0.1:9301",
+      "endpoint": "http://minio-0:9301",
       "path-style-access": true,
       "sts-enabled": false,
       "key-prefix": "warehouse1"
     }
   }'
 ```
-
 ## 2. Connect RisingWave and stream to Iceberg
 
 Connect to RisingWave:
@@ -63,9 +62,9 @@ CREATE CONNECTION my_connection
 WITH (
   type = 'iceberg',
   catalog.type = 'rest',
-  catalog.uri = 'http://127.0.0.1:8181/catalog',
+  catalog.uri = 'http://lakekeeper:8181/catalog',
   warehouse.path = 'minio_iceberg',
-  s3.endpoint = 'http://127.0.0.1:9301',
+  s3.endpoint = 'http://minio-0:9301',
   s3.region = 'us-east-1',
   s3.access.key = 'hummockadmin',
   s3.secret.key = 'hummockadmin',
