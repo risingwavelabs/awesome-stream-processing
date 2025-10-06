@@ -12,4 +12,4 @@ This directory contains end-to-end **Iceberg** pipelines with **RisingWave**. Ea
 6. [risingwave_lakekeeper_iceberg_duckdb](./risingwave_lakekeeper_iceberg_duckdb/) — **RisingWave → Lakekeeper (REST) → Iceberg → DuckDB** with upsert streaming.
 7. [risingwave_s3tables_iceberg_duckdb](./risingwave_s3tables_iceberg_duckdb/) — **AWS S3 Tables catalog**: stream from RisingWave to Iceberg and query with DuckDB (no local catalog containers).
 8. [logistics_multiway_streaming_join_iceberg](./logistics_multiway_streaming_join_iceberg/) — **Seven Kafka-topic logistics streaming join with RisingWave to Iceberg** using `hosted_catalog`, and query with Spark.
-9. [risingwave_lakekeeper_iceberg_clickhouse](./risingwave_lakekeeper_iceberg_clickhouse) — **RisingWave → Lakekeeper (REST) → Iceberg → ClickHouse** with capital markets trades data streaming.
+9. [risingwave_lakekeeper_iceberg_clickhouse](./risingwave_lakekeeper_iceberg_clickhouse) — **RisingWave → Lakekeeper (REST) → Iceberg → ClickHouse** with streaming writes from RisingWave into Iceberg, query the same tables in ClickHouse via the Lakekeeper REST catalog.
