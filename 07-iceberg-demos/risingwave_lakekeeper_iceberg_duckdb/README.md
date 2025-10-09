@@ -1,15 +1,12 @@
 # RisingWave → Lakekeeper → Iceberg → DuckDB
-
-Create a streaming lakehouse with **Lakekeeper** and **MinIO**, stream upserts from **RisingWave** into **Apache Iceberg**, and query the same tables from **DuckDB**, no Glue or Nessie required.
+RisingWave lets you create Apache Iceberg–native tables via its REST-based catalog with **Lakekeeper**. You can stream data from these **RisingWave** tables into **Apache Iceberg**, then query the same tables from DuckDB, no Glue or Nessie required.
 
 ## Prerequisites
-
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/): Docker Compose is included with Docker Desktop for Windows and macOS. Ensure Docker Desktop is running if you're using it.
 - [PostgreSQL interactive terminal (psql)](https://www.postgresql.org/download/): This will allow you to connect to RisingWave for stream management and queries.
-
 ## Clone the demo repo and start the stack
 
-**Demo directory name:** `risingwave_lakekeeper_iceberg_duckdb`
+**Demo directory:** `risingwave_lakekeeper_iceberg_duckdb`
 
 ```bash
 git clone https://github.com/risingwavelabs/awesome-stream-processing.git
@@ -17,24 +14,32 @@ cd awesome-stream-processing/07-iceberg-demos/risingwave_lakekeeper_iceberg_duck
 
 # Launch demo stack
 docker compose up -d
-````
+```
 
-The compose file starts Lakekeeper at **127.0.0.1:8181**, RisingWave at **127.0.0.1:4566**, and MinIO (S3-compatible) at **127.0.0.1:9301**, matching the commands used below.
+The compose file starts:
 
-## 1. Provision a Lakekeeper warehouse (MinIO backend)
-After deploying Lakekeeper, perform an initial bootstrap using the Management API. Call the `POST /management/v1/bootstrap` endpoint, for example:
+* **Lakekeeper** at `127.0.0.1:8181`
+* **RisingWave** at `127.0.0.1:4566`
+* **MinIO (S3-compatible)** at `127.0.0.1:9301`
+
+## 1) Provision a Lakekeeper warehouse (MinIO backend)
+
+After deploying Lakekeeper, bootstrap it via the Management API:
+
 ```bash
-# only needed once after deploying Lakekeeper
+# Only needed once after deploying Lakekeeper
 curl -X POST http://127.0.0.1:8181/management/v1/bootstrap \
   -H 'Content-Type: application/json' \
   -d '{"accept-terms-of-use": true}'
 ```
-Now, run this to create a warehouse:
+
+Create a warehouse:
+
 ```bash
 curl -X POST http://127.0.0.1:8181/management/v1/warehouse \
-  -H 'content-type: application/json' \
+  -H 'Content-Type: application/json' \
   -d '{
-    "warehouse-name": "minio_iceberg",
+    "warehouse-name": "risingwave-warehouse",
     "delete-profile": { "type": "hard" },
     "storage-credential": {
       "type": "s3",
@@ -44,17 +49,17 @@ curl -X POST http://127.0.0.1:8181/management/v1/warehouse \
     },
     "storage-profile": {
       "type": "s3",
-      "bucket": "icebergdata",
+      "bucket": "hummock001",
       "region": "us-east-1",
       "flavor": "s3-compat",
       "endpoint": "http://minio-0:9301",
       "path-style-access": true,
       "sts-enabled": false,
-      "key-prefix": "warehouse1"
+      "key-prefix": "risingwave-lakekeeper"
     }
   }'
 ```
-## 2. Connect RisingWave and stream to Iceberg
+## 2) Connect RisingWave and stream to Iceberg
 
 Connect to RisingWave:
 
@@ -62,24 +67,30 @@ Connect to RisingWave:
 psql -h localhost -p 4566 -d dev -U root
 ```
 
-Create an Iceberg **REST catalog** connection that points at the Lakekeeper catalog and MinIO:
+Create an Iceberg **REST catalog** connection pointing to Lakekeeper and MinIO:
 
 ```sql
-CREATE CONNECTION my_connection
+CREATE CONNECTION lakekeeper_catalog_conn
 WITH (
-  type = 'iceberg',
-  catalog.type = 'rest',
-  catalog.uri = 'http://lakekeeper:8181/catalog',
-  warehouse.path = 'minio_iceberg',
-  s3.endpoint = 'http://minio-0:9301',
-  s3.region = 'us-east-1',
-  s3.access.key = 'hummockadmin',
-  s3.secret.key = 'hummockadmin',
-  s3.path.style.access = 'true'
+    type = 'iceberg',
+    catalog.type = 'rest',
+    catalog.uri = 'http://lakekeeper:8181/catalog/',
+    warehouse.path = 'risingwave-warehouse',
+    s3.access.key = 'hummockadmin',
+    s3.secret.key = 'hummockadmin',
+    s3.path.style.access = 'true',
+    s3.endpoint = 'http://minio-0:9301',
+    s3.region = 'us-east-1'
 );
 ```
 
-Create a table for a simple customer directory:
+Set it as the default Iceberg connection:
+
+```sql
+SET iceberg_engine_connection = 'public.lakekeeper_catalog_conn';
+```
+
+Create a simple customer directory table:
 
 ```sql
 CREATE TABLE customer_profile (
@@ -91,10 +102,12 @@ CREATE TABLE customer_profile (
   city        VARCHAR,
   created_at  TIMESTAMPTZ,
   updated_at  TIMESTAMPTZ
-);
+)
+WITH (commit_checkpoint_interval = 1)
+ENGINE = iceberg;
 ```
 
-Seed some rows:
+Seed a few rows:
 
 ```sql
 INSERT INTO customer_profile (
@@ -105,34 +118,24 @@ VALUES
   (3, 'Ethan Brown',  'ethan.brown@example.com',  '+1-312-555-0103', 'suspended','Chicago','2025-08-17 11:10:00-05','2025-08-17 11:10:00-05');
 ```
 
-Quick check:
+Verify:
 
 ```sql
 SELECT * FROM customer_profile;
 ```
 
-Define an Iceberg sink targeting Lakekeeper:
-
-```sql
-CREATE SINK customer_profile_sink FROM customer_profile
-WITH (
-  connector = 'iceberg',
-  type = 'upsert',
-  primary_key = 'customer_id',
-  connection = my_connection,
-  database.name = 'public',
-  table.name = 'customer_profile',
-  commit_checkpoint_interval = 3,
-  create_table_if_not_exists = true
-);
-```
-
-## 3. Query the Iceberg table from DuckDB
+## 3) Query the Iceberg table from DuckDB
 
 Install the DuckDB CLI:
 
 ```bash
 curl https://install.duckdb.org | sh
+```
+
+Map `minio-0` to `127.0.0.1` on the host so DuckDB (outside Compose) can reach MinIO at `http://minio-0:9301`:
+
+```bash
+echo "127.0.0.1 minio-0" | sudo tee -a /etc/hosts
 ```
 
 Launch DuckDB:
@@ -141,7 +144,7 @@ Launch DuckDB:
 ~/.duckdb/cli/latest/duckdb
 ```
 
-Install the needed extensions:
+Install the required extensions:
 
 ```sql
 INSTALL aws;
@@ -149,11 +152,11 @@ INSTALL httpfs;
 INSTALL iceberg;
 ```
 
-Configure settings for MinIO (S3-compatible):
+Configure MinIO (S3-compatible) settings:
 
 ```sql
 SET s3_region = 'us-east-1';
-SET s3_endpoint = 'http://127.0.0.1:9301';
+SET s3_endpoint = 'http://minio-0:9301';
 SET s3_access_key_id = 'hummockadmin';
 SET s3_secret_access_key = 'hummockadmin';
 SET s3_url_style = 'path';
@@ -163,29 +166,25 @@ SET s3_use_ssl = false;
 Attach the Lakekeeper REST catalog and query the table:
 
 ```sql
-ATTACH 'minio_iceberg' AS lakekeeper_catalog (
+ATTACH 'risingwave-warehouse' AS lakekeeper_catalog (
   TYPE ICEBERG,
-  ENDPOINT 'http://127.0.0.1:8181/catalog',
-  authorization_type 'none'
+  ENDPOINT 'http://127.0.0.1:8181/catalog/',
+  AUTHORIZATION_TYPE 'none'
 );
 
 SELECT * FROM lakekeeper_catalog.public.customer_profile;
 ```
-
 ## Optional: Clean up (Docker)
 
-> ⚠️ Only run this after you’ve fully tested.
->
-> * `-v` deletes Docker volumes (all persisted data), in addition to stopping and removing containers and networks.
+> **⚠️ Only run this after you’ve fully tested.**
+> `-v` deletes Docker **volumes** (all persisted data) in addition to stopping and removing containers and networks.
 
-**If you want a full cleanup (including volumes/data):**
+Full cleanup (including volumes/data):
 
 ```bash
 docker compose down -v
 ```
-
 ## Recap
-
 * **Provision** a Lakekeeper warehouse backed by MinIO.
-* **Stream** upserts from RisingWave to Iceberg via a Lakekeeper REST catalog.
-* **Query** the same tables from DuckDB using the catalog—no copies, same data.
+* **Stream** data from RisingWave to Iceberg via a Lakekeeper REST catalog.
+* **Query** the same tables from DuckDB using that catalog, no copies, it’s the same data.
