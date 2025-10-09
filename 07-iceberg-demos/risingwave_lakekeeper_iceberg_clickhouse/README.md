@@ -1,6 +1,6 @@
 # RisingWave → Lakekeeper → Iceberg → ClickHouse
 
-Build a streaming lakehouse with **Lakekeeper + MinIO**, stream data from **RisingWave** into **Apache Iceberg**, and query the same tables in **ClickHouse**.
+Build an open, streaming lakehouse using RisingWave, LakeKeeper, and MinIO. Stream data from RisingWave’s native tables to Apache Iceberg without creating a sink, and query those same tables in ClickHouse.
 
 ## Prerequisites
 
@@ -18,7 +18,6 @@ cd awesome-stream-processing/07-iceberg-demos/risingwave_lakekeeper_iceberg_clic
 
 docker compose up -d
 ```
-
 The Compose file starts Lakekeeper at 127.0.0.1:8181, RisingWave at 127.0.0.1:4566, and MinIO (S3-compatible) at 127.0.0.1:9301.
 
 ## 1. Provision a Lakekeeper warehouse (MinIO backend)
@@ -38,7 +37,7 @@ Now, run this to create a warehouse:
 curl -X POST http://127.0.0.1:8181/management/v1/warehouse \
   -H 'Content-Type: application/json' \
   -d '{
-    "warehouse-name": "minio_iceberg",
+    "warehouse-name": "risingwave-warehouse",
     "delete-profile": { "type": "hard" },
     "storage-credential": {
       "type": "s3",
@@ -48,13 +47,13 @@ curl -X POST http://127.0.0.1:8181/management/v1/warehouse \
     },
     "storage-profile": {
       "type": "s3",
-      "bucket": "icebergdata",
+      "bucket": "hummock001",
       "region": "us-east-1",
       "flavor": "s3-compat",
       "endpoint": "http://minio-0:9301",
       "path-style-access": true,
       "sts-enabled": false,
-      "key-prefix": "warehouse1"
+      "key-prefix": "risingwave-lakekeeper"
     }
   }'
 ```
@@ -70,18 +69,21 @@ psql -h localhost -p 4566 -d dev -U root
 Create an Iceberg **REST catalog** connection that points at the Lakekeeper catalog and MinIO:
 
 ```sql
-CREATE CONNECTION my_connection
+CREATE CONNECTION lakekeeper_catalog_conn
 WITH (
-  type = 'iceberg',
-  catalog.type = 'rest',
-  catalog.uri = 'http://lakekeeper:8181/catalog',
-  warehouse.path = 'minio_iceberg',
-  s3.endpoint = 'http://minio-0:9301',
-  s3.region = 'us-east-1',
-  s3.access.key = 'hummockadmin',
-  s3.secret.key = 'hummockadmin',
-  s3.path.style.access = 'true'
+    type = 'iceberg',
+    catalog.type = 'rest',
+    catalog.uri = 'http://lakekeeper:8181/catalog/',
+    warehouse.path = 'risingwave-warehouse',
+    s3.access.key = 'hummockadmin',
+    s3.secret.key = 'hummockadmin',
+    s3.path.style.access = 'true',
+    s3.endpoint = 'http://minio-0:9301',
+    s3.region = 'us-east-1'
 );
+```
+```sql
+SET iceberg_engine_connection = 'public.lakekeeper_catalog_conn';
 ```
 
 Create a table for capital markets trades:
@@ -96,7 +98,9 @@ CREATE TABLE market_trades (
   quantity    INT,                    -- executed shares
   currency    VARCHAR,                -- e.g., USD
   venue       VARCHAR,                -- e.g., NASDAQ, NYSE, ARCA
-);
+)
+WITH (commit_checkpoint_interval = 1)
+ENGINE = iceberg;
 ```
 
 Insert sample rows into the capital-markets trades table:
@@ -115,28 +119,17 @@ Query the table to view the results:
 SELECT * FROM market_trades;
 ```
 
-Define an Iceberg sink targeting Lakekeeper:
-
-```sql
-CREATE SINK market_trades_sink FROM market_trades
-WITH (
-  connector = 'iceberg',
-  type = 'upsert',
-  primary_key = 'trade_id',
-  connection = my_connection,
-  database.name = 'public',
-  table.name = 'market_trades',
-  commit_checkpoint_interval = 3,
-  create_table_if_not_exists = true
-);
-```
-
 ## 3. Query the Iceberg table from ClickHouse
 
 Install ClickHouse:
 
 ```bash
 curl https://clickhouse.com/ | sh
+```
+Map `minio-0` to `127.0.0.1` on the host so DuckDB (outside Compose) can reach MinIO at `http://minio-0:9301`:
+
+```bash
+echo "127.0.0.1 minio-0" | sudo tee -a /etc/hosts
 ```
 
 Launch ClickHouse client:
@@ -151,8 +144,8 @@ Enable the Iceberg catalog database and create a connection to Lakekeeper (REST)
 SET allow_experimental_database_iceberg = 1;
 
 CREATE DATABASE lakekeeper_catalog
-ENGINE = DataLakeCatalog('http://127.0.0.1:8181/catalog', 'hummockadmin', 'hummockadmin')
-SETTINGS catalog_type = 'rest', storage_endpoint = 'http://127.0.0.1:9301/icebergdata', warehouse = 'minio_iceberg';
+ENGINE = DataLakeCatalog('http://127.0.0.1:8181/catalog/', 'hummockadmin', 'hummockadmin')
+SETTINGS catalog_type = 'rest', storage_endpoint = 'http://127.0.0.1:9301/', warehouse = 'risingwave-warehouse';
 
 USE lakekeeper_catalog;
 
@@ -177,5 +170,5 @@ docker compose down -v
 ## Recap
 
 * **Provision** a Lakekeeper warehouse that stores data in MinIO.
-* **Stream** data from RisingWave to Iceberg via the Lakekeeper REST catalog.
+* **Stream** data from RisingWave's native tables into Iceberg via the Lakekeeper REST catalog.
 * **Query** the same tables in **ClickHouse** through the catalog, no copies, same data.
