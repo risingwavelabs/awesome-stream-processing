@@ -20,23 +20,23 @@ services:
                     --listen-addr 0.0.0.0:5688 \
                     --advertise-addr 0.0.0.0:5688 \
                     --async-stack-trace verbose \
-                    --parallelism 8 \
-                    --total-memory-bytes 21474836480 \
+                    --parallelism 4 \
+                    --total-memory-bytes 5905580032 \
                     --role both \
                     --meta-address http://0.0.0.0:5690 \
-                    --memory-manager-target-bytes 22333829939\" \
+                    --memory-manager-target-bytes 5368709120\" \
                  --frontend-opts=\" \
                     --config-path /risingwave.toml \
                     --listen-addr 0.0.0.0:4566 \
                     --advertise-addr 0.0.0.0:4566 \
                     --health-check-listener-addr 0.0.0.0:6786 \
                     --meta-addr http://0.0.0.0:5690 \
-                    --frontend-total-memory-bytes=4294967296\" \
+                    --frontend-total-memory-bytes=524288000\" \
                  --compactor-opts=\" \
                     --listen-addr 0.0.0.0:6660 \
                     --advertise-addr 0.0.0.0:6660 \
                     --meta-address http://0.0.0.0:5690 \
-                    --compactor-total-memory-bytes=4294967296\""
+                    --compactor-total-memory-bytes=2147483648\""
     expose:
       - "6660"
       - "4566"
@@ -72,9 +72,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 28G
+          memory: 8G
         reservations:
-          memory: 28G
+          memory: 8G
 
   postgres-0:
     image: "postgres:15-alpine"
