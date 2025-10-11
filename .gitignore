@@ -1,3 +1,4 @@
 .DS_Store
 
 05-agent-demo/data/.env
+07-iceberg-demos/risingwave_lakekeeper_iceberg_clickhouse/.env

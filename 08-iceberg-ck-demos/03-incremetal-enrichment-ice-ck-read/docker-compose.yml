@@ -18,46 +18,77 @@ x-lakekeeper-environment: &lakekeeper-environment
 
 services:
   # RisingWave Services - Distributed Mode
-  compactor-0:
+  risingwave-standalone:
     <<: *image
-    command:
-      - compactor-node
-      - "--listen-addr"
-      - "0.0.0.0:6660"
-      - "--advertise-addr"
-      - "compactor-0:6660"
-      - "--prometheus-listener-addr"
-      - "0.0.0.0:1260"
-      - "--meta-address"
-      - "http://meta-node-0:5690"
-      - "--config-path"
-      - /risingwave.toml
+    command: "standalone --meta-opts=\" \
+                    --listen-addr 0.0.0.0:5690 \
+                    --advertise-addr risingwave-standalone:5690 \
+                    --dashboard-host 0.0.0.0:5691 \
+                    --backend sql \
+                    --sql-endpoint postgres://postgres:123@postgres-0:5432/metadata \
+                    --state-store hummock+minio://hummockadmin:hummockadmin@minio-0:9301/hummock001 \
+                    --data-directory hummock_001 \
+                    --config-path /risingwave.toml\" \
+                 --compute-opts=\" \
+                    --config-path /risingwave.toml \
+                    --listen-addr 0.0.0.0:5688 \
+                    --advertise-addr 0.0.0.0:5688 \
+                    --async-stack-trace verbose \
+                    --parallelism 4 \
+                    --total-memory-bytes 5905580032 \
+                    --role both \
+                    --meta-address http://0.0.0.0:5690 \
+                    --memory-manager-target-bytes 5368709120\" \
+                 --frontend-opts=\" \
+                    --config-path /risingwave.toml \
+                    --listen-addr 0.0.0.0:4566 \
+                    --advertise-addr 0.0.0.0:4566 \
+                    --health-check-listener-addr 0.0.0.0:6786 \
+                    --meta-addr http://0.0.0.0:5690 \
+                    --frontend-total-memory-bytes=524288000\" \
+                 --compactor-opts=\" \
+                    --listen-addr 0.0.0.0:6660 \
+                    --advertise-addr 0.0.0.0:6660 \
+                    --meta-address http://0.0.0.0:5690 \
+                    --compactor-total-memory-bytes=2147483648\""
     expose:
       - "6660"
-      - "1260"
-    ports: []
+      - "4566"
+      - "5688"
+      - "5690"
+      - "5691"
+    ports:
+      - "4566:4566"
+      - "5690:5690"
+      - "5691:5691"
     depends_on:
-      - meta-node-0
+      - postgres-0
+      - minio-0
     volumes:
       - "./risingwave.toml:/risingwave.toml"
     environment:
       RUST_BACKTRACE: "1"
       ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
-    container_name: compactor-0
+      RW_TELEMETRY_TYPE: ${RW_TELEMETRY_TYPE:-"docker-compose"}
+      RW_SECRET_STORE_PRIVATE_KEY_HEX: ${RW_SECRET_STORE_PRIVATE_KEY_HEX:-0123456789abcdef0123456789abcdef}
+      RW_LICENSE_KEY: ${RW_LICENSE_KEY:-}
+    container_name: risingwave-standalone
     healthcheck:
       test:
         - CMD-SHELL
-        - bash -c 'printf \"GET / HTTP/1.1\n\n\" > /dev/tcp/127.0.0.1/6660; exit $$?;'
+        - bash -c 'printf "GET / HTTP/1.1\n\n" > /dev/tcp/127.0.0.1/6660; exit $$?;'
+        - bash -c 'printf "GET / HTTP/1.1\n\n" > /dev/tcp/127.0.0.1/5688; exit $$?;'
+        - bash -c '> /dev/tcp/127.0.0.1/4566; exit $$?;'
+        - bash -c 'printf "GET / HTTP/1.1\n\n" > /dev/tcp/127.0.0.1/5690; exit $$?;'
       interval: 1s
       timeout: 5s
-      retries: 5
     restart: always
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 8G
         reservations:
-          memory: 1G
+          memory: 8G
 
   compactor-1:
     <<: *image
@@ -70,7 +101,7 @@ services:
       - "--prometheus-listener-addr"
       - "0.0.0.0:1261"
       - "--meta-address"
-      - "http://meta-node-0:5690"
+      - "http://risingwave-standalone:5690"
       - "--compactor-mode"
       - "dedicated-iceberg"
       - "--config-path"
@@ -80,7 +111,7 @@ services:
       - "1261"
     ports: [ ]
     depends_on:
-      - meta-node-0
+      - risingwave-standalone
     volumes:
       - "./risingwave.toml:/risingwave.toml"
     environment:
@@ -101,146 +132,6 @@ services:
           memory: 8G
         reservations:
           memory: 8G
-
-  compute-node-0:
-    <<: *image
-    command:
-      - compute-node
-      - "--listen-addr"
-      - "0.0.0.0:5688"
-      - "--advertise-addr"
-      - "compute-node-0:5688"
-      - "--prometheus-listener-addr"
-      - "0.0.0.0:1222"
-      - "--meta-address"
-      - "http://meta-node-0:5690"
-      - "--config-path"
-      - /risingwave.toml
-    expose:
-      - "5688"
-      - "1222"
-    ports: []
-    depends_on:
-      - meta-node-0
-    volumes:
-      - "./risingwave.toml:/risingwave.toml"
-    environment:
-      RUST_BACKTRACE: "1"
-      ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
-    container_name: compute-node-0
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - bash -c 'printf \"GET / HTTP/1.1\n\n\" > /dev/tcp/127.0.0.1/5688; exit $$?;'
-      interval: 1s
-      timeout: 5s
-      retries: 5
-    restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-        reservations:
-          memory: 8G
-
-  frontend-node-0:
-    <<: *image
-    command:
-      - frontend-node
-      - "--listen-addr"
-      - "0.0.0.0:4566"
-      - "--meta-addr"
-      - "http://meta-node-0:5690"
-      - "--advertise-addr"
-      - "frontend-node-0:4566"
-      - "--config-path"
-      - /risingwave.toml
-      - "--prometheus-listener-addr"
-      - "0.0.0.0:2222"
-    expose:
-      - "4566"
-    ports:
-      - "4566:4566"
-    depends_on:
-      - meta-node-0
-    volumes:
-      - "./risingwave.toml:/risingwave.toml"
-    environment:
-      RUST_BACKTRACE: "1"
-      ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
-    container_name: frontend-node-0
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - bash -c '> /dev/tcp/127.0.0.1/4566; exit $$?;'
-      interval: 1s
-      timeout: 5s
-      retries: 5
-    restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
-
-  meta-node-0:
-    <<: *image
-    command:
-      - meta-node
-      - "--listen-addr"
-      - "0.0.0.0:5690"
-      - "--advertise-addr"
-      - "meta-node-0:5690"
-      - "--dashboard-host"
-      - "0.0.0.0:5691"
-      - "--prometheus-host"
-      - "0.0.0.0:1250"
-      - "--prometheus-endpoint"
-      - "http://prometheus-0:9500"
-      - "--backend"
-      - sql
-      - "--sql-endpoint"
-      - "postgres://postgres:@postgres-0:5432/metadata"
-      - "--state-store"
-      - "hummock+minio://hummockadmin:hummockadmin@minio-0:9301/hummock001"
-      - "--data-directory"
-      - "hummock_001"
-      - "--config-path"
-      - /risingwave.toml
-    expose:
-      - "5690"
-      - "1250"
-      - "5691"
-    ports:
-      - "5690:5690"
-      - "5691:5691"
-    depends_on:
-      - "postgres-0"
-      - "minio-0"
-    volumes:
-      - "./risingwave.toml:/risingwave.toml"
-    environment:
-      RUST_BACKTRACE: "1"
-      ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
-      RW_TELEMETRY_TYPE: ${RW_TELEMETRY_TYPE:-"docker-compose"}
-      RW_SECRET_STORE_PRIVATE_KEY_HEX: ${RW_SECRET_STORE_PRIVATE_KEY_HEX:-0123456789abcdef0123456789abcdef}
-    container_name: meta-node-0
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - bash -c 'printf \"GET / HTTP/1.1\n\n\" > /dev/tcp/127.0.0.1/5690; exit $$?;'
-      interval: 1s
-      timeout: 5s
-      retries: 5
-    restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
-
   
   postgres-0:
     image: "postgres:15-alpine"
@@ -455,6 +346,26 @@ services:
       timeout: 5s
       retries: 5
     restart: always
+
+  
+  oltp:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=myuser
+      - POSTGRES_PASSWORD=123456
+      - POSTGRES_DB=mydb
+    expose:
+      - "5432"
+    ports:
+      - "8434:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready --username=myuser --dbname=mydb" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    command: [ "postgres", "-c", "wal_level=logical" ]
+    restart: always
+    container_name: oltp
 
 volumes:
   postgres-0:

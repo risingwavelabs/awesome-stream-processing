@@ -99,7 +99,11 @@ CREATE TABLE market_trades (
   currency    VARCHAR,                -- e.g., USD
   venue       VARCHAR,                -- e.g., NASDAQ, NYSE, ARCA
 )
-WITH (commit_checkpoint_interval = 1)
+WITH (
+    commit_checkpoint_interval = 1,
+    compaction_interval_sec = 10,
+    snapshot_expiration_max_age_millis = 0,
+    write_mode = 'copy-on-write')
 ENGINE = iceberg;
 ```
 
@@ -144,8 +148,8 @@ Enable the Iceberg catalog database and create a connection to Lakekeeper (REST)
 SET allow_experimental_database_iceberg = 1;
 
 CREATE DATABASE lakekeeper_catalog
-ENGINE = DataLakeCatalog('http://127.0.0.1:8181/catalog/', 'hummockadmin', 'hummockadmin')
-SETTINGS catalog_type = 'rest', storage_endpoint = 'http://127.0.0.1:9301/', warehouse = 'risingwave-warehouse';
+ENGINE = DataLakeCatalog('http://lakekeeper:8181/catalog/', 'hummockadmin', 'hummockadmin')
+SETTINGS catalog_type = 'rest', storage_endpoint = 'http://minio-0:9301/', warehouse = 'risingwave-warehouse';
 
 USE lakekeeper_catalog;
 
