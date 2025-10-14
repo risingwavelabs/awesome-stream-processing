@@ -108,7 +108,6 @@ ENGINE = iceberg;
 \echo :GREEN
 \echo 'Step 4 completed: Iceberg table created'
 \echo :YELLOW
-\echo 'You can now run ./client.sh watch-ch in another pane to watch the ClickHouse query results'
 \prompt 'Press Enter to continue to Step 5 (Create streaming sink)...' dummy
 
 \echo :GREEN
@@ -135,6 +134,7 @@ FROM streaming_sales_kafka;
 \echo :GREEN
 \echo 'Step 5 completed: Streaming sink created'
 \echo :YELLOW
+\echo 'You can now run ./client.sh watch-ch in another pane to watch the ClickHouse query results'
 \prompt 'Wait for a few seconds. Press Enter to verify data ingestion...' dummy
 
 \echo :GREEN
@@ -160,6 +160,8 @@ SELECT * FROM iceberg_sales ORDER BY ingestion_time DESC LIMIT 10;
 \echo 'Data is ready for ClickHouse analytics'
 \echo 'You can watch the query results via'
 \echo '  • ./client.sh watch-ch'
+\echo '  • You will see the latest ingested records'
+\echo '    with recent ingestion_time keeps changing'
 \echo
 \echo 'Remember to run ./stop.sh before continuing onto the next demo'
 \echo '======================================='

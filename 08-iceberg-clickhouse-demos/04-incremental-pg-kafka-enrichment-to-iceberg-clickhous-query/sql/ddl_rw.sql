@@ -14,7 +14,7 @@
 \echo
 \echo 'Please make sure you have run ./prepare.sh to set up the environment'
 \echo
-\echo 'Do not run ./client.sh watch-ch until the iceberg table is created in Step 4'
+\echo 'Do not run ./client.sh watch-ch until the iceberg table is created in Step 6'
 \echo '======================================='
 \echo :YELLOW
 \prompt 'Press Enter to start Step 1 (Create PostgreSQL CDC source)...' dummy
@@ -135,7 +135,6 @@ ENGINE = iceberg;
 \echo :GREEN
 \echo 'Step 6 completed: Enriched Iceberg table created'
 \echo :YELLOW
-\echo 'You can now run ./client.sh watch-ch in another pane to watch the ClickHouse query results'
 \prompt 'Press Enter to continue to Step 7 (Create enrichment sink)...' dummy
 
 \echo :GREEN
@@ -166,6 +165,7 @@ LEFT JOIN streaming_product_pg p ON s.product_id = p.product_id;
 \echo 'Step 7 completed: Enrichment sink created'
 \echo 'Sales data will now be enriched with product information from CDC'
 \echo :YELLOW
+\echo 'You can now run ./client.sh watch-ch in another pane to watch the ClickHouse query results'
 \prompt 'Press Enter to verify data ingestion and enrichment...' dummy
 
 \echo :GREEN
@@ -177,7 +177,7 @@ FROM enriched_sales_iceberg;
 \echo :GREEN
 \echo '=== Check recent enriched sales activity ==='
 \echo :BLUE
-SELECT * FROM enriched_sales_iceberg ORDER BY kafka_ingestion_time DESC,product_last_updated DESC LIMIT 10;
+SELECT * FROM enriched_sales_iceberg ORDER BY kafka_ingestion_time DESC, product_last_updated DESC LIMIT 10;
 
 \echo :GREEN
 \echo 'Data verification completed'
@@ -191,7 +191,9 @@ SELECT * FROM enriched_sales_iceberg ORDER BY kafka_ingestion_time DESC,product_
 \echo '• Ready for ClickHouse analytics'
 \echo '• You can watch the query results via'
 \echo '  • ./client.sh watch-ch'
-\echo '  • ./client.sh watch-rw'
+\echo '  • You will see the latest ingested records'
+\echo '    with recent (kafka_ingestion_time, product_last_updated)'
+\echo '    keeps changing'
 \echo
 \echo 'Remember to run ./stop.sh before continuing onto the next demo'
 \echo '======================================='

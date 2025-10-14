@@ -244,6 +244,8 @@ SELECT * FROM sales_consolidated ORDER BY ingestion_time DESC LIMIT 10;
 \echo 'All data sources are now connected and streaming to ClickHouse'
 \echo 'You can watch the query results via'
 \echo '  • ./client.sh watch-ch'
+\echo '  • You will see streaming data_source record'
+\echo '    count keeps increasing'
 \echo '  • You will see the latest ingested records'
 \echo '    with recent ingestion_time keeps changing'
 \echo
