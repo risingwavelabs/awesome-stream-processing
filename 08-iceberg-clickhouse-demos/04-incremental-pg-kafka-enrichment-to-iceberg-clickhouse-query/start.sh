@@ -32,7 +32,7 @@ if [ ${#RUNNING_CONTAINERS[@]} -gt 0 ]; then
     echo
     echo -e "Demo folders:"
     echo -e "  ${GREEN}../01-iceberg-to-clickhouse/${NC}"
-    echo -e "  ${GREEN}../02-iceberg-and-kafka-to-clckhouse/${NC}"
+    echo -e "  ${GREEN}../02-iceberg-and-kafka-to-clickhouse/${NC}"
     echo -e "  ${GREEN}../03-kafka-to-iceberg-clickhouse-query/${NC}"
     echo -e "  ${GREEN}../04-incremental-pg-kafka-enrichment-to-iceberg-clickhous-query/${NC}"
     echo -e "  ${GREEN}../05-incremental-pg-kafka-enrichment-to-clickhouse/${NC}"
