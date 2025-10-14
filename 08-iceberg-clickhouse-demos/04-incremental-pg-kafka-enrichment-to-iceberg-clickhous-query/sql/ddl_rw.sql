@@ -10,7 +10,7 @@
 \echo :GREEN
 \echo '======================================='
 \echo 'RisingWave Demo: Incremental Enrichment'
-\echo 'CDC + Kafka → Enriched Iceberg → ClickHouse Query'
+\echo 'CDC x Kafka → Enriched Iceberg → ClickHouse Query'
 \echo
 \echo 'Please make sure you have run ./prepare.sh to set up the environment'
 \echo '======================================='
@@ -189,4 +189,6 @@ SELECT * FROM enriched_sales_iceberg ORDER BY kafka_ingestion_time DESC,product_
 \echo '• You can watch the query results via'
 \echo '  • ./client.sh watch-ch'
 \echo '  • ./client.sh watch-rw'
+\echo
+\echo 'Remember to run ./stop.sh before continuing onto the next demo'
 \echo '======================================='

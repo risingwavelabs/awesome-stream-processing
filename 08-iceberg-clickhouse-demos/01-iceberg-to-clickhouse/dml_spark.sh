@@ -135,6 +135,8 @@ cat << "EOF"
 ║                         Demo Complete! ✓                              ║
 ║  DML operations executed successfully                                 ║
 ║  using Copy-on-Write mode with Iceberg                                ║
+║                                                                       ║
+║  Remember to run ./stop.sh before continuing onto the next demo       ║
 ╚═══════════════════════════════════════════════════════════════════════╝
 EOF
 echo -e "${NC}"

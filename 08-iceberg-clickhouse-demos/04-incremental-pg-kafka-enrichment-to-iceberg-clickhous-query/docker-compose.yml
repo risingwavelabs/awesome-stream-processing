@@ -198,7 +198,7 @@ services:
   # Lakekeeper Services
   lakekeeper:
     <<: *lakekeeper-image
-    pull_policy: always
+    pull_policy: missing
     environment: *lakekeeper-environment
     command: [ "serve" ]
     healthcheck:
@@ -262,7 +262,7 @@ services:
 
   lakekeeper-migrate:
     <<: *lakekeeper-image
-    pull_policy: always
+    pull_policy: missing
     environment: *lakekeeper-environment
     restart: "no"
     command: [ "migrate" ]

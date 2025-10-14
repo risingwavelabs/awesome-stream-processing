@@ -157,5 +157,7 @@ SELECT * FROM iceberg_sales ORDER BY ingestion_time DESC LIMIT 10;
 \echo 'Data is ready for ClickHouse analytics'
 \echo 'You can watch the query results via'
 \echo '  • ./client.sh watch-ch'
+\echo
+\echo 'Remember to run ./stop.sh before continuing onto the next demo'
 \echo '======================================='
 \echo :NC

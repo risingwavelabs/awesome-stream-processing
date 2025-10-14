@@ -244,5 +244,7 @@ SELECT * FROM sales_consolidated ORDER BY ingestion_time DESC LIMIT 10;
 \echo '  • ./client.sh watch-ch'
 \echo '  • You will see the latest ingested records'
 \echo '    with recent ingestion_time keeps changing'
+\echo
+\echo 'Remember to run ./stop.sh before continuing onto the next demo'
 \echo '======================================='
 \echo :NC

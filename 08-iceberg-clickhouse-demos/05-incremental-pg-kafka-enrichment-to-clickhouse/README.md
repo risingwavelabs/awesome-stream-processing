@@ -1,10 +1,21 @@
-# Initialize the environemt
+# 05: Real-time Kafka and Postgres enrichment and Deliver to Clickhouse with RisingWave.
+```
+Postgres CDC (streaming) join Kafka (streaming) → Enriched ClickHouse Table
+
+- Prepare a postgres table `product` with continous updates (1 row/s) and a kafka topic `sales_stream` with streaming data (1 row/s)
+- Use RisingWave to do streaming cdc ingestion from the postgres table
+- Use RisingWave to do streaming ingestion from the kafka topic
+- Use RisingWave to join the kafka `sales_stream` and the postgres `product` table for enrichment. Updates from both side will trigger incremental computation.
+- Use RisingWave to do continously write the enriched results to a ClickHouse Table.
+```
+
+## Initialize the environemt
 ```bash
 # Setup RisingWave, Kafka, Postgres, Clickhouse via docker compose
 ./start.sh
 ```
 
-# Prepare sample data for the demo
+## Prepare sample data for the demo
 ```bash
 ./prepare.sh
 ```
@@ -18,7 +29,7 @@
 ./client.sh watch-ch
 ```
 
-# Cleanup the environment
+## Cleanup the environment
 ```bash
 ./stop.sh
 ```
