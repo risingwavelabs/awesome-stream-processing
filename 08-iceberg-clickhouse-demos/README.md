@@ -1,4 +1,4 @@
-# Prequsites
+# Prerequisites
 - Install psql client
 ```bash
 # MacOs
