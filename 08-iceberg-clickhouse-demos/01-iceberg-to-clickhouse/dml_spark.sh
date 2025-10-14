@@ -115,7 +115,11 @@ echo -e "${GREEN}"
 cat << "EOF"
 ╔═══════════════════════════════════════════════════════════════════════╗
 ║   Mutate the Iceberg Table Using Copy-on-Write mode                   ║
-║   Make sure you have run ./prepare.sh to set up the environment       ║
+║                                                                       ║
+║   Make sure you have run `./prepare.sh` to set up the environment     ║
+║                                                                       ║
+║   You can now run `./client.sh watch-ch` in other panel               ║
+║   to watch the clickhouse query results                               ║
 ╚═══════════════════════════════════════════════════════════════════════╝
 EOF
 echo -e "${NC}"

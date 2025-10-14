@@ -106,7 +106,6 @@ case "$cmd" in
 			echo "=== $(date) ==="
 			echo "File: $WATCH_RW_SQL_FILE"
 			echo "=== Results ==="
-			echo "=== UNKNOWN_xxx error is expected until the Iceberg Table is created in `./client.sh ddl-rw` Step 6 ==="
 			"$RW_PSQL" -h "$RW_HOST" -p "$RW_PORT" -d "$RW_DB" -U "$RW_USER" \
 				--set=ON_ERROR_STOP=1 -f "$WATCH_RW_SQL_FILE" 2>/dev/null || echo "Query failed"
 			sleep "$WATCH_INTERVAL"
@@ -128,6 +127,7 @@ case "$cmd" in
 			echo "=== $(date) ==="
 			echo "File: $WATCH_CH_SQL_FILE"
 			echo "=== Results ==="
+			echo "=== UNKNOWN_xxx error is expected until the Iceberg Table is created in ./client.sh ddl-rw Step 6 ==="
 			$DC_CMD -f "$COMPOSE_FILE" exec -T clickhouse-server clickhouse client --format Pretty --echo --multiquery < "$WATCH_CH_SQL_FILE"
 			sleep "$WATCH_INTERVAL"
 			clear

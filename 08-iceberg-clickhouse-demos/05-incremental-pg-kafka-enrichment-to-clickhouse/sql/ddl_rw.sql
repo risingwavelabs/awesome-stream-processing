@@ -13,6 +13,8 @@
 \echo 'CDC + Kafka → Enriched Data → ClickHouse'
 \echo
 \echo 'Please make sure you have run ./prepare.sh to set up the environment'
+\echo
+\echo 'You can now run `./client.sh watch-ch` in other panel to watch the clickhouse query results'
 \echo '======================================='
 \echo :YELLOW
 \prompt 'Press Enter to start Step 1 (Create PostgreSQL CDC source)...' dummy

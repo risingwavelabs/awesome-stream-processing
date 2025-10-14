@@ -118,7 +118,7 @@ case "$cmd" in
 			echo "=== $(date) ==="
 			echo "File: $WATCH_CH_SQL_FILE"
 			echo "=== Results ==="
-			echo "=== UNKNOWN_xxx error is expected until the Iceberg Table is created in `./client.sh ddl-rw` Step 4 ==="
+			echo "=== UNKNOWN_xxx error is expected until the Iceberg Table is created in ./client.sh ddl-rw Step 4 ==="
 			$DC_CMD -f "$COMPOSE_FILE" exec -T clickhouse-server clickhouse client --format Pretty --echo --multiquery < "$WATCH_CH_SQL_FILE"
 			sleep "$WATCH_INTERVAL"
 			clear

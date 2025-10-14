@@ -13,6 +13,8 @@
 \echo 'CDC x Kafka → Enriched Iceberg → ClickHouse Query'
 \echo
 \echo 'Please make sure you have run ./prepare.sh to set up the environment'
+\echo
+\echo 'Do not run ./client.sh watch-ch until the iceberg table is created in Step 4'
 \echo '======================================='
 \echo :YELLOW
 \prompt 'Press Enter to start Step 1 (Create PostgreSQL CDC source)...' dummy
@@ -133,6 +135,7 @@ ENGINE = iceberg;
 \echo :GREEN
 \echo 'Step 6 completed: Enriched Iceberg table created'
 \echo :YELLOW
+\echo 'You can now run ./client.sh watch-ch in another pane to watch the ClickHouse query results'
 \prompt 'Press Enter to continue to Step 7 (Create enrichment sink)...' dummy
 
 \echo :GREEN

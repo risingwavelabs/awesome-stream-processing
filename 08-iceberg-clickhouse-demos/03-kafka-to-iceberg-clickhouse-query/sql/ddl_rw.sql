@@ -12,6 +12,8 @@
 \echo 'RisingWave Demo: Kafka → Iceberg → ClickHouse Query'
 \echo
 \echo 'Please make sure you have run ./prepare.sh to set up the environment'
+\echo
+\echo 'Do not run ./client.sh watch-ch until the iceberg table is created in Step 4'
 \echo '======================================='
 \echo :YELLOW
 \prompt 'Press Enter to start Step 1 (Create Lakekeeper connection)...' dummy
@@ -106,6 +108,7 @@ ENGINE = iceberg;
 \echo :GREEN
 \echo 'Step 4 completed: Iceberg table created'
 \echo :YELLOW
+\echo 'You can now run ./client.sh watch-ch in another pane to watch the ClickHouse query results'
 \prompt 'Press Enter to continue to Step 5 (Create streaming sink)...' dummy
 
 \echo :GREEN
