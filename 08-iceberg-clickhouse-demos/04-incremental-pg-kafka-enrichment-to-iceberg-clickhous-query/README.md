@@ -1,5 +1,4 @@
 # 04: Real-time Kafka and Postgres enrichment to Iceberg via RisingWave. Use Clickhouse to query Iceberg Table.
-```
 Postgres CDC (streaming) join Kafka (streaming) → Enriched Iceberg Table. ClickHouse Query Iceberg.
 
 - Prepare a postgres table `product` with continous updates (1 row/s) and a kafka topic `sales_stream` with streaming data (1 row/s)
@@ -9,9 +8,7 @@ Postgres CDC (streaming) join Kafka (streaming) → Enriched Iceberg Table. Clic
 - Use RisingWave to do continously write the enriched results to a Iceberg Table.
 - Use ClickHouse to query the Iceberg Table.
 
-* `./client.sh watch-ch` will show "table not exists" error 
-  until the Iceberg Table is created in `./client.sh ddl-rw` Step 6.
-```
+- `./client.sh watch-ch` will show "table not exists" error until the Iceberg Table is created in `./client.sh ddl-rw` Step 6.
 
 ## Initialize the environemt
 ```bash

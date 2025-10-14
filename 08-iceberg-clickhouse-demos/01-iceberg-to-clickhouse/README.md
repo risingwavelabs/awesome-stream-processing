@@ -1,11 +1,9 @@
 # 01: Continuous Iceberg Ingestion and Delivery to ClickHouse with RisingWave
-```
 Iceberg (streaming) → ClickHouse Table
 
 - Use Spark to create and mutate `sales_history` iceberg table
 - Use RisingWave to do streaming ingestion from `sales_history` iceberg table and deliver CDC to ClickHouse
 - Use ClickHouse to query the results
-```
 
 ## Initialize the environemt
 ```bash

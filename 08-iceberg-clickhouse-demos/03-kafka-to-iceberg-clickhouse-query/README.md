@@ -1,5 +1,4 @@
 # 03: Continuous Kafka Streaming to Iceberg via RisingWave. Use Clickhouse to query Iceberg Table.
-```
 Kafka (Streaming) → Iceberg. ClickHouse Query Iceberg.
 
 - Prepare a kafka topic with streaming data (1 row/s)
@@ -7,9 +6,7 @@ Kafka (Streaming) → Iceberg. ClickHouse Query Iceberg.
 - Use RisingWave to do streaming write to Iceberg Table
 - Use ClickHouse to query Iceberg Table
 
-* `./client.sh watch-ch` will show "table not exists" error 
-  until the Iceberg Table is created in `./client.sh ddl-rw` Step 4.
-```
+- `./client.sh watch-ch` will show "table not exists" error until the Iceberg Table is created in `./client.sh ddl-rw` Step 4.
 
 ## Initialize the environemt
 ```bash

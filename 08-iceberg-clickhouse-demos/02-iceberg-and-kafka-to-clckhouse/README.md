@@ -1,5 +1,4 @@
 # 02: One-time Iceberg Backfill and Continuous Kafka Streaming to ClickHouse via RisingWave
-```
 Iceberg (one-time) + Kafka (streaming) → ClickHouse Table
 
 - Prepare a iceberg table with historical data and a kafka topic with incremental data (1 row/s)
@@ -7,7 +6,6 @@ Iceberg (one-time) + Kafka (streaming) → ClickHouse Table
 - Use RisingWave to do streaming ingestion from the kafka topic
 - Use RisingWave to combine historical and increnmental data into one table and deliver to ClickHouse
 - Use ClickHouse to query the results
-```
 
 ## Initialize the environemt
 ```bash
