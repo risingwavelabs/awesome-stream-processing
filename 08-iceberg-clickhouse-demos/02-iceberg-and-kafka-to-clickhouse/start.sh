@@ -7,6 +7,53 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
+# Check for required commands
+echo "Checking prerequisites..."
+MISSING_DEPS=()
+
+if ! command -v docker &> /dev/null; then
+    MISSING_DEPS+=("docker")
+fi
+
+if ! command -v psql &> /dev/null; then
+    MISSING_DEPS+=("psql")
+fi
+
+if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
+    echo -e "${RED}"
+    cat << "EOF"
+╔═══════════════════════════════════════════════════════════════════════╗
+║                  ❌ Missing Required Tools                            ║
+╚═══════════════════════════════════════════════════════════════════════╝
+EOF
+    echo -e "${NC}"
+    echo -e "${YELLOW}The following required tools are not installed:${NC}"
+    for dep in "${MISSING_DEPS[@]}"; do
+        echo -e "  ${RED}✗${NC} ${dep}"
+    done
+    echo
+    echo -e "${YELLOW}Installation instructions:${NC}"
+    
+    if [[ " ${MISSING_DEPS[@]} " =~ " docker " ]]; then
+        echo -e "  ${GREEN}Docker:${NC}"
+        echo -e "    - Or for Ubuntu/Debian: ${GREEN}https://docs.docker.com/desktop/setup/install/linux/${NC}"
+        echo -e "    - Or for macOS: ${GREEN}https://docs.docker.com/desktop/setup/install/mac-install/${NC}"
+        echo
+    fi
+    
+    if [[ " ${MISSING_DEPS[@]} " =~ " psql " ]]; then
+        echo -e "  ${GREEN}PostgreSQL Client (psql):${NC}"
+        echo -e "    - For Ubuntu/Debian: ${GREEN}sudo apt-get install postgresql-client${NC}"
+        echo -e "    - For macOS: ${GREEN}brew install postgresql${NC}"
+        echo -e "    - For Fedora/RHEL: ${GREEN}sudo dnf install postgresql${NC}"
+        echo
+    fi
+    
+    exit 1
+fi
+
+echo -e "${GREEN}✓${NC} All prerequisites installed"
+echo
 
 # Check if other demos are running by looking for common service containers
 echo "Checking for running demo containers..."
