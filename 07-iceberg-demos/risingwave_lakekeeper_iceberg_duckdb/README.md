@@ -16,50 +16,13 @@ cd awesome-stream-processing/07-iceberg-demos/risingwave_lakekeeper_iceberg_duck
 docker compose up -d
 ```
 
-The compose file starts:
+The **Compose** file starts:
 
-* **Lakekeeper** at `127.0.0.1:8181`
+* **Lakekeeper** at `127.0.0.1:8181` and provisions the Lakekeeper warehouse
 * **RisingWave** at `127.0.0.1:4566`
 * **MinIO (S3-compatible)** at `127.0.0.1:9301`
 
-## 1) Provision a Lakekeeper warehouse (MinIO backend)
-
-After deploying Lakekeeper, bootstrap it via the Management API:
-
-```bash
-# Only needed once after deploying Lakekeeper
-curl -X POST http://127.0.0.1:8181/management/v1/bootstrap \
-  -H 'Content-Type: application/json' \
-  -d '{"accept-terms-of-use": true}'
-```
-
-Create a warehouse:
-
-```bash
-curl -X POST http://127.0.0.1:8181/management/v1/warehouse \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "warehouse-name": "risingwave-warehouse",
-    "delete-profile": { "type": "hard" },
-    "storage-credential": {
-      "type": "s3",
-      "credential-type": "access-key",
-      "aws-access-key-id": "hummockadmin",
-      "aws-secret-access-key": "hummockadmin"
-    },
-    "storage-profile": {
-      "type": "s3",
-      "bucket": "hummock001",
-      "region": "us-east-1",
-      "flavor": "s3-compat",
-      "endpoint": "http://minio-0:9301",
-      "path-style-access": true,
-      "sts-enabled": false,
-      "key-prefix": "risingwave-lakekeeper"
-    }
-  }'
-```
-## 2) Connect RisingWave and stream to Iceberg
+## Connect RisingWave and stream to Iceberg
 
 Connect to RisingWave:
 
@@ -124,7 +87,7 @@ Verify:
 SELECT * FROM customer_profile;
 ```
 
-## 3) Query the Iceberg table from DuckDB
+## Query the Iceberg table from DuckDB
 
 Install the DuckDB CLI:
 
