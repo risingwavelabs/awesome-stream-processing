@@ -220,9 +220,12 @@ CREATE TABLE logistics_joined_iceberg (
 WITH (commit_checkpoint_interval = 1)
 ENGINE = iceberg; 
 ```
+### Stream data into the Iceberg table for querying
 
-### Query the Iceberg table
-
+```sql
+INSERT INTO logistics_joined_iceberg
+SELECT * FROM logistics_joined_mv;
+```
 Query the Iceberg table to see the results:
 
 ```sql
