@@ -88,7 +88,7 @@ Install ClickHouse:
 ```bash
 curl https://clickhouse.com/ | sh
 ```
-Map `minio-0` to `127.0.0.1` on the host so DuckDB (outside Compose) can reach MinIO at `http://minio-0:9301`:
+Map `minio-0` to `127.0.0.1` on the host so ClickHouse (outside Compose) can reach MinIO at `http://minio-0:9301`:
 
 ```bash
 echo "127.0.0.1 minio-0" | sudo tee -a /etc/hosts
