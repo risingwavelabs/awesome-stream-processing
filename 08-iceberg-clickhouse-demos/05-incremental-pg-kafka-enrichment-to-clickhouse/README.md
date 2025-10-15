@@ -8,6 +8,7 @@ Postgres CDC (streaming) join Kafka (streaming) → Enriched ClickHouse Table
 - Use RisingWave to do continously write the enriched results to a ClickHouse Table.
 
 ## Initialize the environemt
+- Make sure you have there are more than **4 cores, 10GB** memory avavilable in your docker environment.
 ```bash
 # Setup RisingWave, Kafka, Postgres, Clickhouse via docker compose
 ./start.sh

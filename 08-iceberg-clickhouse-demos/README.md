@@ -17,6 +17,7 @@ https://docs.docker.com/desktop/setup/install/mac-install/
 https://docs.docker.com/desktop/setup/install/linux/
 ```
 
+- There are more than 4 cores, 10GB memory avavilable in your docker environment.
 
 # Demo
 

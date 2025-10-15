@@ -8,6 +8,7 @@ Iceberg (one-time) + Kafka (streaming) → ClickHouse Table
 - Use ClickHouse to query the results
 
 ## Initialize the environemt
+- Make sure you have there are more than **4 cores, 10GB** memory avavilable in your docker environment.
 ```bash
 # Setup RisingWave, Iceberg with Rest Catalog, Kafka, Clickhouse via docker compose
 ./start.sh

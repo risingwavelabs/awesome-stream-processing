@@ -11,6 +11,7 @@ Postgres CDC (streaming) join Kafka (streaming) → Enriched Iceberg Table. Clic
 - `./client.sh watch-ch` will show "table not exists" error until the Iceberg Table is created in `./client.sh ddl-rw` Step 6.
 
 ## Initialize the environemt
+- Make sure you have there are more than **4 cores, 10GB** memory avavilable in your docker environment.
 ```bash
 # Setup RisingWave, Iceberg with Rest Catalog, Kafka, Clickhouse via docker compose
 ./start.sh
