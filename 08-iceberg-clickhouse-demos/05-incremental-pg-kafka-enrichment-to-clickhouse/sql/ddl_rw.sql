@@ -10,7 +10,7 @@
 \echo :GREEN
 \echo '======================================='
 \echo 'RisingWave Demo: Incremental Enrichment'
-\echo 'CDC + Kafka → Enriched Data → ClickHouse'
+\echo 'CDC x Kafka → Enriched Data → ClickHouse'
 \echo
 \echo 'Please make sure you have run ./prepare.sh to set up the environment'
 \echo

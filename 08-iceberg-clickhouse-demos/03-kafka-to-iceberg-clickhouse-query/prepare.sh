@@ -89,4 +89,20 @@ fi
 echo "=== Done: $(basename "$SQL_CK") ==="
 
 
-echo "All preparation steps completed successfully."
+echo -e "${GREEN}"
+cat << "EOF"
+╔═══════════════════════════════════════════════════════════════════════╗
+║               All Preparation Steps Completed! ✓                      ║
+║                                                                       ║
+║  • Kafka: prepare sales-stream topic with 1 row/s sample data         ║
+║  • ClickHouse: created a DB connected to iceberg rest catalog         ║
+║                                                                       ║
+║  Next Steps:                                                          ║
+║  1. Run ./client.sh ddl-rw to start the demo to 					    ║		
+║     build "Kafka → Iceberg" job                    					║
+║  2. After iceberg table is created in ddl-rw Step 4,                  ║
+║     run ./client.sh watch-ch to watch the changes  					║
+║     in the iceberg table.                     						║
+╚═══════════════════════════════════════════════════════════════════════╝
+EOF
+echo -e "${NC}"

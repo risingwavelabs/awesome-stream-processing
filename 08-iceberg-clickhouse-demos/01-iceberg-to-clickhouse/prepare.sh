@@ -121,5 +121,20 @@ run_sql "$SQL_RW"
 
 
 
-
-echo "All preparation steps completed successfully."
+echo -e "${GREEN}"
+cat << "EOF"
+╔═══════════════════════════════════════════════════════════════════════╗
+║               All Preparation Steps Completed! ✓                      ║
+║                                                                       ║
+║  • Spark: created iceberg table sales_history with CoW mode           ║
+║  • ClickHouse: crreated ch_sales table               					║
+║  • RisingWave: created iceberg source and ClickHouse sink     		║
+║                                                                       ║
+║  Next Steps:                                                          ║
+║  1. Run ./client.sh dml-spark to start the demo					    ║		
+║     to use spark to mutate the iceberg table.                         ║
+║  2. Run ./client.sh watch-ch to watch the changes                     ║
+║     in the ClickHouse table.                     						║
+╚═══════════════════════════════════════════════════════════════════════╝
+EOF
+echo -e "${NC}"

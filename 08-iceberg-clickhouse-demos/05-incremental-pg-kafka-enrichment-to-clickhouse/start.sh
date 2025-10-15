@@ -44,3 +44,16 @@ fi
 echo "Starting demo containers..."
 docker compose -f "$COMPOSE_FILE" up -d
 sleep 5
+
+echo -e "${GREEN}"
+cat << "EOF"
+╔═══════════════════════════════════════════════════════════════════════╗
+║               Demo Containers Started! ✓                              ║
+║                                                                       ║
+║  Next Steps:                                                          ║
+║  1. Run ./prepare.sh to prepare the environment with sample data      ║
+║  2. Run ./client.sh ddl-rw to start the demo                          ║
+║                                                                       ║
+╚═══════════════════════════════════════════════════════════════════════╝
+EOF
+echo -e "${NC}"

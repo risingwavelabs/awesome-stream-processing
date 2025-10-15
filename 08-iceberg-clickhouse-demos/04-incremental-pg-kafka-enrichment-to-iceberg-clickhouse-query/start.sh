@@ -34,7 +34,7 @@ if [ ${#RUNNING_CONTAINERS[@]} -gt 0 ]; then
     echo -e "  ${GREEN}../01-iceberg-to-clickhouse/${NC}"
     echo -e "  ${GREEN}../02-iceberg-and-kafka-to-clickhouse/${NC}"
     echo -e "  ${GREEN}../03-kafka-to-iceberg-clickhouse-query/${NC}"
-    echo -e "  ${GREEN}../04-incremental-pg-kafka-enrichment-to-iceberg-clickhous-query/${NC}"
+    echo -e "  ${GREEN}../04-incremental-pg-kafka-enrichment-to-iceberg-clickhouse-query/${NC}"
     echo -e "  ${GREEN}../05-incremental-pg-kafka-enrichment-to-clickhouse/${NC}"
     echo
     echo "Aborting startup. Please stop other demos first."
@@ -44,3 +44,16 @@ fi
 echo "Starting demo containers..."
 docker compose -f "$COMPOSE_FILE" up -d
 sleep 5
+
+echo -e "${GREEN}"
+cat << "EOF"
+╔═══════════════════════════════════════════════════════════════════════╗
+║               Demo Containers Started! ✓                              ║
+║                                                                       ║
+║  Next Steps:                                                          ║
+║  1. Run ./prepare.sh to prepare the environment with sample data      ║
+║  2. Run ./client.sh ddl-rw to start the demo                          ║
+║                                                                       ║
+╚═══════════════════════════════════════════════════════════════════════╝
+EOF
+echo -e "${NC}"

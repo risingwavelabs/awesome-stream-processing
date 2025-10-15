@@ -119,4 +119,21 @@ fi
 echo "=== Done: $(basename "$SQL_CK") ==="
 
 
-echo "All preparation steps completed successfully."
+echo -e "${GREEN}"
+cat << "EOF"
+╔═══════════════════════════════════════════════════════════════════════╗
+║               All Preparation Steps Completed! ✓                      ║
+║                                                                       ║
+║  • Postgres: prepare product table with 1 row/s sample data           ║
+║  • Kafka: prepare sales-stream topic with 1 row/s sample data         ║
+║  • ClickHouse: created a ch_enriched_sales_analytics table            ║
+║                                                                       ║
+║  Next Steps:                                                          ║
+║  1. Run ./client.sh ddl-rw to start the demo to 					    ║		
+║     build "CDC x Kafka → Enriched Data → ClickHouse" job              ║
+║  2. After iceberg table is created in ddl-rw Step 6,                  ║
+║     run ./client.sh watch-ch to watch the changes  					║
+║     in the Clickhouse table.                     						║
+╚═══════════════════════════════════════════════════════════════════════╝
+EOF
+echo -e "${NC}"
