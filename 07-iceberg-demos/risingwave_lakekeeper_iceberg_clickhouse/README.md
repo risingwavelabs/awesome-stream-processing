@@ -20,7 +20,7 @@ docker compose up -d
 ```
 The Compose file starts Lakekeeper at 127.0.0.1:8181, **provisions** a Lakekeeper warehouse, **starts** RisingWave at 127.0.0.1:4566, and **starts** MinIO (S3-compatible) at 127.0.0.1:9301.
 
-## 2. Connect RisingWave and stream to Iceberg
+## Connect RisingWave and stream to Iceberg
 
 Connect to RisingWave:
 
@@ -81,7 +81,7 @@ Query the table to view the results:
 SELECT * FROM market_trades;
 ```
 
-## 3. Query the Iceberg table from ClickHouse
+## Query the Iceberg table from ClickHouse
 
 Install ClickHouse:
 
