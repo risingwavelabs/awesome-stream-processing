@@ -135,23 +135,7 @@ FROM streaming_sales_kafka;
 \echo 'Step 5 completed: Streaming sink created'
 \echo :YELLOW
 \echo 'You can now run ./client.sh watch-ch in another pane to watch the ClickHouse query results'
-\prompt 'Wait for a few seconds. Press Enter to verify data ingestion...' dummy
-
-\echo :GREEN
-\echo '=== Verify data ingestion ==='
-\echo :BLUE
-SELECT COUNT(*) AS record_count 
-FROM iceberg_sales;
-
-\echo :GREEN
-\echo '=== Check recent sales activity ==='
-\echo :BLUE
-SELECT * FROM iceberg_sales ORDER BY ingestion_time DESC LIMIT 10;
-
-\echo :GREEN
-\echo 'Data verification completed'
-\echo :YELLOW
-\prompt 'Press Enter to to exit...' dummy
+\prompt 'Press Enter to exit...' dummy
 
 \echo :GREEN
 \echo
