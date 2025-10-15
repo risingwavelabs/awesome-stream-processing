@@ -294,7 +294,6 @@ services:
     entrypoint: |
       /bin/sh -c '
       set -e
-      echo "127.0.0.1 minio-0" | sudo tee -a /etc/hosts
       mkdir -p "/data/hummock001"
 
       /usr/bin/docker-entrypoint.sh "$$0" "$$@"
@@ -339,6 +338,78 @@ services:
     networks:
       iceberg_net:
 
+  lakekeeper-bootstrap:
+    image: alpine:3.20
+    restart: "no"
+    depends_on:
+      lakekeeper:
+        condition: service_healthy
+    networks:
+      iceberg_net:
+    command: |
+      sh -lc '
+        set -e
+
+        apk add --no-cache curl >/dev/null
+
+        echo "Waiting for Lakekeeper to be ready..."
+        sleep 5
+
+        echo "Bootstrapping Lakekeeper..."
+        for attempt in 1 2 3 4 5; do
+          http=$$(curl -s -o /tmp/bootstrap.json -w "%{http_code}" -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"accept-terms-of-use\": true}" \
+            http://lakekeeper:8181/management/v1/bootstrap)
+
+          case "$$http" in
+            200|201) echo "✓ Successfully bootstrapped Lakekeeper!"; break ;;
+            400|409) echo "✓ Already bootstrapped or conflict; continuing..."; break ;;
+            *) echo "Bootstrap attempt $$attempt failed (HTTP $$http)"; \
+               [ $$attempt -eq 5 ] && { cat /tmp/bootstrap.json 2>/dev/null || true; exit 1; }; \
+               sleep $$((2 ** attempt)) ;;
+          esac
+        done
+
+        echo "Creating warehouse risingwave-warehouse..."
+        sleep 2
+        for attempt in 1 2 3 4 5; do
+          http=$$(curl -s -o /tmp/warehouse.json -w "%{http_code}" -X POST \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"warehouse-name\": \"risingwave-warehouse\",
+              \"delete-profile\": { \"type\": \"hard\" },
+              \"storage-credential\": {
+                \"type\": \"s3\",
+                \"credential-type\": \"access-key\",
+                \"aws-access-key-id\": \"hummockadmin\",
+                \"aws-secret-access-key\": \"hummockadmin\"
+              },
+              \"storage-profile\": {
+                \"type\": \"s3\",
+                \"bucket\": \"hummock001\",
+                \"region\": \"us-east-1\",
+                \"flavor\": \"s3-compat\",
+                \"endpoint\": \"http://minio-0:9301\",
+                \"path-style-access\": true,
+                \"sts-enabled\": false,
+                \"key-prefix\": \"risingwave-lakekeeper\"
+              }
+            }" \
+            http://lakekeeper:8181/management/v1/warehouse)
+
+          case "$$http" in
+            200|201) echo "✓ Successfully created warehouse!"; break ;;
+            400|409) echo "✓ Warehouse already exists/overlaps; continuing..."; break ;;
+            *) echo "Warehouse creation attempt $$attempt failed (HTTP $$http)"; \
+               [ $$attempt -eq 5 ] && { cat /tmp/warehouse.json 2>/dev/null || true; exit 1; }; \
+               sleep $$((2 ** attempt)) ;;
+          esac
+        done
+
+        echo "🎉 Lakekeeper setup completed successfully!"
+        echo "Lakekeeper is ready with warehouse: risingwave-warehouse"
+      '
   lakekeeper-migrate:
     <<: *lakekeeper-image
     pull_policy: always
