@@ -1,73 +1,101 @@
-version: "3.8"
-
 x-image: &image
-  image: ${RW_IMAGE:-risingwavelabs/risingwave:v2.5.0}
+  image: ${RW_IMAGE:-risingwavelabs/risingwave:v2.6.0-rc.1}
+
+x-lakekeeper-image: &lakekeeper-image
+  image: ${LAKEKEEPER__SERVER_IMAGE:-quay.io/lakekeeper/catalog:latest-main}
+
+x-lakekeeper-environment: &lakekeeper-environment
+  - LAKEKEEPER__PG_ENCRYPTION_KEY=This-is-NOT-Secure!
+  - LAKEKEEPER__PG_DATABASE_URL_READ=postgresql://postgres:postgres@lakekeeper-db:5432/postgres
+  - LAKEKEEPER__PG_DATABASE_URL_WRITE=postgresql://postgres:postgres@lakekeeper-db:5432/postgres
+  - LAKEKEEPER__AUTHZ_BACKEND=allowall
+  # Externally taken from environment variables if set
+  - LAKEKEEPER__OPENID_PROVIDER_URI
+  - LAKEKEEPER__OPENID_AUDIENCE
+  - LAKEKEEPER__OPENID_ADDITIONAL_ISSUERS
+  - LAKEKEEPER__UI__OPENID_CLIENT_ID
+  - LAKEKEEPER__UI__OPENID_SCOPE
 
 services:
-  risingwave-standalone:
+  # RisingWave Services - Distributed Mode
+  compactor-0:
     <<: *image
-    command: "standalone --meta-opts=\" \
-                    --listen-addr 0.0.0.0:5690 \
-                    --advertise-addr 0.0.0.0:5690 \
-                    --dashboard-host 0.0.0.0:5691 \
-                    --backend sql \
-                    --sql-endpoint postgres://postgres:123@postgres-0:5432/metadata \
-                    --state-store hummock+minio://hummockadmin:hummockadmin@minio-0:9301/hummock001 \
-                    --data-directory hummock_001 \
-                    --config-path /risingwave.toml\" \
-                 --compute-opts=\" \
-                    --config-path /risingwave.toml \
-                    --listen-addr 0.0.0.0:5688 \
-                    --advertise-addr 0.0.0.0:5688 \
-                    --async-stack-trace verbose \
-                    --parallelism 4 \
-                    --total-memory-bytes 5905580032 \
-                    --role both \
-                    --meta-address http://0.0.0.0:5690 \
-                    --memory-manager-target-bytes 5368709120\" \
-                 --frontend-opts=\" \
-                    --config-path /risingwave.toml \
-                    --listen-addr 0.0.0.0:4566 \
-                    --advertise-addr 0.0.0.0:4566 \
-                    --health-check-listener-addr 0.0.0.0:6786 \
-                    --meta-addr http://0.0.0.0:5690 \
-                    --frontend-total-memory-bytes=524288000\" \
-                 --compactor-opts=\" \
-                    --listen-addr 0.0.0.0:6660 \
-                    --advertise-addr 0.0.0.0:6660 \
-                    --meta-address http://0.0.0.0:5690 \
-                    --compactor-total-memory-bytes=2147483648\""
+    command:
+      - compactor-node
+      - "--listen-addr"
+      - "0.0.0.0:6660"
+      - "--advertise-addr"
+      - "compactor-0:6660"
+      - "--prometheus-listener-addr"
+      - "0.0.0.0:1260"
+      - "--meta-address"
+      - "http://meta-node-0:5690"
+      - "--config-path"
+      - /risingwave.toml
     expose:
       - "6660"
-      - "4566"
-      - "5688"
-      - "5690"
-      - "5691"
-    ports:
-      - "4566:4566"
-      - "5690:5690"
-      - "5691:5691"
+      - "1260"
+    ports: []
     depends_on:
-      - postgres-0
-      - minio-0
+      - meta-node-0
     volumes:
       - "./risingwave.toml:/risingwave.toml"
     environment:
       RUST_BACKTRACE: "1"
       ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
-      RW_TELEMETRY_TYPE: ${RW_TELEMETRY_TYPE:-"docker-compose"}
-      RW_SECRET_STORE_PRIVATE_KEY_HEX: ${RW_SECRET_STORE_PRIVATE_KEY_HEX:-0123456789abcdef0123456789abcdef}
-      RW_LICENSE_KEY: ${RW_LICENSE_KEY:-}
-    container_name: risingwave-standalone
+    container_name: compactor-0
     healthcheck:
       test:
         - CMD-SHELL
-        - bash -c 'printf "GET / HTTP/1.1\n\n" > /dev/tcp/127.0.0.1/6660; exit $$?;'
-        - bash -c 'printf "GET / HTTP/1.1\n\n" > /dev/tcp/127.0.0.1/5688; exit $$?;'
-        - bash -c '> /dev/tcp/127.0.0.1/4566; exit $$?;'
-        - bash -c 'printf "GET / HTTP/1.1\n\n" > /dev/tcp/127.0.0.1/5690; exit $$?;'
+        - bash -c 'printf \"GET / HTTP/1.1\n\n\" > /dev/tcp/127.0.0.1/6660; exit $$?;'
       interval: 1s
       timeout: 5s
+      retries: 5
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    networks:
+      iceberg_net:
+
+  compactor-1:
+    <<: *image
+    command:
+      - compactor-node
+      - "--listen-addr"
+      - "0.0.0.0:6661"
+      - "--advertise-addr"
+      - "compactor-1:6661"
+      - "--prometheus-listener-addr"
+      - "0.0.0.0:1261"
+      - "--meta-address"
+      - "http://meta-node-0:5690"
+      - "--compactor-mode"
+      - "dedicated-iceberg"
+      - "--config-path"
+      - /risingwave.toml
+    expose:
+      - "6661"
+      - "1261"
+    ports: [ ]
+    depends_on:
+      - meta-node-0
+    volumes:
+      - "./risingwave.toml:/risingwave.toml"
+    environment:
+      RUST_BACKTRACE: "1"
+      ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
+    container_name: compactor-1
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - bash -c 'printf \"GET / HTTP/1.1\n\n\" > /dev/tcp/127.0.0.1/6661; exit $$?;'
+      interval: 1s
+      timeout: 5s
+      retries: 5
     restart: always
     deploy:
       resources:
@@ -75,7 +103,155 @@ services:
           memory: 8G
         reservations:
           memory: 8G
+    networks:
+      iceberg_net:
 
+  compute-node-0:
+    <<: *image
+    command:
+      - compute-node
+      - "--listen-addr"
+      - "0.0.0.0:5688"
+      - "--advertise-addr"
+      - "compute-node-0:5688"
+      - "--prometheus-listener-addr"
+      - "0.0.0.0:1222"
+      - "--meta-address"
+      - "http://meta-node-0:5690"
+      - "--config-path"
+      - /risingwave.toml
+    expose:
+      - "5688"
+      - "1222"
+    ports: []
+    depends_on:
+      - meta-node-0
+    volumes:
+      - "./risingwave.toml:/risingwave.toml"
+    environment:
+      RUST_BACKTRACE: "1"
+      ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
+    container_name: compute-node-0
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - bash -c 'printf \"GET / HTTP/1.1\n\n\" > /dev/tcp/127.0.0.1/5688; exit $$?;'
+      interval: 1s
+      timeout: 5s
+      retries: 5
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 8G
+    networks:
+      iceberg_net:
+
+  frontend-node-0:
+    <<: *image
+    command:
+      - frontend-node
+      - "--listen-addr"
+      - "0.0.0.0:4566"
+      - "--meta-addr"
+      - "http://meta-node-0:5690"
+      - "--advertise-addr"
+      - "frontend-node-0:4566"
+      - "--config-path"
+      - /risingwave.toml
+      - "--prometheus-listener-addr"
+      - "0.0.0.0:2222"
+    expose:
+      - "4566"
+    ports:
+      - "4566:4566"
+    depends_on:
+      - meta-node-0
+    volumes:
+      - "./risingwave.toml:/risingwave.toml"
+    environment:
+      RUST_BACKTRACE: "1"
+      ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
+    container_name: frontend-node-0
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - bash -c '> /dev/tcp/127.0.0.1/4566; exit $$?;'
+      interval: 1s
+      timeout: 5s
+      retries: 5
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    networks:
+      iceberg_net:
+
+  meta-node-0:
+    <<: *image
+    command:
+      - meta-node
+      - "--listen-addr"
+      - "0.0.0.0:5690"
+      - "--advertise-addr"
+      - "meta-node-0:5690"
+      - "--dashboard-host"
+      - "0.0.0.0:5691"
+      - "--prometheus-host"
+      - "0.0.0.0:1250"
+      - "--prometheus-endpoint"
+      - "http://prometheus-0:9500"
+      - "--backend"
+      - sql
+      - "--sql-endpoint"
+      - "postgres://postgres:@postgres-0:5432/metadata"
+      - "--state-store"
+      - "hummock+minio://hummockadmin:hummockadmin@minio-0:9301/hummock001"
+      - "--data-directory"
+      - "hummock_001"
+      - "--config-path"
+      - /risingwave.toml
+    expose:
+      - "5690"
+      - "1250"
+      - "5691"
+    ports:
+      - "5690:5690"
+      - "5691:5691"
+    depends_on:
+      - "postgres-0"
+      - "minio-0"
+    volumes:
+      - "./risingwave.toml:/risingwave.toml"
+    environment:
+      RUST_BACKTRACE: "1"
+      ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
+      RW_TELEMETRY_TYPE: ${RW_TELEMETRY_TYPE:-"docker-compose"}
+      RW_SECRET_STORE_PRIVATE_KEY_HEX: ${RW_SECRET_STORE_PRIVATE_KEY_HEX:-0123456789abcdef0123456789abcdef}
+    container_name: meta-node-0
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - bash -c 'printf \"GET / HTTP/1.1\n\n\" > /dev/tcp/127.0.0.1/5690; exit $$?;'
+      interval: 1s
+      timeout: 5s
+      retries: 5
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    networks:
+      iceberg_net:
+
+  
   postgres-0:
     image: "postgres:15-alpine"
     environment:
@@ -90,14 +266,16 @@ services:
     volumes:
       - "postgres-0:/var/lib/postgresql/data"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 2s
       timeout: 5s
       retries: 5
     restart: always
+    networks:
+      iceberg_net:
 
   minio-0:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: "quay.io/minio/minio:latest"
     command:
       - server
       - "--address"
@@ -117,12 +295,13 @@ services:
       /bin/sh -c '
       set -e
       mkdir -p "/data/hummock001"
-      mkdir -p "/data/icebergdata/demo"
 
       /usr/bin/docker-entrypoint.sh "$$0" "$$@"
       '
     environment:
       MINIO_CI_CD: "1"
+      MINIO_PROMETHEUS_AUTH_TYPE: public
+      MINIO_PROMETHEUS_URL: "http://prometheus-0:9500"
       MINIO_ROOT_PASSWORD: hummockadmin
       MINIO_ROOT_USER: hummockadmin
       MINIO_DOMAIN: "minio-0"
@@ -135,9 +314,144 @@ services:
       timeout: 5s
       retries: 5
     restart: always
+    networks:
+      iceberg_net:
+
+  # Lakekeeper Services
+  lakekeeper:
+    <<: *lakekeeper-image
+    pull_policy: always
+    environment: *lakekeeper-environment
+    command: [ "serve" ]
+    healthcheck:
+      test: [ "CMD", "/home/nonroot/lakekeeper", "healthcheck" ]
+      interval: 1s
+      timeout: 10s
+      retries: 3
+      start_period: 3s
+    depends_on:
+      lakekeeper-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8181:8181"
+    container_name: lakekeeper
+    networks:
+      iceberg_net:
+
+  lakekeeper-bootstrap:
+    image: alpine:3.20
+    restart: "no"
+    depends_on:
+      lakekeeper:
+        condition: service_healthy
+    networks:
+      iceberg_net:
+    command: |
+      sh -lc '
+        set -e
+
+        apk add --no-cache curl >/dev/null
+
+        echo "Waiting for Lakekeeper to be ready..."
+        sleep 5
+
+        echo "Bootstrapping Lakekeeper..."
+        for attempt in 1 2 3 4 5; do
+          http=$$(curl -s -o /tmp/bootstrap.json -w "%{http_code}" -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"accept-terms-of-use\": true}" \
+            http://lakekeeper:8181/management/v1/bootstrap)
+
+          case "$$http" in
+            200|201) echo "✓ Successfully bootstrapped Lakekeeper!"; break ;;
+            400|409) echo "✓ Already bootstrapped or conflict; continuing..."; break ;;
+            *) echo "Bootstrap attempt $$attempt failed (HTTP $$http)"; \
+               [ $$attempt -eq 5 ] && { cat /tmp/bootstrap.json 2>/dev/null || true; exit 1; }; \
+               sleep $$((2 ** attempt)) ;;
+          esac
+        done
+
+        echo "Creating warehouse risingwave-warehouse..."
+        sleep 2
+        for attempt in 1 2 3 4 5; do
+          http=$$(curl -s -o /tmp/warehouse.json -w "%{http_code}" -X POST \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"warehouse-name\": \"risingwave-warehouse\",
+              \"delete-profile\": { \"type\": \"hard\" },
+              \"storage-credential\": {
+                \"type\": \"s3\",
+                \"credential-type\": \"access-key\",
+                \"aws-access-key-id\": \"hummockadmin\",
+                \"aws-secret-access-key\": \"hummockadmin\"
+              },
+              \"storage-profile\": {
+                \"type\": \"s3\",
+                \"bucket\": \"hummock001\",
+                \"region\": \"us-east-1\",
+                \"flavor\": \"s3-compat\",
+                \"endpoint\": \"http://minio-0:9301\",
+                \"path-style-access\": true,
+                \"sts-enabled\": false,
+                \"key-prefix\": \"risingwave-lakekeeper\"
+              }
+            }" \
+            http://lakekeeper:8181/management/v1/warehouse)
+
+          case "$$http" in
+            200|201) echo "✓ Successfully created warehouse!"; break ;;
+            400|409) echo "✓ Warehouse already exists/overlaps; continuing..."; break ;;
+            *) echo "Warehouse creation attempt $$attempt failed (HTTP $$http)"; \
+               [ $$attempt -eq 5 ] && { cat /tmp/warehouse.json 2>/dev/null || true; exit 1; }; \
+               sleep $$((2 ** attempt)) ;;
+          esac
+        done
+
+        echo "🎉 Lakekeeper setup completed successfully!"
+        echo "Lakekeeper is ready with warehouse: risingwave-warehouse"
+      '
+  lakekeeper-migrate:
+    <<: *lakekeeper-image
+    pull_policy: always
+    environment: *lakekeeper-environment
+    restart: "no"
+    command: [ "migrate" ]
+    depends_on:
+      lakekeeper-db:
+        condition: service_healthy
+    container_name: lakekeeper-migrate
+    networks:
+      iceberg_net:
+
+  lakekeeper-db:
+    image: "postgres:16-alpine"
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    expose:
+      - "5432"
+    ports:
+      - "8433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -p 5432 -d postgres" ]
+      interval: 2s
+      timeout: 10s
+      retries: 2
+      start_period: 10s
+    restart: always
+    volumes:
+      - "lakekeeper-db:/var/lib/postgresql/data/pgdata"
+    container_name: lakekeeper-db
+    networks:
+      iceberg_net:
 
 volumes:
   postgres-0:
     external: false
   minio-0:
     external: false
+  lakekeeper-db:
+    external: false
+
+networks:
+  iceberg_net:
