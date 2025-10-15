@@ -23,7 +23,8 @@
 #   ./prepare.sh
 
 set -euo pipefail
-
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 
 RW_HOST=${RW_HOST:-localhost}
@@ -129,11 +130,10 @@ cat << "EOF"
 ║  • ClickHouse: created a ch_enriched_sales_analytics table            ║
 ║                                                                       ║
 ║  Next Steps:                                                          ║
-║  1. Run ./client.sh ddl-rw to start the demo to 					    ║		
+║  1. Run "./client.sh ddl-rw" to start the demo to                     ║		
 ║     build "CDC x Kafka → Enriched Data → ClickHouse" job              ║
-║  2. After iceberg table is created in ddl-rw Step 6,                  ║
-║     run ./client.sh watch-ch to watch the changes  					║
-║     in the Clickhouse table.                     						║
+║  2. Run "./client.sh watch-ch" to watch the changes                   ║
+║     in the Clickhouse table.                                          ║
 ╚═══════════════════════════════════════════════════════════════════════╝
 EOF
 echo -e "${NC}"

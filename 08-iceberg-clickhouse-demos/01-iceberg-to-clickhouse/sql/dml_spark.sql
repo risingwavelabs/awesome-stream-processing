@@ -12,7 +12,7 @@
 -- Step 1: Display table schema
 DESCRIBE EXTENDED lake.public.sales_history;
 
--- Step 2: Insert sample historical data (batch 1, sales_id 1001-1009)
+-- Step 2: Insert sample historical data (batch 1, sale_id 1001-1009)
 INSERT INTO lake.public.sales_history VALUES
 (1001, 101, 201, 'iPhone 15 Pro', CAST('2024-01-15 10:30:00' AS TIMESTAMP), 1, 999, 999, 'USD', 1, 'North America', 'Credit Card', 0),
 (1002, 102, 202, 'MacBook Air M3', CAST('2024-01-15 11:45:00' AS TIMESTAMP), 1, 1299, 1169, 'USD', 1, 'North America', 'Debit Card', 129),
@@ -25,7 +25,7 @@ INSERT INTO lake.public.sales_history VALUES
 (1009, 109, 208, 'Magic Mouse', CAST('2024-01-19 11:30:00' AS TIMESTAMP), 2, 79, 142, 'USD', 3, 'Asia Pacific', 'Debit Card', 15);
 
 
--- Step 3: Insert additional sales records (batch 2, sales_id 1010-1015)
+-- Step 3: Insert additional sales records (batch 2, sale_id 1010-1015)
 INSERT INTO lake.public.sales_history VALUES
 (1010, 110, 209, 'Apple TV 4K', CAST('2024-01-19 17:45:00' AS TIMESTAMP), 1, 179, 161, 'USD', 1, 'North America', 'Apple Pay', 17),
 (1011, 111, 210, 'HomePod mini', CAST('2024-01-20 12:00:00' AS TIMESTAMP), 2, 99, 188, 'USD', 4, 'Europe', 'PayPal', 9),
@@ -35,7 +35,7 @@ INSERT INTO lake.public.sales_history VALUES
 (1015, 115, 213, 'iPad Air', CAST('2024-01-22 13:20:00' AS TIMESTAMP), 1, 599, 569, 'USD', 4, 'Asia Pacific', 'Apple Pay', 29);
 
 
--- Step 4: Insert one more sales record (batch 3, sales_id 1016)
+-- Step 4: Insert one more sales record (batch 3, sale_id 1016)
 INSERT INTO lake.public.sales_history VALUES
 (1016, 116, 214, 'iPad Air', CAST('2024-01-22 13:20:00' AS TIMESTAMP), 1, 599, 569, 'USD', 4, 'Asia Pacific', 'Apple Pay', 29);
 

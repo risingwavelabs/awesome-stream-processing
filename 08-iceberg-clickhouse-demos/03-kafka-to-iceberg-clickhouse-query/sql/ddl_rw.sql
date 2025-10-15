@@ -153,6 +153,7 @@ SELECT * FROM iceberg_sales ORDER BY ingestion_time DESC LIMIT 10;
 \echo :YELLOW
 \prompt 'Press Enter to to exit...' dummy
 
+\echo :GREEN
 \echo
 \echo '======================================='
 \echo 'Demo completed successfully!'

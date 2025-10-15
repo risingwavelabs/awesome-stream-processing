@@ -24,7 +24,8 @@
 #   ./prepare.sh
 
 set -euo pipefail
-
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 
 # Docker Compose configuration (used for Spark and ClickHouse steps)
@@ -127,14 +128,14 @@ cat << "EOF"
 ║               All Preparation Steps Completed! ✓                      ║
 ║                                                                       ║
 ║  • Spark: created iceberg table sales_history with CoW mode           ║
-║  • ClickHouse: crreated ch_sales table               					║
-║  • RisingWave: created iceberg source and ClickHouse sink     		║
+║  • ClickHouse: created ch_sales table                                 ║
+║  • RisingWave: created iceberg source and ClickHouse sink             ║
 ║                                                                       ║
 ║  Next Steps:                                                          ║
-║  1. Run ./client.sh dml-spark to start the demo					    ║		
+║  1. Run "./client.sh dml-spark" to start the demo                     ║		
 ║     to use spark to mutate the iceberg table.                         ║
-║  2. Run ./client.sh watch-ch to watch the changes                     ║
-║     in the ClickHouse table.                     						║
+║  2. Run "./client.sh watch-ch" to watch the changes                   ║
+║     in the ClickHouse table.                                          ║
 ╚═══════════════════════════════════════════════════════════════════════╝
 EOF
 echo -e "${NC}"

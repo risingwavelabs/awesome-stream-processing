@@ -109,10 +109,32 @@ CREATE TABLE sales_consolidated (
 \echo :GREEN
 \echo 'Step 4 completed: Consolidated table created'
 \echo :YELLOW
-\prompt 'Press Enter to continue to Step 5 (Insert historical data)...' dummy
+\prompt 'Press Enter to continue to Step 5 (Create ClickHouse Sink)...' dummy
 
 \echo :GREEN
-\echo '=== Step 5: Insert historical data from Iceberg into the consolidated table ==='
+\echo '=== Step 5: Create sink from RisingWave to ClickHouse for analytics ==='
+\echo :BLUE
+CREATE SINK sales_to_clickhouse
+FROM sales_consolidated
+WITH (
+    connector = 'clickhouse',
+    type = 'upsert',
+    clickhouse.url = 'http://clickhouse-server:8123',
+    clickhouse.user = 'default',
+    clickhouse.password = 'default',
+    clickhouse.database = 'default',
+    clickhouse.table = 'ch_sales_analytics',
+    commit_checkpoint_interval = '1',
+    primary_key = 'sale_id'
+);
+
+\echo :GREEN
+\echo 'Step 5 completed: ClickHouse sink created'
+\echo :YELLOW
+\prompt 'Press Enter to continue to Step 6 (Insert historical data)...' dummy
+
+\echo :GREEN
+\echo '=== Step 6: Insert historical data from Iceberg into the consolidated table ==='
 \echo :BLUE
 INSERT INTO sales_consolidated (
     sale_id,
@@ -150,7 +172,7 @@ FROM historical_sales_iceberg;
 FLUSH;
 
 \echo :GREEN
-\echo 'Step 5 completed: Historical data inserted'
+\echo 'Step 6 completed: Historical data inserted'
 \echo :YELLOW
 \prompt 'Press Enter to verify data ingestion...' dummy
 
@@ -170,10 +192,10 @@ SELECT * FROM sales_consolidated ORDER BY ingestion_time DESC LIMIT 10;
 \echo :GREEN
 \echo 'Historical data verification completed'
 \echo :YELLOW
-\prompt 'Press Enter to continue to Step 6 (Create streaming sink)...' dummy
+\prompt 'Press Enter to continue to Step 7 (Streaming ingest Kafka data)...' dummy
 
 \echo :GREEN
-\echo '=== Step 6: Create sink to continuously stream data from Kafka into the same table ==='
+\echo '=== Step 7: Create sink to continuously stream data from Kafka into the same table ==='
 \echo :BLUE
 CREATE SINK streaming_sales_ingestion INTO sales_consolidated AS
 SELECT 
@@ -194,29 +216,7 @@ SELECT
 FROM streaming_sales_kafka;
 
 \echo :GREEN
-\echo 'Step 6 completed: Streaming sink created'
-\echo :YELLOW
-\prompt 'Press Enter to continue to Step 7 (Create ClickHouse sink)...' dummy
-
-\echo :GREEN
-\echo '=== Step 7: Create sink from RisingWave to ClickHouse for analytics ==='
-\echo :BLUE
-CREATE SINK sales_to_clickhouse
-FROM sales_consolidated
-WITH (
-    connector = 'clickhouse',
-    type = 'upsert',
-    clickhouse.url = 'http://clickhouse-server:8123',
-    clickhouse.user = 'default',
-    clickhouse.password = 'default',
-    clickhouse.database = 'default',
-    clickhouse.table = 'ch_sales_analytics',
-    commit_checkpoint_interval = '1',
-    primary_key = 'sale_id'
-);
-
-\echo :GREEN
-\echo 'Step 7 completed: ClickHouse sink created'
+\echo 'Step 7 completed: Streaming sink created'
 \echo :YELLOW
 \prompt 'Press Enter to run final verification queries...' dummy
 

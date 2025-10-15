@@ -42,7 +42,33 @@ if [ ${#RUNNING_CONTAINERS[@]} -gt 0 ]; then
 fi
 
 echo "Starting demo containers..."
-docker compose -f "$COMPOSE_FILE" up -d
+if ! docker compose -f "$COMPOSE_FILE" up -d; then
+    echo -e "${RED}"
+    cat << "EOF"
+╔═══════════════════════════════════════════════════════════════════════╗
+║                    ❌ Docker Compose Failed                           ║
+╚═══════════════════════════════════════════════════════════════════════╝
+EOF
+    echo -e "${NC}"
+    echo -e "${YELLOW}Possible causes:${NC}"
+    echo -e "  ${RED}•${NC} Insufficient Docker resources (memory/CPU)"
+    echo -e "  ${RED}•${NC} Port conflicts with other running services"
+    echo -e "  ${RED}•${NC} Docker daemon not running or not accessible"
+    echo
+    echo -e "${YELLOW}Recommendations:${NC}"
+    echo -e "  1. ${GREEN}Increase Docker resource limits:${NC}"
+    echo -e "     - Docker Desktop: Settings → Resources"
+    echo -e "     - Recommended: 10GB+ RAM, 4+ CPUs"
+    echo -e "  2. ${GREEN}Check for port conflicts:${NC}"
+    echo -e "     - Run: ${GREEN}docker compose -f \"$COMPOSE_FILE\" ps${NC}"
+    echo -e "     - Run: ${GREEN}netstat -tuln | grep LISTEN${NC}"
+    echo -e "  3. ${GREEN}View detailed logs:${NC}"
+    echo -e "     - Run: ${GREEN}docker compose -f \"$COMPOSE_FILE\" logs${NC}"
+    echo -e "  4. ${GREEN}Clean up stopped containers:${NC}"
+    echo -e "     - Run: ${GREEN}docker system prune${NC}"
+    echo
+    exit 1
+fi
 sleep 5
 
 echo -e "${GREEN}"

@@ -23,7 +23,8 @@
 #   ./prepare.sh
 
 set -euo pipefail
-
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 
 RW_HOST=${RW_HOST:-localhost}
@@ -107,10 +108,10 @@ cat << "EOF"
 ║  • ClickHouse: created ch_sales_analytics table                       ║
 ║                                                                       ║
 ║  Next Steps:                                                          ║
-║  1. Run ./client.sh ddl-rw to start the demo to 					    ║		
+║  1. Run "./client.sh ddl-rw" to start the demo to                     ║		
 ║     build "Iceberg + Kafka → ClickHouse Table" job                    ║
-║  2. Run ./client.sh watch-ch to watch the changes                     ║
-║     in the ClickHouse table.                     						║
+║  2. Run "./client.sh watch-ch" to watch the changes                   ║
+║     in the ClickHouse table.                                          ║
 ╚═══════════════════════════════════════════════════════════════════════╝
 EOF
 echo -e "${NC}"
