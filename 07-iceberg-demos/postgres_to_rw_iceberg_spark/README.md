@@ -1,5 +1,4 @@
 # PostgreSQL CDC → Iceberg (via RisingWave) → Query with Spark
-
 Stream change-data-capture (CDC) events from PostgreSQL into **Apache Iceberg** using **RisingWave’s** native `postgres-cdc` source and Iceberg Table Engine. Then query the continuously updated Iceberg table with **Spark SQL**.
 
 ## Prerequisites
@@ -16,8 +15,7 @@ cd awesome-stream-processing/07-iceberg-demos/postgres_to_rw_iceberg_spark
 # Launch demo stack
 docker compose up -d
 ````
-
-The compose file starts a standalone RisingWave on localhost:4566, a PostgreSQL container, and a MinIO object store on localhost:9000, so you can follow the next steps exactly as written.
+The **Compose** file starts **Lakekeeper** at `127.0.0.1:8181` and provisions the Lakekeeper warehouse, starts **RisingWave** at `127.0.0.1:4566`, and starts a **MinIO** object store at `127.0.0.1:9000`, so you can follow the next steps exactly as written.
 
 ## 1. Prepare PostgreSQL (seed data + CDC changes)
 
@@ -142,28 +140,29 @@ SELECT * FROM card_transactions_src LIMIT 5;
 Tell RisingWave where to store table files and let it handle the metadata:
 
 ```sql
-CREATE CONNECTION my_iceberg_connection
+CREATE CONNECTION lakekeeper_catalog_conn
 WITH (
-    type                 = 'iceberg',
-    warehouse.path       = 's3://icebergdata/demo',
-    s3.access.key        = 'hummockadmin',
-    s3.secret.key        = 'hummockadmin',
-    s3.region            = 'us-east-1',
-    s3.endpoint          = 'http://minio-0:9301',
+    type = 'iceberg',
+    catalog.type = 'rest',
+    catalog.uri = 'http://lakekeeper:8181/catalog/',
+    warehouse.path = 'risingwave-warehouse',
+    s3.access.key = 'hummockadmin',
+    s3.secret.key = 'hummockadmin',
     s3.path.style.access = 'true',
-    hosted_catalog       = 'true'            -- one flag, no extra services!
+    s3.endpoint = 'http://minio-0:9301',
+    s3.region = 'us-east-1'
 );
 ```
 
 > What happened?
 >
-> RisingWave just spun up a fully spec-compliant Iceberg catalog inside its own metadata store, no Glue, Nessie, or external Postgres required.
+> RisingWave just spun up a fully spec-compliant Iceberg catalog, no Glue, Nessie, or external Postgres required.
 
 Activate the connection for your session and add `ENGINE = iceberg`:
 
 ```sql
 -- Use the connection
-SET iceberg_engine_connection = 'public.my_iceberg_connection';
+SET iceberg_engine_connection = 'public.lakekeeper_catalog_conn;
 
 -- Create the Iceberg table fed by the CDC source
 CREATE TABLE card_transactions_src_iceberg (
@@ -249,33 +248,35 @@ spark-shell --version
 
 You should see the Spark version printed.
 
-### 5. Configure & run Spark SQL (Iceberg + MinIO + JDBC)
+### 5. Configure & run Spark SQL (Iceberg + MinIO + REST)
 
+Map `minio-0` to `127.0.0.1` on the host so Spark (outside Compose) can reach MinIO at `http://minio-0:9301`:
+```bash
+echo "127.0.0.1 minio-0" | sudo tee -a /etc/hosts
+```
+Now, run this to connect with the Spark:
 ```bash
 spark-sql \
-  --packages "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.2,org.apache.iceberg:iceberg-aws-bundle:1.9.2,org.postgresql:postgresql:42.7.4" \
+  --packages "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.2,org.apache.iceberg:iceberg-aws-bundle:1.9.2" \
   --conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions \
-  --conf spark.sql.defaultCatalog=dev \
-  --conf spark.sql.catalog.dev=org.apache.iceberg.spark.SparkCatalog \
-  --conf spark.sql.catalog.dev.catalog-impl=org.apache.iceberg.jdbc.JdbcCatalog \
-  --conf spark.sql.catalog.dev.uri=jdbc:postgresql://127.0.0.1:4566/dev \
-  --conf spark.sql.catalog.dev.jdbc.user=postgres \
-  --conf spark.sql.catalog.dev.jdbc.password=123 \
-  --conf spark.sql.catalog.dev.warehouse=s3://hummock001/my_iceberg_connection \
-  --conf spark.sql.catalog.dev.io-impl=org.apache.iceberg.aws.s3.S3FileIO \
-  --conf spark.sql.catalog.dev.s3.endpoint=http://127.0.0.1:9301 \
-  --conf spark.sql.catalog.dev.s3.region=us-east-1 \
-  --conf spark.sql.catalog.dev.s3.path-style-access=true \
-  --conf spark.sql.catalog.dev.s3.access-key-id=hummockadmin \
-  --conf spark.sql.catalog.dev.s3.secret-access-key=hummockadmin
+  --conf spark.sql.defaultCatalog=lakekeeper \
+  --conf spark.sql.catalog.lakekeeper=org.apache.iceberg.spark.SparkCatalog \
+  --conf spark.sql.catalog.lakekeeper.catalog-impl=org.apache.iceberg.rest.RESTCatalog \
+  --conf spark.sql.catalog.lakekeeper.uri=http://127.0.0.1:8181/catalog/ \
+  --conf spark.sql.catalog.lakekeeper.warehouse=risingwave-warehouse \
+  --conf spark.sql.catalog.lakekeeper.io-impl=org.apache.iceberg.aws.s3.S3FileIO \
+  --conf spark.sql.catalog.lakekeeper.s3.endpoint=http://minio-0:9301 \
+  --conf spark.sql.catalog.lakekeeper.s3.region=us-east-1 \
+  --conf spark.sql.catalog.lakekeeper.s3.path-style-access=true \
+  --conf spark.sql.catalog.lakekeeper.s3.access-key-id=hummockadmin \
+  --conf spark.sql.catalog.lakekeeper.s3.secret-access-key=hummockadmin
 ```
 
 Preview CDC data inside Spark:
 
 ```sql
-SELECT * FROM dev.public.card_transactions_src_iceberg LIMIT 5;
+SELECT * FROM public.card_transactions_src_iceberg LIMIT 5;
 ```
-
 ## Optional: Clean up (Docker)
 
 > ⚠️ Only run this after you’ve fully tested.
