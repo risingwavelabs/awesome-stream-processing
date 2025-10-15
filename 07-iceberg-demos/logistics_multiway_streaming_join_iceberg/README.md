@@ -1,7 +1,5 @@
 # Streaming Join to Apache Iceberg with RisingWave
-
-This demo showcases a multi-way streaming join in a logistics scenario (trucks, drivers, shipments, routes, warehouses, fuel, and maintenance) and writes the joined stream to an Apache Iceberg table. It creates a table that writes directly to Iceberg, streams data in real time, and keeps everything query-ready for Spark, Trino, or any other engine. Enable the `hosted_catalog` option in RisingWave to create an Iceberg catalog without external services.
-
+This demo showcases a multi-way streaming join for a logistics scenario (trucks, drivers, shipments, routes, warehouses, fuel, and maintenance) and writes the joined stream to an Apache Iceberg table. It creates a table that writes directly to Iceberg, streams data in real time, and keeps everything query-ready for Spark, Trino, or any other engine. It uses RisingWave with a self-hosted, REST-based Lakekeeper catalog to create Iceberg tables without any additional external services.
 ## Prerequisites
 
 * [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/): Docker Compose is included with Docker Desktop for Windows and macOS. Ensure Docker Desktop is running if you're using it.
@@ -16,7 +14,7 @@ cd awesome-stream-processing/07-iceberg-demos/logistics_multiway_streaming_join_
 # Launch demo stack
 docker compose up -d
 ```
-
+The **Compose** file starts **Lakekeeper** at `127.0.0.1:8181` and provisions the Lakekeeper warehouse, starts **RisingWave** at `127.0.0.1:4566`, and starts a **MinIO** object store at `127.0.0.1:9000`, so you can follow the next steps exactly as written.
 ## 1) Create a connection with the hosted catalog
 
 Connect to your RisingWave instance:
@@ -28,20 +26,21 @@ psql -h localhost -p 4566 -d dev -U root
 Tell RisingWave where to store table files and let it handle the metadata:
 
 ```sql
-CREATE CONNECTION my_iceberg_connection
+CREATE CONNECTION lakekeeper_catalog_conn
 WITH (
-    type                 = 'iceberg',
-    warehouse.path       = 's3://icebergdata/demo',
-    s3.access.key        = 'hummockadmin',
-    s3.secret.key        = 'hummockadmin',
-    s3.region            = 'us-east-1',
-    s3.endpoint          = 'http://minio-0:9301',
+    type = 'iceberg',
+    catalog.type = 'rest',
+    catalog.uri = 'http://lakekeeper:8181/catalog/',
+    warehouse.path = 'risingwave-warehouse',
+    s3.access.key = 'hummockadmin',
+    s3.secret.key = 'hummockadmin',
     s3.path.style.access = 'true',
-    hosted_catalog       = 'true'            -- 👈 one flag, no extra services!
+    s3.endpoint = 'http://minio-0:9301',
+    s3.region = 'us-east-1'
 );
 ```
 
-RisingWave just spun up a fully spec-compliant **Iceberg catalog** inside its own metadata store—no Glue, Nessie, or external Postgres required.
+RisingWave just spun up a fully spec-compliant **Iceberg catalog** inside its own metadata store, no Glue, Nessie, or external Postgres required.
 
 ## 2) Build the streaming pipeline and write to Iceberg
 
@@ -187,7 +186,7 @@ select * from logistics_joined_mv limit 5;
 
 ```sql
 -- Use the connection
-SET iceberg_engine_connection = 'public.my_iceberg_connection';
+SET iceberg_engine_connection = 'public.lakekeeper_catalog_conn';
 ```
 
 ```sql
@@ -222,13 +221,7 @@ WITH (commit_checkpoint_interval = 1)
 ENGINE = iceberg; 
 ```
 
-### Stream the joined results into Iceberg
-
-```sql
-INSERT INTO logistics_joined_iceberg
-SELECT * 
-FROM logistics_joined_mv;
-```
+### Query the Iceberg table
 
 Query the Iceberg table to see the results:
 
@@ -286,39 +279,35 @@ spark-shell --version
 
 You should see the Spark version printed.
 
-### 5. Configure & Run Spark SQL (Iceberg + MinIO + JDBC)
-
-If you see a “region not specified” error, set the region before running Spark:
-
+### 5. Configure & Run Spark SQL (Iceberg + MinIO + REST)
+Map `minio-0` to `127.0.0.1` on the host so Spark (outside Compose) can reach MinIO at `http://minio-0:9301`:
 ```bash
-export AWS_REGION=us-east-1
+echo "127.0.0.1 minio-0" | sudo tee -a /etc/hosts
 ```
 
 Now, run this to connect with Spark:
 
 ```bash
 spark-sql \
-  --packages "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.2,org.apache.iceberg:iceberg-aws-bundle:1.9.2,org.postgresql:postgresql:42.7.4" \
+  --packages "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.2,org.apache.iceberg:iceberg-aws-bundle:1.9.2" \
   --conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions \
-  --conf spark.sql.defaultCatalog=dev \
-  --conf spark.sql.catalog.dev=org.apache.iceberg.spark.SparkCatalog \
-  --conf spark.sql.catalog.dev.catalog-impl=org.apache.iceberg.jdbc.JdbcCatalog \
-  --conf spark.sql.catalog.dev.uri=jdbc:postgresql://127.0.0.1:4566/dev \
-  --conf spark.sql.catalog.dev.jdbc.user=postgres \
-  --conf spark.sql.catalog.dev.jdbc.password=123 \
-  --conf spark.sql.catalog.dev.warehouse=s3://hummock001/my_iceberg_connection \
-  --conf spark.sql.catalog.dev.io-impl=org.apache.iceberg.aws.s3.S3FileIO \
-  --conf spark.sql.catalog.dev.s3.endpoint=http://127.0.0.1:9301 \
-  --conf spark.sql.catalog.dev.s3.region=us-east-1 \
-  --conf spark.sql.catalog.dev.s3.path-style-access=true \
-  --conf spark.sql.catalog.dev.s3.access-key-id=hummockadmin \
-  --conf spark.sql.catalog.dev.s3.secret-access-key=hummockadmin
+  --conf spark.sql.defaultCatalog=lakekeeper \
+  --conf spark.sql.catalog.lakekeeper=org.apache.iceberg.spark.SparkCatalog \
+  --conf spark.sql.catalog.lakekeeper.catalog-impl=org.apache.iceberg.rest.RESTCatalog \
+  --conf spark.sql.catalog.lakekeeper.uri=http://127.0.0.1:8181/catalog/ \
+  --conf spark.sql.catalog.lakekeeper.warehouse=risingwave-warehouse \
+  --conf spark.sql.catalog.lakekeeper.io-impl=org.apache.iceberg.aws.s3.S3FileIO \
+  --conf spark.sql.catalog.lakekeeper.s3.endpoint=http://minio-0:9301 \
+  --conf spark.sql.catalog.lakekeeper.s3.region=us-east-1 \
+  --conf spark.sql.catalog.lakekeeper.s3.path-style-access=true \
+  --conf spark.sql.catalog.lakekeeper.s3.access-key-id=hummockadmin \
+  --conf spark.sql.catalog.lakekeeper.s3.secret-access-key=hummockadmin
 ```
 
 Then run a query:
 
 ```sql
-select * from dev.public.logistics_joined_iceberg;
+select * from public.logistics_joined_iceberg;
 ```
 
 ## Optional: Clean up (Docker)
@@ -335,6 +324,6 @@ docker compose down -v
 
 ## Recap
 
-* **Provision** an Iceberg catalog: set `hosted_catalog = true`.
+* **Provision** a REST-based Lakekeeper Iceberg catalog.
 * **Join** seven streaming topics into a single **materialized view** and **write** to an Iceberg table with `ENGINE = iceberg`.
 * **Query** the data from RisingWave or any Iceberg-aware engine (Spark), no lock-in, no extra services.
