@@ -18,45 +18,7 @@ cd awesome-stream-processing/07-iceberg-demos/risingwave_lakekeeper_iceberg_clic
 
 docker compose up -d
 ```
-The Compose file starts Lakekeeper at 127.0.0.1:8181, RisingWave at 127.0.0.1:4566, and MinIO (S3-compatible) at 127.0.0.1:9301.
-
-## 1. Provision a Lakekeeper warehouse (MinIO backend)
-
-After deploying Lakekeeper, perform an initial bootstrap using the Management API. Call the `POST /management/v1/bootstrap` endpoint, for example:
-
-```bash
-# only needed once after deploying Lakekeeper
-curl -X POST http://127.0.0.1:8181/management/v1/bootstrap \
-  -H 'Content-Type: application/json' \
-  -d '{"accept-terms-of-use": true}'
-```
-
-Now, run this to create a warehouse:
-
-```bash
-curl -X POST http://127.0.0.1:8181/management/v1/warehouse \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "warehouse-name": "risingwave-warehouse",
-    "delete-profile": { "type": "hard" },
-    "storage-credential": {
-      "type": "s3",
-      "credential-type": "access-key",
-      "aws-access-key-id": "hummockadmin",
-      "aws-secret-access-key": "hummockadmin"
-    },
-    "storage-profile": {
-      "type": "s3",
-      "bucket": "hummock001",
-      "region": "us-east-1",
-      "flavor": "s3-compat",
-      "endpoint": "http://minio-0:9301",
-      "path-style-access": true,
-      "sts-enabled": false,
-      "key-prefix": "risingwave-lakekeeper"
-    }
-  }'
-```
+The Compose file starts Lakekeeper at 127.0.0.1:8181, **provisions** a Lakekeeper warehouse, **starts** RisingWave at 127.0.0.1:4566, and **starts** MinIO (S3-compatible) at 127.0.0.1:9301.
 
 ## 2. Connect RisingWave and stream to Iceberg
 
