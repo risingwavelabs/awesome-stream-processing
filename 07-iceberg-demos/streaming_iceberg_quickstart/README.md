@@ -77,8 +77,11 @@ Insert this data into the Iceberg table:
 ```sql
 INSERT INTO crypto_trades
 VALUES
-  (1000001, 'BTCUSDT', 57321.25, 0.005, 'BUY',  'binance', NOW()),
-  (1000002, 'ETHUSDT',  2578.10, 0.250, 'SELL', 'coinbase', NOW());
+  (1000001, 'BTCUSDT', 57321.25, 0.005, 'BUY', 'binance', NOW()),
+  (1000002, 'ETHUSDT', 2578.10, 0.250, 'SELL', 'coinbase', NOW());
+  (1000003, 'SOLUSDT', 168.42, 5.75, 'BUY', 'binance', NOW()),
+  (1000004, 'XRPUSDT', 0.546, 1200, 'SELL', 'coinbase', NOW()),
+  (1000005, 'LTCUSDT', 72.15, 3.20, 'BUY', 'binance', NOW());
 
 ```
 Verify the commit:
@@ -89,7 +92,9 @@ SELECT * FROM crypto_trades;
 ----------+---------+----------+----------+------+----------+----------------------------
   1000001 | BTCUSDT | 57321.25 |   0.005  | BUY  | binance  | 2025-07-17 15:04:56.123
   1000002 | ETHUSDT |  2578.10 |   0.250  | SELL | coinbase | 2025-07-17 15:04:56.456
-
+  1000003 | SOLUSDT |   168.42 |   5.750  | BUY  | binance  | 2025-07-17 15:04:56.789
+  1000004 | XRPUSDT |     0.546| 1200.000 | SELL | coinbase | 2025-07-17 15:04:57.012
+  1000005 | LTCUSDT |    72.15 |   3.200  | BUY  | binance  | 2025-07-17 15:04:57.345
 ```
 Because the table resides in an open Iceberg format, you can immediately query it from Spark, Trino, or Dremio by pointing them at the same warehouse path and hosted catalog endpoint.
 
