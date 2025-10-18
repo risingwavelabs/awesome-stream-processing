@@ -2,6 +2,8 @@
 Create tables that write directly to Apache Iceberg, stream data in real time, and keep everything query-ready for Spark, Trino, or any other engine.
 Use RisingWave with a self-hosted, REST-based Lakekeeper catalog to create an Iceberg catalog, requiring no external services.
 
+<img width="2048" height="1056" alt="image" src="https://github.com/user-attachments/assets/be7eb6c4-f9f9-4d10-a483-9a420a61a00d" />
+
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/): Docker Compose is included with Docker Desktop for Windows and macOS. Ensure Docker Desktop is running if you're using it.
