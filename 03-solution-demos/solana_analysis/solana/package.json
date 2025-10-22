@@ -1,0 +1,20 @@
+{
+  "name": "solana_analysis",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "",
+  "dependencies": {
+    "@solana/web3.js": "^1.98.4",
+    "async": "^3.2.6",
+    "dotenv": "^17.2.2",
+    "node-rdkafka": "^3.5.0",
+    "pg": "^8.16.3"
+  }
+}
