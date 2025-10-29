@@ -182,6 +182,89 @@ Quick peek:
 select * from logistics_joined_mv limit 5;
 ```
 
+### Create a fleet snapshot MV
+
+This creates a materialized view that provides a continuously updated fleet snapshot per truck, combining performance, cost, route, and driver information. It aggregates shipment weight and compares it to truck capacity to compute capacity utilization (%), sums fuel cost (liters × 1.2) and maintenance cost to derive total operational cost, and attaches the current route (ID, ETD, ETA, distance) plus the driver's information (name, license). Output columns include truck metadata alongside these metrics for real-time monitoring and reporting.
+
+```sql
+CREATE MATERIALIZED VIEW truck_fleet_overview AS
+WITH TruckPerformance AS (
+    SELECT
+        t.truck_id,
+        SUM(s.shipment_weight) AS total_shipment_weight,
+        t.capacity_tons * 1000 AS max_capacity_weight 
+    FROM
+        trucks t
+    LEFT JOIN
+        shipments s ON t.truck_id = s.truck_id
+    GROUP BY
+        t.truck_id, t.capacity_tons
+),
+TruckCosts AS (
+    SELECT
+        t.truck_id,
+        SUM(f.liters_filled * 1.2) AS total_fuel_cost,
+        SUM(m.cost_usd) AS total_maintenance_cost
+    FROM
+        trucks t
+    LEFT JOIN
+        fuel f ON t.truck_id = f.truck_id
+    LEFT JOIN
+        maint m ON t.truck_id = m.truck_id
+    GROUP BY
+        t.truck_id
+),
+RouteDetails AS (
+    SELECT
+        r.truck_id,
+        r.route_id,
+        r.driver_id,
+        r.estimated_departure_time,
+        r.estimated_arrival_time,
+        r.distance_km
+    FROM
+        route r
+),
+DriverDetails AS (
+    SELECT
+        d.driver_id,
+        d.driver_name,
+        d.license_number
+    FROM
+        driver d
+)
+SELECT
+    t.truck_id,
+    t.truck_model,
+    tp.total_shipment_weight,
+    tp.max_capacity_weight,
+    ROUND((tp.total_shipment_weight * 100.0 / tp.max_capacity_weight), 2) AS capacity_utilization_percentage,
+    tc.total_fuel_cost,
+    tc.total_maintenance_cost,
+    (tc.total_fuel_cost + tc.total_maintenance_cost) AS total_operational_cost,
+    rd.route_id,
+    rd.estimated_departure_time,
+    rd.estimated_arrival_time,
+    rd.distance_km,
+    dd.driver_name,
+    dd.license_number
+FROM
+    TruckPerformance tp
+JOIN
+    TruckCosts tc ON tp.truck_id = tc.truck_id
+JOIN
+    RouteDetails rd ON tp.truck_id = rd.truck_id
+JOIN
+    DriverDetails dd ON rd.driver_id = dd.driver_id
+JOIN
+    trucks t ON tp.truck_id = t.truck_id;
+```
+
+Query the MV:
+
+```sql
+SELECT * FROM truck_fleet_overview LIMIT 5;
+```
 ### Enable Iceberg engine and create the Iceberg table
 
 ```sql
