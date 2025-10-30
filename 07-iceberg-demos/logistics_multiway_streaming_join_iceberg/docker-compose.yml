@@ -56,7 +56,9 @@ services:
       timeout: 5s
       retries: 5
     restart: always
-
+    networks:
+      iceberg_net:
+      
   # Kafka producer
   kafka-producer:
     build:
@@ -67,7 +69,8 @@ services:
     environment:
       KAFKA_BOOTSTRAP_SERVERS: message_queue:29092
     restart: always
-
+    networks:
+      iceberg_net:
   # RisingWave Services - Distributed Mode
   compactor-0:
     <<: *image
