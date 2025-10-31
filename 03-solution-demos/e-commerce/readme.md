@@ -1,6 +1,6 @@
 ## Background
 
-User segmentation in e-commerce is the operational method of dividing users into similar subgroups based on their characteristics, behaviors, or needs. It enables platforms to achieve precise marketing, optimize product categories, and provide personalized experiences. Additionally, it supports layered operation throughout the user lifecycle and competitive analysis, serving as the core foundation for refined e-commerce operations and enhancing efficiency and user value.
+User segmentation in e-commerce is the operational method of dividing users into similar subgroups based on their characteristics, behaviors, or needs. It enables platforms to achieve precise marketing, optimize product categories, and provide personalized experiences. Additionally, it supports stratified operation throughout the user lifecycle and competitive analysis, serving as the core foundation for refined e-commerce operations and enhancing efficiency and user value.
 
 ### **I. Customer Segmentation Framework**
 
@@ -87,7 +87,7 @@ Ensure that [RisingWave](https://docs.risingwave.com/get-started/quickstart) and
 
 We display the total number of users in all segmented groups using a bar chart, and this dashboard supports real-time addition of user data.
 
-![dashboard](./images/dashboard.png)
+![dashboard](./doc/images/dashboard.png)
 
 
 
@@ -95,7 +95,7 @@ We display the total number of users in all segmented groups using a bar chart, 
 
 ### Overview
 
-![E-commerce](./images/E-commerce.svg)
+![E-commerce](./doc/images/E-commerce demo.svg)
 
 ### **1 -** Data Collection
 
@@ -146,7 +146,7 @@ Every user behavior event generates a record that will be sent to **Kafka**.
 
 One order stream corresponds to one purchase event stream, and the two tables are associated through the `event_id`.
 
-<img src="./images/source table.png" alt="source table" style="zoom:50%;" />
+<img src="./doc/images/source table.png" alt="source table" style="zoom:50%;" />
 
 **RisingWave** will read data from **Kafka** and store it in the **Source** Table.
 
@@ -239,7 +239,7 @@ ON u.id = g.id;
 ```
 
 >
-> It should be noted here that **RisingWave** does not support **streaming nested loops with non-equi joins**. Therefore, when connecting these two **MV**s here, we need to specify an additional attribute.
+> It should be noted here that **RisingWave** does not support **streaming nested loops with non-equijoin**. Therefore, when connecting these two **MV**s here, we need to specify an additional attribute.
 >
 
 ### 4 - Scoring
