@@ -95,7 +95,7 @@ We display the total number of users in all segmented groups using a bar chart, 
 
 ### Overview
 
-![E-commerce](./doc/images/E-commerce demo.svg)
+![E-commerce](./doc/images/E-commerce%20demo.svg)
 
 ### **1 -** Data Collection
 
