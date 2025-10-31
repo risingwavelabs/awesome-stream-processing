@@ -79,7 +79,7 @@ Ensure that [RisingWave](https://docs.risingwave.com/get-started/quickstart) and
 
 **The data flow picture:**
 
-![data flow](image/data flow.svg)
+![data flow](image/data%20flow.svg)
 
 1. **Data Capture (Solana RPC):**
 
@@ -89,7 +89,7 @@ Ensure that [RisingWave](https://docs.risingwave.com/get-started/quickstart) and
 
    A custom script purifies the raw blockchain data, filtering for key events like SOL and SPL-Token transfers. This transforms raw bytes into a structured, analyzable format. The script uses a worker pool for parallel processing to keep up with Solana's speed. The collected data will then be sent to a Kafka topic.
 
-​	![solana scripts](image/solana scripts.svg)
+​	![solana scripts](image/solana%20scripts.svg)
 
 3. **Streaming Engine (RisingWave)**:
 
