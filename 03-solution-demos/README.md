@@ -18,3 +18,7 @@ Here are the runnable demos so far:
 
 * [Traffic flow monitoring and predication](/03-solution-demos/traffic_prediction): Detect traffic flow by ingesting car speed events in real-time, and predict the traffic flow based historical data and a ML model.
 
+* [E-commerce user segmentation](/03-solution-demos/e-commerce): Analyze user behavior in real time based on users' click and purchase records on e-commerce platforms, and conduct scoring and segmentation by combining RFM Dimensions and Behavioral Pattern Dimensions.
+
+* [Real-time on-chain analysis](/03-solution-demos/solana_analysis): Monitor data on the Solana chain in real-time, filter out SOL Transfer and SPL-Token Transfer, and perform aggregate statistics via RisingWave.
+
