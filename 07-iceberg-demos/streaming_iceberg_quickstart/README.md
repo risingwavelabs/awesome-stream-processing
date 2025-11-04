@@ -80,7 +80,7 @@ Insert this data into the Iceberg table:
 INSERT INTO crypto_trades
 VALUES
   (1000001, 'BTCUSDT', 57321.25, 0.005, 'BUY', 'binance', NOW()),
-  (1000002, 'ETHUSDT', 2578.10, 0.250, 'SELL', 'coinbase', NOW());
+  (1000002, 'ETHUSDT', 2578.10, 0.250, 'SELL', 'coinbase', NOW()),
   (1000003, 'SOLUSDT', 168.42, 5.75, 'BUY', 'binance', NOW()),
   (1000004, 'XRPUSDT', 0.546, 1200, 'SELL', 'coinbase', NOW()),
   (1000005, 'LTCUSDT', 72.15, 3.20, 'BUY', 'binance', NOW());
