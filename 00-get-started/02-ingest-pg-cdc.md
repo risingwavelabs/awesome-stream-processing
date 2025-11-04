@@ -51,7 +51,7 @@ CREATE TABLE pg_users (
     id integer,
     age integer,
     name varchar,
-    city varchar
+    city varchar,
     PRIMARY KEY (id)
 ) FROM pg_mydb TABLE 'public.users';
 ```
@@ -71,7 +71,7 @@ CREATE TABLE pg_users (
     id integer,
     age integer,
     name varchar,
-    city varchar
+    city varchar,
     PRIMARY KEY (id)
 ) FROM pg_mydb TABLE 'public.users';
 ```

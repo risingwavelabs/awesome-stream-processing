@@ -37,9 +37,9 @@ Next, in the window running PostgreSQL, run the following query to update the ta
 
 ```sql
 INSERT INTO users (name, age, city) VALUES
-    (4, 'Aaron Reed', 18, 'San Francisco'),
-    (5, 'Denice Tucker', 21, 'Beijing'),
-    (6, 'Paul Lewis', 35, 'New York');
+    ('Aaron Reed', 18, 'San Francisco'),
+    ('Denice Tucker', 21, 'Beijing'),
+    ('Paul Lewis', 35, 'New York');
 ```
 
 These new changes will be reflected in the `atleast21` materialized view in RisingWave. Check by querying from `atleast21` again. The average age of each city should be updated.
