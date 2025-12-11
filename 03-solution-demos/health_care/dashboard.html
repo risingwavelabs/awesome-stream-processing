@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Vital Signs Alert Monitoring Center</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- ECharts (retained CDN but unused, remove if not needed) -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <!-- Axios (API Requests) -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF', // Medical primary blue
+                        danger: '#F53F3F',   // Level 2 alert (Critical)
+                        warning: '#FF7D00',  // Level 1 alert (Warning)
+                        success: '#00B42A',  // Resolved
+                        neutral: '#86909C',  // Regular text
+                        'bg-light': '#F7F8FA', // Light background
+                        card: '#FFFFFF',     // Card white
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Arial', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .card-shadow {
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            }
+            .alert-row-hover {
+                transition: all 0.2s ease;
+            }
+            .alert-row-hover:hover {
+                background-color: #F0F7FF;
+            }
+            /* Core modification: Enlarge column header font, adjust padding for aesthetics */
+            .alert-table-cell {
+                padding: 0.75rem 1rem; /* Cell padding */
+                font-size: 0.75rem; /* Cell content font (unchanged) */
+                line-height: 1.2;
+            }
+            .alert-table-th {
+                padding: 0.75rem 1rem;
+                font-size: 0.9rem !important; /* Enlarge column header font (core modification) */
+                font-weight: 600; /* Bold header */
+                white-space: nowrap; /* Prevent header wrapping */
+            }
+        }
+    </style>
+</head>
+<body class="bg-bg-light min-h-screen font-sans">
+<!-- Top Navigation -->
+<header class="bg-white shadow-sm sticky top-0 z-10">
+    <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+            <i class="fa-solid fa-bell-pulse text-primary text-2xl"></i>
+            <h1 class="text-[clamp(1.2rem,2vw,1.8rem)] font-bold text-gray-800">Medical Vital Signs Alert Monitoring Center</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="text-neutral text-sm">
+                <i class="fa-solid fa-clock mr-1"></i>
+                <span id="current-time">2024-01-01 00:00:00</span>
+            </div>
+            <button id="refresh-btn" class="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-primary/90 transition-colors">
+                <i class="fa-solid fa-refresh"></i>
+                <span>Refresh Data</span>
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- Core Content Area -->
+<main class="container mx-auto px-4 py-6">
+    <!-- Stat Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- Total Alerts -->
+        <div class="bg-card rounded-xl p-6 card-shadow">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-neutral text-sm mb-1">Total Alerts</p>
+                    <h3 class="text-3xl font-bold text-gray-800" id="total-alerts">0</h3>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <i class="fa-solid fa-triangle-exclamation text-primary text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4 text-xs text-neutral">
+                <span class="text-danger mr-4"><i class="fa-solid fa-circle"></i> Level 2 Alerts: <span id="level2-count">0</span></span>
+                <span class="text-warning"><i class="fa-solid fa-circle"></i> Level 1 Alerts: <span id="level1-count">0</span></span>
+            </div>
+        </div>
+
+        <!-- Pending Alerts -->
+        <div class="bg-card rounded-xl p-6 card-shadow">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-neutral text-sm mb-1">Pending Alerts</p>
+                    <h3 class="text-3xl font-bold text-danger" id="pending-count">0</h3>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-danger/10 flex items-center justify-center">
+                    <i class="fa-solid fa-hourglass-half text-danger text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4 text-xs text-neutral">
+                <span class="text-primary">Vs 10 mins ago <span class="font-medium" id="pending-trend">+0</span></span>
+            </div>
+        </div>
+
+        <!-- Confirmed Alerts -->
+        <div class="bg-card rounded-xl p-6 card-shadow">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-neutral text-sm mb-1">Confirmed Alerts</p>
+                    <h3 class="text-3xl font-bold text-warning" id="confirmed-count">0</h3>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center">
+                    <i class="fa-solid fa-check-circle text-warning text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4 text-xs text-neutral">
+                <span class="text-primary">Confirmation Rate: <span id="confirmed-rate">0</span>%</span>
+            </div>
+        </div>
+
+        <!-- Resolved Alerts -->
+        <div class="bg-card rounded-xl p-6 card-shadow">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-neutral text-sm mb-1">Resolved Alerts</p>
+                    <h3 class="text-3xl font-bold text-success" id="resolved-count">0</h3>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center">
+                    <i class="fa-solid fa-circle-check text-success text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4 text-xs text-neutral">
+                <span class="text-primary">Resolution Rate: <span id="resolved-rate">0</span>%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter + List Area -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Left: Filter Panel -->
+        <div class="lg:col-span-1">
+            <!-- Filter Panel -->
+            <div class="bg-card rounded-xl p-6 card-shadow">
+                <h4 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-filter text-primary"></i>
+                    Filter Criteria
+                </h4>
+                <div class="space-y-4">
+                    <!-- Alert Level Filter -->
+                    <div>
+                        <label class="text-sm text-neutral block mb-2">Alert Level</label>
+                        <div class="flex flex-wrap gap-2">
+                            <button class="level-filter-btn all active px-3 py-1 rounded-full text-sm border border-primary text-primary hover:bg-primary/10 transition-colors">
+                                All
+                            </button>
+                            <button class="level-filter-btn level1 px-3 py-1 rounded-full text-sm border border-warning text-warning hover:bg-warning/10 transition-colors">
+                                Level 1 (Warning)
+                            </button>
+                            <button class="level-filter-btn level2 px-3 py-1 rounded-full text-sm border border-danger text-danger hover:bg-danger/10 transition-colors">
+                                Level 2 (Critical)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Handling Status Filter -->
+                    <div>
+                        <label class="text-sm text-neutral block mb-2">Handling Status</label>
+                        <div class="flex flex-wrap gap-2">
+                            <button class="status-filter-btn all active px-3 py-1 rounded-full text-sm border border-primary text-primary hover:bg-primary/10 transition-colors">
+                                All
+                            </button>
+                            <button class="status-filter-btn pending px-3 py-1 rounded-full text-sm border border-danger text-danger hover:bg-danger/10 transition-colors">
+                                Pending
+                            </button>
+                            <button class="status-filter-btn confirmed px-3 py-1 rounded-full text-sm border border-warning text-warning hover:bg-warning/10 transition-colors">
+                                Confirmed
+                            </button>
+                            <button class="status-filter-btn resolved px-3 py-1 rounded-full text-sm border border-success text-success hover:bg-success/10 transition-colors">
+                                Resolved
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Time Range Filter -->
+                    <div>
+                        <label class="text-sm text-neutral block mb-2">Time Range</label>
+                        <select id="time-range" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <option value="1h">Last 1 Hour</option>
+                            <option value="6h">Last 6 Hours</option>
+                            <option value="12h" selected>Last 12 Hours</option>
+                            <option value="24h">Last 24 Hours</option>
+                            <option value="7d">Last 7 Days</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Alert List -->
+        <div class="lg:col-span-3">
+            <div class="bg-card rounded-xl card-shadow overflow-hidden">
+                <!-- List Header -->
+                <div class="p-4 border-b border-gray-100">
+                    <h4 class="font-bold text-gray-800 mb-2 flex items-center gap-2 text-base">
+                        <i class="fa-solid fa-list text-primary"></i>
+                        Alert Details List
+                    </h4>
+                    <p class="text-xs text-neutral">Total <span id="list-count" class="text-primary font-medium">0</span> records</p>
+                </div>
+
+                <!-- List Content -->
+                <div class="w-full">
+                    <table class="w-full table-fixed">
+                        <thead>
+                        <tr class="bg-gray-50 text-left">
+                            <!-- Enlarged column headers -->
+                            <th class="alert-table-th w-[8%]">Patient ID</th>
+                            <th class="alert-table-th w-[20%]">Alert Time</th>
+                            <th class="alert-table-th w-[25%]">Alert Type</th>
+                            <th class="alert-table-th w-[12%]">Alert Level</th>
+                            <th class="alert-table-th w-[10%]">Status</th>
+                            <th class="alert-table-th w-[15%]">Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody id="alert-list">
+                        <!-- Loading Placeholder -->
+                        <tr>
+                            <td colspan="6" class="alert-table-cell text-center text-neutral">
+                                <i class="fa-solid fa-spinner fa-spin mr-2"></i>
+                                Loading alert data...
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State Placeholder -->
+                <div id="empty-state" class="hidden px-6 py-20 text-center">
+                    <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-100 mb-4">
+                        <i class="fa-solid fa-bell-slash text-3xl text-neutral"></i>
+                    </div>
+                    <p class="text-neutral">No alert data matches the criteria</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Alert Detail Modal -->
+<div id="alert-detail-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-card rounded-xl w-full max-w-2xl max-h-[80vh] overflow-auto card-shadow">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+            <h4 class="font-bold text-xl text-gray-800">Alert Details</h4>
+            <button id="close-modal" class="text-neutral hover:text-gray-800 transition-colors">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+        <div class="p-6 space-y-4" id="modal-content">
+            <!-- Dynamically populated details -->
+        </div>
+        <div class="p-6 border-t border-gray-100 flex justify-end gap-3">
+            <button id="cancel-modal" class="px-4 py-2 border border-gray-300 rounded-lg text-neutral hover:bg-gray-50 transition-colors">
+                Close
+            </button>
+            <button id="mark-resolved" class="px-4 py-2 bg-success text-white rounded-lg hover:bg-success/90 transition-colors hidden">
+                <i class="fa-solid fa-check mr-1"></i>
+                Mark as Resolved
+            </button>
+            <button id="mark-confirmed" class="px-4 py-2 bg-warning text-white rounded-lg hover:bg-warning/90 transition-colors hidden">
+                <i class="fa-solid fa-check-circle mr-1"></i>
+                Mark as Confirmed
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ===================== Global Configuration =====================
+    const API_BASE_URL = 'http://localhost:8000/api';
+    let currentAlertId = ''; // Currently selected alert ID
+
+    // ===================== Utility Functions =====================
+    /**
+     * Format time
+     * @param {String} timeStr - Time string
+     * @returns {String} Formatted time
+     */
+    function formatTime(timeStr) {
+        if (!timeStr) return '-';
+        const date = new Date(timeStr);
+        return date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    }
+
+    /**
+     * Set button active state
+     * @param {String} className - Button class name
+     * @param {String} activeValue - Active value
+     */
+    function setActiveBtn(className, activeValue) {
+        document.querySelectorAll(`.${className}`).forEach(btn => {
+            if (btn.classList.contains(activeValue)) {
+                btn.classList.add('active', 'bg-primary/10');
+                btn.classList.remove('bg-white');
+            } else {
+                btn.classList.remove('active', 'bg-primary/10');
+                btn.classList.add('bg-white');
+            }
+        });
+    }
+
+    // ===================== API Request Functions =====================
+    /**
+     * Get alert statistics
+     */
+    async function getAlertStats() {
+        try {
+            const res = await axios.get(`${API_BASE_URL}/alert/stats`);
+            if (res.data.code === 200) {
+                const data = res.data.data;
+                // Update stat cards
+                document.getElementById('total-alerts').textContent = data.total_alerts || 0;
+                document.getElementById('level1-count').textContent = data.level1_count || 0;
+                document.getElementById('level2-count').textContent = data.level2_count || 0;
+                document.getElementById('pending-count').textContent = data.pending_count || 0;
+                document.getElementById('confirmed-count').textContent = data.confirmed_count || 0;
+                document.getElementById('resolved-count').textContent = data.resolved_count || 0;
+                document.getElementById('confirmed-rate').textContent = data.confirmed_rate || 0;
+                document.getElementById('resolved-rate').textContent = data.resolved_rate || 0;
+                document.getElementById('pending-trend').textContent = data.pending_trend || '+0';
+            }
+        } catch (err) {
+            console.error('Failed to get alert stats:', err);
+            alert('Failed to get alert statistics. Please check if API service is running');
+        }
+    }
+
+    /**
+     * Get alert list
+     * @param {Object} params - Filter parameters
+     */
+    async function getAlertList(params = {}) {
+        try {
+            // Show loading state
+            document.getElementById('alert-list').innerHTML = `
+                    <tr>
+                        <td colspan="6" class="alert-table-cell text-center text-neutral">
+                            <i class="fa-solid fa-spinner fa-spin mr-2"></i>
+                            Loading alert data...
+                        </td>
+                    </tr>
+                `;
+            const res = await axios.get(`${API_BASE_URL}/alert/list`, { params });
+            if (res.data.code === 200) {
+                const { list, count } = res.data.data;
+                document.getElementById('list-count').textContent = count || 0;
+
+                // Handle empty data
+                if (count === 0) {
+                    document.getElementById('alert-list').innerHTML = '';
+                    document.getElementById('empty-state').classList.remove('hidden');
+                    return;
+                }
+                document.getElementById('empty-state').classList.add('hidden');
+
+                // Render list
+                let html = '';
+                list.forEach(item => {
+                    // Status style
+                    let statusClass = '';
+                    if (item.handleStatus === 'pending') statusClass = 'text-danger';
+                    else if (item.handleStatus === 'confirmed') statusClass = 'text-warning';
+                    else if (item.handleStatus === 'resolved') statusClass = 'text-success';
+
+                    // Level style
+                    let levelClass = item.alertLevel === 'level1' ? 'text-warning' : 'text-danger';
+                    let levelText = item.alertLevel === 'level1' ? 'Level 1' : 'Level 2';
+
+                    html += `
+                            <tr class="alert-row-hover border-b border-gray-100">
+                                <td class="alert-table-cell">
+                                    <span class="text-sm font-medium text-gray-800">${item.patientId || '-'}</span>
+                                </td>
+                                <td class="alert-table-cell">
+                                    <span class="text-sm text-gray-600">${formatTime(item.alertTime)}</span>
+                                </td>
+                                <td class="alert-table-cell">
+                                    <span class="text-sm text-gray-600">${item.alertTypeText || '-'}</span>
+                                </td>
+                                <td class="alert-table-cell">
+                                    <span class="text-sm font-medium ${levelClass}">${levelText}</span>
+                                </td>
+                                <td class="alert-table-cell">
+                                    <span class="text-sm ${statusClass}">${item.handleStatusText || 'Pending'}</span>
+                                </td>
+                                <td class="alert-table-cell">
+                                    <button class="view-detail-btn text-primary text-sm hover:text-primary/80 transition-colors"
+                                            data-alert='${JSON.stringify(item)}'>
+                                        <i class="fa-solid fa-eye mr-1"></i>Details
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                });
+                document.getElementById('alert-list').innerHTML = html;
+
+                // Bind detail button events
+                bindDetailBtnEvent();
+            }
+        } catch (err) {
+            console.error('Failed to get alert list:', err);
+            document.getElementById('alert-list').innerHTML = `
+                    <tr>
+                        <td colspan="6" class="alert-table-cell text-center text-neutral">
+                            <i class="fa-solid fa-exclamation-circle mr-2 text-danger"></i>
+                            Load failed: ${err.message}
+                        </td>
+                    </tr>
+                `;
+        }
+    }
+
+    /**
+     * Update alert status
+     * @param {String} alertId - Alert ID
+     * @param {String} status - Status (confirmed/resolved)
+     */
+    async function updateAlertStatus(alertId, status) {
+        try {
+            const res = await axios.post(`${API_BASE_URL}/alert/update-status`, {
+                alertId,
+                status
+            });
+            if (res.data.code === 200) {
+                alert(res.data.msg);
+                // Close modal and refresh data
+                closeModal();
+                loadAllData();
+            } else {
+                alert(res.data.msg || 'Update failed');
+            }
+        } catch (err) {
+            console.error('Failed to update status:', err);
+            alert('Failed to update alert status: ' + err.message);
+        }
+    }
+
+    // ===================== Event Binding =====================
+    /**
+     * Bind detail button events
+     */
+    function bindDetailBtnEvent() {
+        document.querySelectorAll('.view-detail-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const alertData = JSON.parse(this.getAttribute('data-alert'));
+                currentAlertId = alertData.alertId;
+                showDetailModal(alertData);
+            });
+        });
+    }
+
+    /**
+     * Show detail modal - Render only fields with values
+     * @param {Object} alertData - Alert data
+     */
+    function showDetailModal(alertData) {
+        // 1. Build basic info module
+        let basicHtml = '';
+        let basicFields = [];
+
+        if (alertData.patientId && alertData.patientId !== '-') {
+            basicFields.push(`
+                <div class="space-y-2">
+                    <p class="text-sm text-neutral">Patient ID</p>
+                    <p class="text-base font-medium">${alertData.patientId}</p>
+                </div>
+            `);
+        }
+        if (alertData.deviceId && alertData.deviceId !== '-') {
+            basicFields.push(`
+                <div class="space-y-2">
+                    <p class="text-sm text-neutral">Device ID</p>
+                    <p class="text-base">${alertData.deviceId}</p>
+                </div>
+            `);
+        }
+        if (alertData.alertTime && alertData.alertTime !== '-') {
+            basicFields.push(`
+                <div class="space-y-2">
+                    <p class="text-sm text-neutral">Alert Time</p>
+                    <p class="text-base">${formatTime(alertData.alertTime)}</p>
+                </div>
+            `);
+        }
+        if (alertData.measureTime && alertData.measureTime !== '-') {
+            basicFields.push(`
+                <div class="space-y-2">
+                    <p class="text-sm text-neutral">Measurement Time</p>
+                    <p class="text-base">${formatTime(alertData.measureTime)}</p>
+                </div>
+            `);
+        }
+        if (alertData.alertTypeText && alertData.alertTypeText !== '-') {
+            basicFields.push(`
+                <div class="space-y-2">
+                    <p class="text-sm text-neutral">Alert Type</p>
+                    <p class="text-base">${alertData.alertTypeText}</p>
+                </div>
+            `);
+        }
+        if (alertData.alertLevelText && alertData.alertLevelText !== '-') {
+            basicFields.push(`
+                <div class="space-y-2">
+                    <p class="text-sm text-neutral">Alert Level</p>
+                    <p class="text-base font-medium ${alertData.alertLevel === 'level1' ? 'text-warning' : 'text-danger'}">
+                        ${alertData.alertLevelText}
+                    </p>
+                </div>
+            `);
+        }
+        if (alertData.handleStatusText && alertData.handleStatusText !== '-') {
+            basicFields.push(`
+                <div class="space-y-2">
+                    <p class="text-sm text-neutral">Handling Status</p>
+                    <p class="text-base ${
+                alertData.handleStatus === 'pending' ? 'text-danger' :
+                    alertData.handleStatus === 'confirmed' ? 'text-warning' : 'text-success'
+            }">
+                        ${alertData.handleStatusText}
+                    </p>
+                </div>
+            `);
+        }
+        if (alertData.handleTime && alertData.handleTime !== '-') {
+            basicFields.push(`
+                <div class="space-y-2">
+                    <p class="text-sm text-neutral">Handling Time</p>
+                    <p class="text-base">${formatTime(alertData.handleTime)}</p>
+                </div>
+            `);
+        }
+
+        if (basicFields.length > 0) {
+            basicHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">${basicFields.join('')}</div>`;
+        }
+
+        // 2. Build alert details module
+        let detailHtml = '';
+        if (alertData.alertDetail && alertData.alertDetail !== '-') {
+            detailHtml = `
+                <div class="mt-6 pt-4 border-t border-gray-100">
+                    <p class="text-sm text-neutral mb-2">Alert Details</p>
+                    <p class="text-base p-3 bg-gray-50 rounded-lg">${alertData.alertDetail}</p>
+                </div>
+            `;
+        }
+
+        // 3. Build vital signs module
+        let vitalHtml = '';
+        let vitalFields = [];
+        if (alertData.heartRate && alertData.heartRate !== '-') {
+            vitalFields.push(`
+                <div class="space-y-2">
+                    <p class="text-sm text-neutral">Heart Rate</p>
+                    <p class="text-base font-medium">${alertData.heartRate} bpm</p>
+                </div>
+            `);
+        }
+        if (alertData.bloodOxygen && alertData.bloodOxygen !== '-') {
+            vitalFields.push(`
+                <div class="space-y-2">
+                    <p class="text-sm text-neutral">Blood Oxygen Saturation</p>
+                    <p class="text-base font-medium">${alertData.bloodOxygen} %</p>
+                </div>
+            `);
+        }
+        if (alertData.bloodGlucose && alertData.bloodGlucose !== '-') {
+            vitalFields.push(`
+                <div class="space-y-2">
+                    <p class="text-sm text-neutral">Blood Glucose</p>
+                    <p class="text-base font-medium">${alertData.bloodGlucose} mmol/L</p>
+                </div>
+            `);
+        }
+        if (vitalFields.length > 0) {
+            vitalHtml = `
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    ${vitalFields.join('')}
+                </div>
+            `;
+        }
+
+        // 4. Assemble final HTML
+        const finalHtml = basicHtml + detailHtml + vitalHtml;
+        document.getElementById('modal-content').innerHTML = finalHtml;
+
+        // Show/hide action buttons
+        const markConfirmedBtn = document.getElementById('mark-confirmed');
+        const markResolvedBtn = document.getElementById('mark-resolved');
+
+        markConfirmedBtn.classList.add('hidden');
+        markResolvedBtn.classList.add('hidden');
+
+        if (alertData.handleStatus === 'pending') {
+            markConfirmedBtn.classList.remove('hidden');
+            markResolvedBtn.classList.remove('hidden');
+        } else if (alertData.handleStatus === 'confirmed') {
+            markResolvedBtn.classList.remove('hidden');
+        }
+
+        // Show modal
+        document.getElementById('alert-detail-modal').classList.remove('hidden');
+    }
+
+    /**
+     * Close modal
+     */
+    function closeModal() {
+        document.getElementById('alert-detail-modal').classList.add('hidden');
+        currentAlertId = '';
+    }
+
+    /**
+     * Load all data
+     */
+    function loadAllData() {
+        const activeLevel = document.querySelector('.level-filter-btn.active').classList[1];
+        const activeStatus = document.querySelector('.status-filter-btn.active').classList[1];
+        const timeRange = document.getElementById('time-range').value;
+
+        getAlertStats();
+        getAlertList({
+            level: activeLevel,
+            status: activeStatus,
+            timeRange: timeRange
+        });
+    }
+
+    // ===================== Page Initialization =====================
+    window.onload = function() {
+        // 1. Update current time
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('current-time').textContent = now.toLocaleString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }, 1000);
+
+        // 2. Bind filter button events
+        document.querySelectorAll('.level-filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const level = this.classList[1];
+                setActiveBtn('level-filter-btn', level);
+                loadAllData();
+            });
+        });
+
+        document.querySelectorAll('.status-filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const status = this.classList[1];
+                setActiveBtn('status-filter-btn', status);
+                loadAllData();
+            });
+        });
+
+        document.getElementById('time-range').addEventListener('change', function() {
+            loadAllData();
+        });
+
+        // 3. Bind refresh button event
+        document.getElementById('refresh-btn').addEventListener('click', loadAllData);
+
+        // 4. Bind modal close events
+        document.getElementById('close-modal').addEventListener('click', closeModal);
+        document.getElementById('cancel-modal').addEventListener('click', closeModal);
+
+        // 5. Bind status update button events
+        document.getElementById('mark-confirmed').addEventListener('click', function() {
+            if (currentAlertId) {
+                updateAlertStatus(currentAlertId, 'confirmed');
+            }
+        });
+        document.getElementById('mark-resolved').addEventListener('click', function() {
+            if (currentAlertId) {
+                updateAlertStatus(currentAlertId, 'resolved');
+            }
+        });
+
+        // 6. Initialize data loading
+        loadAllData();
+    };
+</script>
+</body>
+</html>
