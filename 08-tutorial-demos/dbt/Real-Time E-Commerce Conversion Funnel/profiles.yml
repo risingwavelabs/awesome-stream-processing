@@ -5,8 +5,8 @@ funnel_profile:
       type: risingwave
       host: 127.0.0.1
       user: root
-      pass: ""       # RisingWave standalone 默认无密码
+      pass: ""
       dbname: dev
-      port: 4566     # RisingWave 默认端口
+      port: 4566     # RisingWave default port
       schema: public
       threads: 1
