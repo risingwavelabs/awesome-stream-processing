@@ -1,0 +1,12 @@
+funnel_profile:
+  target: dev
+  outputs:
+    dev:
+      type: risingwave
+      host: 127.0.0.1
+      user: root
+      pass: ""
+      dbname: dev
+      port: 4566     # RisingWave default port
+      schema: public
+      threads: 1

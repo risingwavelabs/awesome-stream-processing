@@ -1,0 +1,12 @@
+name: 'realtime_funnel'
+version: '1.0.0'
+config-version: 2
+
+profile: 'funnel_profile'
+
+model-paths: ["models"]
+target-path: "target"
+
+models:
+  realtime_funnel:
+    +materialized: materialized_view
