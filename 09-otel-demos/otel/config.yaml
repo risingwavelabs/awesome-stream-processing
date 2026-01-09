@@ -1,0 +1,30 @@
+receivers:
+  prometheus:
+    config:
+      global:
+        scrape_interval: 15s
+        evaluation_interval: 1m
+
+      scrape_configs:
+      - job_name: rwstandalone
+        static_configs:
+        - targets: ["rw-svc:1250"]
+
+exporters:
+  otlphttp:
+    encoding: json
+    compression: none
+    traces_endpoint: http://rw-svc:4560/webhook/dev/public/otel_traces
+    metrics_endpoint: http://rw-svc:4560/webhook/dev/public/otel_metrics
+    logs_endpoint: http://rw-svc:4560/webhook/dev/public/otel_logs
+    profiles_endpoint: http://rw-svc:4560/webhook/dev/public/otel_profiles
+
+processors:
+  batch:
+
+service:
+  pipelines:
+    metrics:
+      receivers: [prometheus]
+      processors: []
+      exporters: [otlphttp]
