@@ -7,8 +7,12 @@ This demo showcases a real-time dynamic pricing pipeline for a retail scenario (
 
 ## Launch the demo cluster
 
-### 1) Start the stack
+### 1) Clone the demo repo and start the stack
 ```bash
+git clone https://github.com/risingwavelabs/awesome-stream-processing.git
+cd awesome-stream-processing/03-solution-demos/live-inventory-management-and-dynamic-pricing
+
+# Launch demo stack
 docker compose up -d
 ```
 
