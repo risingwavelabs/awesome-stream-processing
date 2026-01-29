@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Network Anomalies</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <style>
+        .glass { background: rgba(255,255,255,.85); backdrop-filter: blur(10px); }
+        .soft-shadow { box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06); }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+        .chip { border: 1px solid rgba(148,163,184,.55); }
+
+        /* prettier search */
+        .search-wrap {
+            position: relative;
+            border-radius: 18px;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(15,23,42,.08), rgba(15,23,42,.02));
+        }
+        .search-wrap:focus-within {
+            background: linear-gradient(135deg, rgba(15,23,42,.22), rgba(15,23,42,.06));
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.10);
+        }
+        .search-inner {
+            border-radius: 17px;
+            background: rgba(255,255,255,.92);
+            border: 1px solid rgba(148,163,184,.35);
+        }
+        .search-input {
+            background: transparent;
+            outline: none;
+            width: 100%;
+            padding: 14px 14px 14px 44px;
+            font-size: 14px;
+            color: rgb(15,23,42);
+        }
+        .search-input::placeholder { color: rgba(100,116,139,.85); }
+        .search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(100,116,139,.9);
+            pointer-events: none;
+        }
+
+        /* shared control (for time inputs) */
+        .control-wrap {
+            position: relative;
+            border-radius: 18px;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(15,23,42,.08), rgba(15,23,42,.02));
+        }
+        .control-wrap:focus-within {
+            background: linear-gradient(135deg, rgba(15,23,42,.22), rgba(15,23,42,.06));
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.10);
+        }
+        .control-inner {
+            border-radius: 17px;
+            background: rgba(255,255,255,.92);
+            border: 1px solid rgba(148,163,184,.35);
+        }
+
+
+        /* flatpickr */
+        .flatpickr-input {
+            border: 1px solid rgba(148,163,184,.35) !important;
+            border-radius: 16px !important;
+            background: rgba(255,255,255,.92) !important;
+            outline: none !important;
+            width: 100% !important;
+        }
+        .flatpickr-input:focus {
+            border-color: rgba(100,116,139,.8) !important;
+            box-shadow: 0 0 0 6px rgba(226,232,240,.8) !important;
+        }
+
+        .time-icon {
+          position: absolute;
+          left: 14px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: rgba(100,116,139,.9);
+          pointer-events: none;
+        }
+        .time-input {
+          background: transparent;
+          outline: none;
+          width: 100%;
+          padding: 14px 14px 14px 44px;
+          font-size: 14px;
+          color: rgb(15,23,42);
+        }
+        .time-input::placeholder { color: rgba(100,116,139,.85); }
+
+        /* floating cap tweak */
+        .field-cap {
+            position: absolute;
+            top: -10px;
+            left: 16px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(71,85,105,1);
+            background: rgba(255,255,255,.85);
+            border: 1px solid rgba(148,163,184,.28);
+            border-radius: 999px;
+            backdrop-filter: blur(10px);
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+
+<body class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 p-6 md:p-10">
+
+<!-- Loading overlay -->
+<div id="loadingOverlay" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"></div>
+    <div class="relative h-full w-full flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 px-6 py-5 flex items-center gap-4">
+            <div class="h-10 w-10 rounded-full border-4 border-slate-200 border-t-slate-900 animate-spin"></div>
+            <div>
+                <div class="text-slate-900 font-semibold">Loading results…</div>
+                <div class="text-slate-500 text-sm">Fetching anomalies</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Header -->
+<div class="mb-7 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div>
+        <h1 class="text-4xl font-bold tracking-tight flex items-center gap-3">
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-yellow-50">⚠️</span>
+            <span>Network Anomalies</span>
+        </h1>
+        <!-- removed the "Dashboard for ..." line as requested -->
+    </div>
+
+    <div class="text-xs text-slate-500 text-right">
+        <div id="lastUpdated">Updated: --</div>
+    </div>
+</div>
+
+<!-- Controls -->
+<div class="glass soft-shadow rounded-3xl border border-slate-200/60 p-5 mb-7">
+    <!-- Controls grid: 2 rows for clarity -->
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+        <!-- Search: wider -->
+        <div class="md:col-span-4">
+            <div class="search-wrap w-full">
+                <div class="search-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <path d="M21 21l-4.35-4.35m1.35-5.15a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z"
+                              stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <div class="search-inner">
+                    <input id="q" class="search-input"
+                           placeholder="Search device or time…"
+                           oninput="scheduleLoad()" />
+                </div>
+            </div>
+        </div>
+        <!-- From -->
+        <div class="md:col-span-3">
+            <div class="control-wrap w-full">
+                <div class="field-cap">From</div>
+                <div class="time-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M7 3v2m10-2v2M4 8h16M6 12h4m-4 4h4m4-4h4m-4 4h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M6 5h12a2 2 0 012 2v13a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </div>
+                <div class="control-inner">
+                    <input id="fromTs" class="time-input" type="text" placeholder="From (YYYY-MM-DD HH:mm)" />
+                </div>
+            </div>
+        </div>
+        <!-- To -->
+        <div class="md:col-span-3">
+            <div class="control-wrap w-full">
+                <div class="field-cap">To</div>
+                <div class="time-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M7 3v2m10-2v2M4 8h16M6 12h4m-4 4h4m4-4h4m-4 4h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M6 5h12a2 2 0 012 2v13a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </div>
+                <div class="control-inner">
+                    <input id="toTs" class="time-input" type="text" placeholder="To (YYYY-MM-DD HH:mm)" />
+                </div>
+            </div>
+        </div>
+        <!-- sort -->
+        <div class="md:col-span-2">
+            <div class="control-wrap w-full">
+                <div class="time-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <path d="M10 6h10M10 12h7M10 18h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M4 6h2M4 12h2M4 18h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <div class="control-inner">
+                    <select id="sort" onchange="scheduleLoad()" class="time-input appearance-none pr-12">
+                        <option value="time_desc">Newest first</option>
+                        <option value="time_asc">Oldest first</option>
+                    </select>
+                </div>
+                <div class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <path d="M7 10l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="md:col-span-12">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-end">
+                <!-- quick ranges -->
+                <div class="flex items-center gap-2 md:mr-4">
+                    <button id="btn10" class="range-btn rounded-2xl px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 transition" onclick="quickRange(10)">Last 10m</button>
+                    <button id="btn60" class="range-btn rounded-2xl px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 transition" onclick="quickRange(60)">Last 1h</button>
+                    <button id="btn1440" class="range-btn rounded-2xl px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 transition" onclick="quickRange(24*60)">Last 24h</button>
+                    <button id="btnAll" class="range-btn rounded-2xl px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 transition" onclick="quickRange('all')">All time</button>
+                </div>
+
+                <!-- anomaly type chips -->
+                <div class="flex flex-nowrap gap-2 md:justify-end">
+                    <label class="chip cursor-pointer rounded-full px-3 py-2 text-[13px] bg-white/80 hover:bg-white transition shadow-sm whitespace-nowrap">
+                        <input id="fLatency" type="checkbox" class="mr-2 accent-slate-900" onchange="scheduleLoad()" checked />
+                        High Latency
+                    </label>
+                    <label class="chip cursor-pointer rounded-full px-3 py-2 text-[13px] bg-white/80 hover:bg-white transition shadow-sm whitespace-nowrap">
+                        <input id="fLoss" type="checkbox" class="mr-2 accent-slate-900" onchange="scheduleLoad()" checked />
+                        High Packet Loss
+                    </label>
+                    <label class="chip cursor-pointer rounded-full px-3 py-2 text-[13px] bg-white/80 hover:bg-white transition shadow-sm whitespace-nowrap">
+                        <input id="fBw" type="checkbox" class="mr-2 accent-slate-900" onchange="scheduleLoad()" checked />
+                        Bandwidth Saturation
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div class="text-sm text-slate-600">
+            Showing <span class="font-medium" id="showing">0</span> of
+            <span class="font-medium" id="total">0</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button id="prevPage" onclick="gotoPage(currentPage - 1)"
+                    class="rounded-2xl px-3 py-2 text-sm bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                Prev
+            </button>
+            <div id="pageInfo" class="text-sm text-slate-500 min-w-[120px] text-center">Page 1 / 1</div>
+            <button id="nextPage" onclick="gotoPage(currentPage + 1)"
+                    class="rounded-2xl px-3 py-2 text-sm bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                Next
+            </button>
+
+            <button onclick="currentPage = 1; loadData(true)"
+                    class="ml-2 rounded-2xl px-4 py-2 text-sm bg-slate-900 text-white hover:bg-slate-800 transition">
+                Refresh
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- List -->
+<div class="bg-white rounded-3xl soft-shadow border border-slate-200/60 overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-200/60 flex items-center justify-between">
+        <div class="text-sm font-semibold text-slate-800">Anomaly events</div>
+        <div class="text-xs text-slate-500">
+            Thresholds: <span class="mono">lat &gt; 100</span> / <span class="mono">loss &gt; 5</span> / <span class="mono">bw &gt; 90</span>
+        </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <div class="grid grid-cols-12 px-4 py-3 text-xs font-semibold text-slate-500 bg-slate-50 min-w-[820px]">
+          <div class="col-span-2">Device</div>
+          <div class="col-span-3">Time</div>
+          <div class="col-span-2">Average Latency</div>
+          <div class="col-span-2">Average Packet Loss</div>
+          <div class="col-span-2">Average Bandwidth</div>
+          <div class="col-span-1 text-right">Anomalies Type</div>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <div id="rows" class="min-w-[820px]"></div>
+    </div>
+
+    <div id="empty" class="hidden p-10 text-center text-slate-600">
+        <div class="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-3xl bg-slate-100">🔎</div>
+        <div class="text-lg font-semibold">No matching anomalies</div>
+        <div class="text-sm text-slate-500 mt-1">Adjust filters or the time range.</div>
+    </div>
+</div>
+
+<script>
+    // -----------------------------
+    // Full demo: frontend -> backend (Iceberg)
+    // Backend expected at: http://localhost:8000
+    // Endpoint: GET /api/anomalies
+    // -----------------------------
+
+    let rowsData = [];
+    const PAGE_SIZE = 15;
+    let currentPage = 1;
+    let totalRows = 0;
+    let fpFrom = null;
+    let fpTo = null;
+
+    let debounceTimer = null;
+
+    function setLoading(isLoading) {
+        const el = document.getElementById("loadingOverlay");
+        if (!el) return;
+        if (isLoading) el.classList.remove("hidden");
+        else el.classList.add("hidden");
+    }
+
+    function fmtNum(x) {
+        if (x === null || x === undefined || x === "") return "";
+        const n = typeof x === "number" ? x : Number.parseFloat(x);
+        if (Number.isNaN(n)) return "";
+        return n.toFixed(2);
+    }
+
+    function fmtTime(s) {
+        if (!s) return "";
+        const str = String(s);
+        let d;
+        if (str.includes(" ") && !str.includes("T")) {
+            d = new Date(str.replace(" ", "T") + "Z"); // treat as UTC
+        } else {
+            d = new Date(str);
+        }
+        if (Number.isNaN(d.getTime())) return str;
+
+        const parts = new Intl.DateTimeFormat("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false,
+        }).formatToParts(d);
+        const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
+        return `${map.month} ${map.day}, ${map.year} ${map.hour}:${map.minute}:${map.second}`;
+    }
+
+    function initPickers() {
+        fpFrom = flatpickr("#fromTs", {
+            enableTime: true,
+            time_24hr: true,
+            dateFormat: "Y-m-d H:i",
+            onChange: () => scheduleLoad()
+        });
+        fpTo = flatpickr("#toTs", {
+            enableTime: true,
+            time_24hr: true,
+            dateFormat: "Y-m-d H:i",
+            onChange: () => scheduleLoad()
+        });
+    }
+
+    function setDefaultLastHour() {
+        const now = new Date();
+        const from = new Date(now.getTime() - 60 * 60 * 1000);
+        fpFrom.setDate(from, true);
+        fpTo.setDate(now, true);
+    }
+
+    function setActiveRange(minutes) {
+        const map = { 10: "btn10", 60: "btn60", 1440: "btn1440", all: "btnAll" };
+        document.querySelectorAll(".range-btn").forEach(btn => {
+            btn.classList.remove("bg-slate-900", "text-white");
+            btn.classList.add("bg-slate-100");
+        });
+        const id = map[minutes];
+        const active = id ? document.getElementById(id) : null;
+        if (active) {
+            active.classList.remove("bg-slate-100");
+            active.classList.add("bg-slate-900", "text-white");
+        }
+    }
+
+    function quickRange(minutes) {
+        const now = new Date();
+
+        if (minutes === 'all') {
+            if (fpFrom) fpFrom.clear();
+            if (fpTo) fpTo.clear();
+            setActiveRange('all');
+            scheduleLoad(true);
+            return;
+        }
+
+        const from = new Date(now.getTime() - minutes * 60 * 1000);
+        fpFrom.setDate(from, true);
+        fpTo.setDate(now, true);
+        setActiveRange(minutes);
+        scheduleLoad(true);
+    }
+
+    function getSelectedTypes() {
+        const fLatency = document.getElementById("fLatency").checked;
+        const fLoss    = document.getElementById("fLoss").checked;
+        const fBw      = document.getElementById("fBw").checked;
+        const types = [];
+        if (fLatency) types.push("latency");
+        if (fLoss) types.push("loss");
+        if (fBw) types.push("bandwidth");
+        return types;
+    }
+
+    function scheduleLoad(immediate = false) {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        currentPage = 1; // new search starts from page 1
+        debounceTimer = setTimeout(() => loadData(false), immediate ? 0 : 250);
+    }
+
+    function buildQueryParams() {
+        const q = (document.getElementById("q").value || "").trim();
+        const sort = document.getElementById("sort").value;
+        const types = getSelectedTypes();
+
+        const fromD = fpFrom && fpFrom.selectedDates[0] ? fpFrom.selectedDates[0] : null;
+        const toD   = fpTo   && fpTo.selectedDates[0]   ? fpTo.selectedDates[0]   : null;
+
+        const params = new URLSearchParams();
+        if (q) params.set("q", q);
+        if (fromD) params.set("from", fromD.toISOString());
+        if (toD) params.set("to", toD.toISOString());
+        if (types.length) params.set("types", types.join(","));
+        params.set("sort", sort);
+
+        params.set("limit", String(PAGE_SIZE));
+        params.set("offset", String((currentPage - 1) * PAGE_SIZE));
+
+        return params;
+    }
+
+    async function loadData(force = false) {
+        const params = buildQueryParams();
+        const url = `http://localhost:8000/api/anomalies?${params.toString()}`;
+
+        setLoading(true);
+        try {
+            const res = await fetch(url, { cache: force ? "reload" : "no-store" });
+            if (!res.ok) {
+                const txt = await res.text();
+                console.error("API error", res.status, txt);
+                rowsData = [];
+                updateMeta(0, 0);
+                renderRows([]);
+                return;
+            }
+
+            const payload = await res.json();
+            rowsData = payload.rows || [];
+            totalRows = payload.total ?? rowsData.length;
+
+            updateMeta(totalRows, rowsData.length);
+            renderRows(rowsData);
+            updatePagination();
+
+            document.getElementById("lastUpdated").innerText =
+                "Updated: " + new Date().toLocaleTimeString("en-US", { hour12: false });
+        } catch (e) {
+            console.error(e);
+            rowsData = [];
+            updateMeta(0, 0);
+            renderRows([]);
+            updatePagination();
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function updateMeta(total, showing) {
+        document.getElementById("total").innerText = total;
+        document.getElementById("showing").innerText = showing;
+    }
+
+    function totalPages() {
+        return Math.max(1, Math.ceil((totalRows || 0) / PAGE_SIZE));
+    }
+
+    function gotoPage(p) {
+        const tp = totalPages();
+        currentPage = Math.max(1, Math.min(tp, p));
+        loadData(true);
+    }
+
+    function updatePagination() {
+        const tp = totalPages();
+        const pageInfo = document.getElementById("pageInfo");
+        const prev = document.getElementById("prevPage");
+        const next = document.getElementById("nextPage");
+
+        if (pageInfo) pageInfo.innerText = `Page ${currentPage} / ${tp}`;
+        if (prev) prev.disabled = currentPage <= 1;
+        if (next) next.disabled = currentPage >= tp;
+
+        // Hide pagination controls when there are no results
+        const pag = document.getElementById("pageInfo")?.parentElement;
+        if (totalRows === 0) {
+            if (prev) prev.disabled = true;
+            if (next) next.disabled = true;
+        }
+    }
+
+    function tags(r) {
+        const out = [];
+        if (r.is_high_latency) out.push({ t: "Latency", cls: "bg-red-50 text-red-700 border-red-200" });
+        if (r.is_high_packet_loss) out.push({ t: "Loss", cls: "bg-orange-50 text-orange-700 border-orange-200" });
+        if (r.is_bandwidth_saturation) out.push({ t: "Bandwidth", cls: "bg-purple-50 text-purple-700 border-purple-200" });
+        return out;
+    }
+
+    function renderRows(rows) {
+        const list = document.getElementById("rows");
+        const empty = document.getElementById("empty");
+        list.innerHTML = "";
+
+        if (!rows || rows.length === 0) {
+            empty.classList.remove("hidden");
+            return;
+        }
+        empty.classList.add("hidden");
+
+        rows.forEach(r => {
+            const tgs = tags(r);
+            list.innerHTML += `
+        <div class="grid grid-cols-12 px-4 py-4 border-t border-slate-200/60 items-center hover:bg-slate-50/60 transition min-w-[820px]">
+          <div class="col-span-2 font-semibold text-slate-800">${r.device_id ?? ""}</div>
+          <div class="col-span-3 text-slate-600 mono">${fmtTime(r.window_start)}</div>
+          <div class="col-span-2">
+            <div class="font-semibold text-slate-900">${fmtNum(r.avg_latency_ms)} <span class="text-slate-500 font-medium">ms</span></div>
+          </div>
+          <div class="col-span-2">
+            <div class="font-semibold text-slate-900">${fmtNum(r.avg_packet_loss_rate)}<span class="text-slate-500 font-medium">%</span></div>
+          </div>
+          <div class="col-span-2">
+            <div class="font-semibold text-slate-900">${fmtNum(r.avg_bandwidth_usage)}<span class="text-slate-500 font-medium">%</span></div>
+          </div>
+          <div class="col-span-1 flex justify-end">
+            <div class="flex flex-wrap gap-2 justify-end">
+              ${tgs.map(x => `
+                <span class="text-[11px] px-2 py-1 rounded-full border ${x.cls}">
+                  ${x.t}
+                </span>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+      `;
+        });
+    }
+
+    // init
+    initPickers();
+    setDefaultLastHour();
+    setActiveRange(60);
+    loadData(true);
+    updatePagination();
+</script>
+
+</body>
+</html>
