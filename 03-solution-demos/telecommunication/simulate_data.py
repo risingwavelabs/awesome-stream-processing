@@ -4,7 +4,7 @@ import time
 from kafka import KafkaProducer
 from datetime import datetime
 
-# Initialize Kafka producer (connect to localhost:9092 on macOS)
+# Initialize Kafka producer
 producer = KafkaProducer(
     bootstrap_servers=['localhost:9092'],
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
