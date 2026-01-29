@@ -33,20 +33,12 @@ ICEBERG_NAMESPACE = os.getenv("ICEBERG_NAMESPACE", "public")
 ICEBERG_TABLE = os.getenv("ICEBERG_TABLE", "network_anomalies_history")
 
 # Timezone handling
-# RisingWave/Iceberg often stores TIMESTAMP WITHOUT TIME ZONE; we treat those as local time.
 LOCAL_TZ_NAME = os.getenv("LOCAL_TZ", "Asia/Singapore")
 LOCAL_TZ = ZoneInfo(LOCAL_TZ_NAME)
 
 
 def parse_iso(ts: Optional[str]) -> Optional[datetime]:
-    """Parse incoming query timestamps.
-
-    The frontend may send:
-      - ISO with timezone (e.g. 2026-01-27T12:34:56Z or +08:00)
-      - datetime-local style without timezone (e.g. 2026-01-27T12:34)
-
-    For timezone-naive inputs we assume LOCAL_TZ, then convert to UTC.
-    """
+    # Parse incoming query timestamps.
     if not ts:
         return None
 
@@ -66,19 +58,9 @@ def parse_iso(ts: Optional[str]) -> Optional[datetime]:
 
 
 def ws_to_dt(ws: str) -> datetime:
-    """Convert window_start string to UTC datetime.
-
-    Iceberg/RisingWave commonly use TIMESTAMP WITHOUT TIME ZONE for window_start.
-    We interpret those values as LOCAL_TZ, then convert to UTC for consistent filtering.
-
-    Accepts strings like:
-      - "YYYY-MM-DD HH:mm:ss"
-      - "YYYY-MM-DDTHH:mm:ss"
-      - with optional fractional seconds
-    """
+    # Convert window_start string to UTC datetime.
     s = (ws or "").strip()
     if not s:
-        # fallback; should not happen
         return datetime.fromtimestamp(0, tz=timezone.utc)
 
     # Make it ISO-like for fromisoformat
@@ -114,7 +96,6 @@ def get_catalog():
 
 app = FastAPI(title="Network Anomalies Demo API")
 
-# allow your static HTML to call this API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # demo only
@@ -139,7 +120,6 @@ def anomalies(
     limit: int = Query(default=15, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
 ) -> Dict[str, Any]:
-    """Returns rows for dashboard. Filtering is done here so the frontend is thin."""
 
     from_dt = parse_iso(from_)
     to_dt = parse_iso(to)
@@ -188,9 +168,6 @@ def anomalies(
             mask = mask | df["is_high_packet_loss"].fillna(False)
         if "bandwidth" in selected_types and "is_high_bandwidth_saturation" in df.columns:
             mask = mask | df["is_high_bandwidth_saturation"].fillna(False)
-        # Backward-compat if old column name exists
-        if "bandwidth" in selected_types and "is_bandwidth_saturation" in df.columns:
-            mask = mask | df["is_bandwidth_saturation"].fillna(False)
         df = df[mask]
     else:
         # if user unchecks all, return empty
@@ -205,20 +182,7 @@ def anomalies(
     # page
     df = df.iloc[offset : offset + limit]
 
-    cols = [
-        "device_id",
-        "window_start",
-        "window_end",
-        "avg_latency_ms",
-        "avg_packet_loss_rate",
-        "avg_bandwidth_usage",
-        "is_high_latency",
-        "is_high_packet_loss",
-        "is_high_bandwidth_saturation",
-        "is_bandwidth_saturation",
-    ]
-
-    # Ensure stable output schema (frontend expects 9 columns; keep the old 9 too)
+    # Ensure stable output schema
     output_cols = [
         "device_id",
         "window_start",
@@ -230,14 +194,6 @@ def anomalies(
         "is_high_packet_loss",
         "is_bandwidth_saturation",
     ]
-
-    for c in cols:
-        if c not in df.columns:
-            df[c] = None
-
-    # Prefer `is_high_bandwidth_saturation` if present, else fallback
-    if "is_high_bandwidth_saturation" in df.columns and df["is_high_bandwidth_saturation"].notna().any():
-        df["is_bandwidth_saturation"] = df["is_high_bandwidth_saturation"].fillna(False)
 
     rows = df[output_cols].to_dict(orient="records")
     return {"total": total, "limit": limit, "offset": offset, "rows": rows}

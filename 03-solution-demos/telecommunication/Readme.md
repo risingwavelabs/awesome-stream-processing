@@ -87,7 +87,7 @@ Ensure that [RisingWave](https://docs.risingwave.com/get-started/quickstart), [M
 
 ## Dashboard Visualization
 
-<img src="./images/Dashboard.png" alt="Interface Preview" style="zoom:33%;" />
+<img src="./images/dashboard.png" alt="Interface Preview" style="zoom:33%;" />
 
 **Live Anomaly Overview & Granular Filtering**
 
@@ -116,7 +116,7 @@ The core results grid displays real-time anomaly events with critical operationa
 
 Here’s the end-to-end data flow, from network devices to the dashboard:
 
-<img src="./images/architecture.svg" alt="health_care technical architecture" style="zoom: 25%;" />
+<img src="./images/Architecture.svg" alt="health_care technical architecture" style="zoom: 25%;" />
 
 ### **1. Data Capture (Network Devices → Kafka)**
 
