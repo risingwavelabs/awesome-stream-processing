@@ -7,7 +7,6 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- flatpickr (English UI) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
@@ -69,7 +68,7 @@
         }
 
 
-        /* flatpickr: match your UI */
+        /* flatpickr */
         .flatpickr-input {
             border: 1px solid rgba(148,163,184,.35) !important;
             border-radius: 16px !important;
@@ -222,10 +221,10 @@
                 </div>
             </div>
         </div>
-        <!-- anomaly type: moved to second row, grouped -->
+
         <div class="md:col-span-12">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-end">
-                <!-- quick ranges (left) -->
+                <!-- quick ranges -->
                 <div class="flex items-center gap-2 md:mr-4">
                     <button id="btn10" class="range-btn rounded-2xl px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 transition" onclick="quickRange(10)">Last 10m</button>
                     <button id="btn60" class="range-btn rounded-2xl px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 transition" onclick="quickRange(60)">Last 1h</button>
@@ -233,7 +232,7 @@
                     <button id="btnAll" class="range-btn rounded-2xl px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 transition" onclick="quickRange('all')">All time</button>
                 </div>
 
-                <!-- anomaly type chips (right) -->
+                <!-- anomaly type chips -->
                 <div class="flex flex-nowrap gap-2 md:justify-end">
                     <label class="chip cursor-pointer rounded-full px-3 py-2 text-[13px] bg-white/80 hover:bg-white transition shadow-sm whitespace-nowrap">
                         <input id="fLatency" type="checkbox" class="mr-2 accent-slate-900" onchange="scheduleLoad()" checked />
@@ -337,12 +336,10 @@
         return n.toFixed(2);
     }
 
-    // Output: "Jan 27, 2026 17:23:10" (English, 24h)
     function fmtTime(s) {
         if (!s) return "";
         const str = String(s);
         let d;
-        // RisingWave often returns "YYYY-MM-DD HH:mm:ss"
         if (str.includes(" ") && !str.includes("T")) {
             d = new Date(str.replace(" ", "T") + "Z"); // treat as UTC
         } else {
