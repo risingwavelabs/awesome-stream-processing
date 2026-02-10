@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>Shipment Tracking Dashboard</title>
+    <style>
+        :root {
+            --bg: #0b1020;
+            --panel: #121a33;
+            --panel2: #0f1630;
+            --text: #e8eeff;
+            --muted: #a7b0d6;
+            --line: rgba(255, 255, 255, .08);
+            --ok: #2dd4bf;
+            --warn: #fbbf24;
+            --bad: #fb7185;
+            --shadow: 0 14px 45px rgba(0, 0, 0, .35);
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+        }
+
+        html {
+            background: var(--bg);
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            color: var(--text);
+            background: radial-gradient(1100px 700px at 18% 0%, #192452 0%, var(--bg) 45%),
+            radial-gradient(900px 600px at 100% 20%, #1a1f44 0%, rgba(0, 0, 0, 0) 55%);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        .wrap {
+            max-width: 1220px;
+            margin: 0 auto;
+            padding: 28px 18px 24px;
+        }
+
+        .top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 12px;
+            margin-bottom: 40px;
+        }
+
+        .title {
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: .2px;
+        }
+
+        .sub {
+            margin-top: 4px;
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pill {
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, .03);
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+        }
+
+        .pill.ok {
+            color: var(--ok);
+        }
+
+        .pill.bad {
+            color: var(--bad);
+        }
+
+        .pill.warn {
+            color: var(--warn);
+        }
+
+        .btn {
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, .04);
+            color: var(--text);
+            padding: 6px 10px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, .07);
+        }
+
+        .kpis {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 26px;
+        }
+
+        .kpi {
+            background: linear-gradient(180deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .02));
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            padding: 12px;
+        }
+
+        .kpi .k {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .kpi .v {
+            margin-top: 6px;
+            font-size: 22px;
+            font-weight: 900;
+        }
+
+        .kpi .h {
+            margin-top: 4px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1.15fr .85fr;
+            gap: 14px;
+        }
+
+        .panel {
+            background: linear-gradient(180deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .02));
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .panelHead {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .panelBody {
+            padding: 12px 14px;
+        }
+
+        .map {
+            width: 100%;
+            height: 460px;
+            display: block;
+            background: rgba(0, 0, 0, .12);
+            border-radius: 12px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .input {
+            width: 100%;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, .03);
+            color: var(--text);
+            padding: 8px 10px;
+            border-radius: 12px;
+            outline: none;
+        }
+
+        .input::placeholder {
+            color: rgba(167, 176, 214, .65);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            font-size: 12px;
+            color: var(--muted);
+            font-weight: 700;
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--line);
+            position: sticky;
+            top: 0;
+            background: rgba(18, 26, 51, .86);
+            backdrop-filter: blur(8px);
+        }
+
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, .06);
+            font-size: 13px;
+        }
+
+        tr.row {
+            cursor: pointer;
+        }
+
+        tr.row:hover {
+            background: rgba(255, 255, 255, .03);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, .03);
+            font-size: 12px;
+        }
+
+        .badge.ok {
+            color: var(--ok);
+        }
+
+        .badge.warn {
+            color: var(--warn);
+        }
+
+        .badge.bad {
+            color: var(--bad);
+        }
+
+        .empty {
+            padding: 12px 4px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        /* Drawer (base) */
+        .drawer {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 420px;
+            height: 100vh;
+            background: rgba(9, 12, 24, .94);
+            backdrop-filter: blur(12px);
+            border-left: 1px solid rgba(255,255,255,.10);
+            box-shadow: var(--shadow);
+            transform: translateX(110%);
+            transition: transform .2s ease;
+            z-index: 10;
+        }
+
+        .drawer.open {
+            transform: translateX(0);
+        }
+
+        .drawerHead {
+            padding: 14px;
+            border-bottom: 1px solid rgba(255,255,255,.10);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, .03);
+        }
+
+        .drawerTitle {
+            font-weight: 900;
+        }
+
+        .drawerBody {
+            padding: 14px;
+            max-height: calc(100vh - 70px);
+            overflow: auto;
+        }
+
+        .kv {
+            background: rgba(255, 255, 255, .06);
+            border: 1px solid rgba(255, 255, 255, .10);
+            border-radius: 14px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+        }
+
+        .kv .k {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .kv .v {
+            margin-top: 6px;
+            font-weight: 900;
+            color: var(--text);
+        }
+
+        .mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        /* Overlay */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .55);
+            backdrop-filter: blur(2px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .18s ease;
+            z-index: 9;
+        }
+
+        .overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: fixed;
+            z-index: 20;
+            max-width: 260px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background: rgba(9, 12, 24, .92);
+            backdrop-filter: blur(10px);
+            color: var(--text);
+            font-size: 12px;
+            line-height: 1.35;
+            box-shadow: 0 18px 55px rgba(0, 0, 0, .45);
+            pointer-events: none;
+        }
+
+        .tooltip .t {
+            font-weight: 900;
+            margin-bottom: 3px;
+        }
+
+        .tooltip .m {
+            color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="top">
+        <div>
+            <div class="title">Real-time Shipment Tracking</div>
+        </div>
+        <div class="right">
+            <div id="status" class="pill warn">Connecting…</div>
+            <button id="refreshBtn" class="btn">Refresh</button>
+        </div>
+    </div>
+
+    <div class="kpis">
+        <div class="kpi">
+            <div class="k">In Transit</div>
+            <div id="k1" class="v">—</div>
+        </div>
+        <div class="kpi">
+            <div class="k">Delayed</div>
+            <div id="k2" class="v">—</div>
+        </div>
+        <div class="kpi">
+            <div class="k">Avg ETA</div>
+            <div id="k3" class="v">—</div>
+        </div>
+        <div class="kpi">
+            <div class="k">Updated</div>
+            <div id="k4" class="v">—</div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="panel">
+            <div class="panelHead">
+                <span>Live Map</span>
+                <span id="mapMeta">—</span>
+            </div>
+            <div class="panelBody">
+                <svg id="map" class="map" viewBox="0 0 760 460" preserveAspectRatio="none"></svg>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panelHead">
+                <span>Live Orders</span>
+                <div class="toolbar" style="width:55%;">
+                    <input id="q" class="input" placeholder="Filter by order_id / vehicle_id…"/>
+                </div>
+            </div>
+            <div class="panelBody" style="padding:0;">
+                <div style="max-height:460px; overflow:auto; padding:0 14px 10px;">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Order</th>
+                            <th>Vehicle</th>
+                            <th>ETA</th>
+                            <th>ETA (ts)</th>
+                            <th>Delay</th>
+                        </tr>
+                        </thead>
+                        <tbody id="tbody"></tbody>
+                    </table>
+                    <div id="empty" class="empty" style="display:none;">No in_transit rows</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="overlay" class="overlay"></div>
+<div id="tooltip" class="tooltip" style="display:none;"></div>
+
+<div id="drawer" class="drawer">
+    <div class="drawerHead">
+        <div>
+            <div id="dTitle" class="drawerTitle">—</div>
+            <div id="dSub" class="mono">—</div>
+        </div>
+        <button id="closeBtn" class="btn">Close</button>
+    </div>
+    <div class="drawerBody" id="dBody"></div>
+</div>
+
+<script>
+    // Backend base URL
+    const API_BASE = "http://localhost:8787";
+
+    const elStatus = document.getElementById("status");
+    const elK1 = document.getElementById("k1");
+    const elK2 = document.getElementById("k2");
+    const elK3 = document.getElementById("k3");
+    const elK4 = document.getElementById("k4");
+    const elMap = document.getElementById("map");
+    const elMapMeta = document.getElementById("mapMeta");
+    const elTbody = document.getElementById("tbody");
+    const elEmpty = document.getElementById("empty");
+    const elQ = document.getElementById("q");
+
+    const elDrawer = document.getElementById("drawer");
+    const elOverlay = document.getElementById("overlay");
+    const elTooltip = document.getElementById("tooltip");
+    const elDTitle = document.getElementById("dTitle");
+    const elDSub = document.getElementById("dSub");
+    const elDBody = document.getElementById("dBody");
+
+    const W = 760, H = 460;
+
+    function setStatus(kind, text) {
+        elStatus.className = "pill " + kind;
+        elStatus.textContent = text;
+    }
+
+    function fmt(x, d = 1) {
+        const n = Number(x);
+        return Number.isFinite(n) ? n.toFixed(d) : "—";
+    }
+
+    function escapeHtml(x) {
+        const s = String(x ?? "");
+        return s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+    }
+
+    function fmtLocalTs(ts) {
+        if (!ts) return "—";
+        const d = new Date(ts);
+        if (Number.isNaN(d.getTime())) return "—";
+        return d.toLocaleString();
+    }
+
+    function parseDelayMinutes(delayInterval) {
+        if (!delayInterval) return null;
+        const s = String(delayInterval);
+        const dayMatch = s.match(/(\d+)\s+day/);
+        const days = dayMatch ? Number(dayMatch[1]) : 0;
+        const t = s.match(/(\d{2}):(\d{2}):(\d{2})/);
+        if (!t) return null;
+        const hh = Number(t[1]), mm = Number(t[2]), ss = Number(t[3]);
+        return days * 1440 + hh * 60 + mm + ss / 60;
+    }
+
+    function delayBadge(delayMin) {
+        if (delayMin === null) return {cls: "badge", text: "—"};
+        if (delayMin <= 0) return {cls: "badge ok", text: `Early ${Math.abs(delayMin).toFixed(1)}m`};
+        if (delayMin <= 10) return {cls: "badge warn", text: `Late ${delayMin.toFixed(1)}m`};
+        return {cls: "badge bad", text: `Late ${delayMin.toFixed(1)}m`};
+    }
+
+    function tooltipHtml(d) {
+        const dm = parseDelayMinutes(d.delay_interval);
+        const b = delayBadge(dm);
+        const eta = Number.isFinite(Number(d.eta_minutes)) ? `${fmt(d.eta_minutes)}m` : "—";
+        const speed = Number.isFinite(Number(d.vehicle_speed_kmh)) ? `${fmt(d.vehicle_speed_kmh)} km/h` : "—";
+        const etaTs = d.eta_ts ? new Date(d.eta_ts).toLocaleTimeString() : "—";
+        return `
+            <div class="t">${escapeHtml(d.order_id)} <span class="m">(${escapeHtml(d.vehicle_id)})</span></div>
+            <div class="m">ETA: <b>${eta}</b> · ETA(ts): <b>${escapeHtml(etaTs)}</b></div>
+            <div class="m"><span class="${b.cls}">${b.text}</span> · Speed: <b>${speed}</b></div>
+        `;
+    }
+
+    function showTooltipAt(html, x, y) {
+        elTooltip.innerHTML = html;
+        elTooltip.style.display = "block";
+
+        const pad = 14;
+        const w = elTooltip.offsetWidth;
+        const h = elTooltip.offsetHeight;
+
+        let left = x + pad;
+        let top = y + pad;
+
+        if (left + w > window.innerWidth - 8) left = x - w - pad;
+        if (top + h > window.innerHeight - 8) top = y - h - pad;
+
+        elTooltip.style.left = left + "px";
+        elTooltip.style.top = top + "px";
+    }
+
+    function hideTooltip() {
+        elTooltip.style.display = "none";
+    }
+
+    function computeBounds(rows) {
+        if (!rows.length) return null;
+        let minLat = 999, maxLat = -999, minLon = 999, maxLon = -999;
+        for (const r of rows) {
+            minLat = Math.min(minLat, r.vehicle_lat, r.dest_lat);
+            maxLat = Math.max(maxLat, r.vehicle_lat, r.dest_lat);
+            minLon = Math.min(minLon, r.vehicle_lon, r.dest_lon);
+            maxLon = Math.max(maxLon, r.vehicle_lon, r.dest_lon);
+        }
+        const padLat = (maxLat - minLat) * 0.12 || 0.01;
+        const padLon = (maxLon - minLon) * 0.12 || 0.01;
+        return {minLat: minLat - padLat, maxLat: maxLat + padLat, minLon: minLon - padLon, maxLon: maxLon + padLon};
+    }
+
+    function proj(bounds, lat, lon) {
+        const x = (lon - bounds.minLon) / (bounds.maxLon - bounds.minLon) * W;
+        const y = (1 - (lat - bounds.minLat) / (bounds.maxLat - bounds.minLat)) * H;
+        return {x, y};
+    }
+
+    function drawMap(rows) {
+        elMap.innerHTML = "";
+        for (let i = 0; i <= 12; i++) {
+            const x = (i / 12) * W;
+            elMap.insertAdjacentHTML("beforeend", `<line x1="${x}" y1="0" x2="${x}" y2="${H}" stroke="rgba(255,255,255,.06)"/>`);
+        }
+        for (let i = 0; i <= 8; i++) {
+            const y = (i / 8) * H;
+            elMap.insertAdjacentHTML("beforeend", `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="rgba(255,255,255,.06)"/>`);
+        }
+        const top = rows.slice(0, 120);
+        const bounds = computeBounds(top);
+        if (!bounds) return;
+
+        for (const r of top) {
+            const a = proj(bounds, r.vehicle_lat, r.vehicle_lon);
+            const b = proj(bounds, r.dest_lat, r.dest_lon);
+            const dm = parseDelayMinutes(r.delay_interval);
+
+            let stroke = "rgba(255,255,255,.20)";
+            let fill = "rgba(232,238,255,.9)";
+            if (dm !== null) {
+                if (dm <= 0) {
+                    stroke = "rgba(45,212,191,.35)";
+                    fill = "rgba(45,212,191,.95)";
+                } else if (dm <= 10) {
+                    stroke = "rgba(251,191,36,.35)";
+                    fill = "rgba(251,191,36,.95)";
+                } else {
+                    stroke = "rgba(251,113,133,.35)";
+                    fill = "rgba(251,113,133,.95)";
+                }
+            }
+
+            elMap.insertAdjacentHTML("beforeend",
+                `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${stroke}" stroke-width="2"/>` +
+                `<circle cx="${b.x}" cy="${b.y}" r="3" fill="rgba(167,176,214,.8)"/>` +
+                `<circle cx="${a.x}" cy="${a.y}" r="5" fill="${fill}" stroke="rgba(255,255,255,.25)" stroke-width="1"
+                    data-oid="${escapeHtml(r.order_id)}" data-vid="${escapeHtml(r.vehicle_id)}" data-eta="${fmt(r.eta_minutes)}"
+                    data-etats="${escapeHtml(r.eta_ts ?? "")}" data-delay="${escapeHtml(r.delay_interval ?? "")}" data-vspeed="${fmt(r.vehicle_speed_kmh)}" />`
+            );
+        }
+    }
+
+    let lastRows = [];
+
+    function renderSnapshot(snap) {
+        const k = snap.kpis || {};
+        const rows = Array.isArray(snap.rows) ? snap.rows : [];
+        lastRows = rows;
+
+        elK1.textContent = k.in_transit ?? "—";
+        elK2.textContent = k.delayed ?? "—";
+        elK3.textContent = (k.avg_eta_minutes == null) ? "—" : (fmt(k.avg_eta_minutes) + "m");
+        elK4.textContent = snap.ts ? new Date(snap.ts).toLocaleTimeString() : "—";
+
+        elMapMeta.textContent = rows.length ? (rows.length + " rows") : "—";
+
+        applyFilterAndRenderTable();
+        drawMap(rows);
+    }
+
+    function applyFilterAndRenderTable() {
+        const q = elQ.value.trim().toLowerCase();
+        const rows = !q ? lastRows : lastRows.filter(r =>
+            String(r.order_id).toLowerCase().includes(q) || String(r.vehicle_id).toLowerCase().includes(q)
+        );
+
+        if (!rows.length) {
+            elTbody.innerHTML = "";
+            elEmpty.style.display = "block";
+            return;
+        }
+        elEmpty.style.display = "none";
+
+        let html = "";
+        for (const r of rows) {
+            const dm = parseDelayMinutes(r.delay_interval);
+            const b = delayBadge(dm);
+            const etaTsText = r.eta_ts ? new Date(r.eta_ts).toLocaleTimeString() : "—";
+            html += `<tr class="row" data-oid="${escapeHtml(r.order_id)}">
+        <td>${escapeHtml(r.order_id)}</td>
+        <td>${escapeHtml(r.vehicle_id)}</td>
+        <td>${fmt(r.eta_minutes)}m</td>
+        <td class="mono">${escapeHtml(etaTsText)}</td>
+        <td><span class="${b.cls}">${b.text}</span></td>
+      </tr>`;
+        }
+        elTbody.innerHTML = html;
+    }
+
+    async function fetchJson(url) {
+        const r = await fetch(url, {cache: "no-store"});
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+    }
+
+    async function refresh() {
+        try {
+            setStatus("warn", "Refreshing…");
+            const snap = await fetchJson(`${API_BASE}/api/snapshot?max_rows=200`);
+            renderSnapshot(snap);
+            setStatus("ok", "Live");
+        } catch (e) {
+            setStatus("bad", "API error");
+        }
+    }
+
+    async function openDrawer(orderId) {
+        try {
+            const row = await fetchJson(`${API_BASE}/api/orders/${encodeURIComponent(orderId)}`);
+            elDTitle.textContent = row.order_id;
+            elDSub.textContent = `${row.vehicle_id} · ${row.status}`;
+
+            const dm = parseDelayMinutes(row.delay_interval);
+            const b = delayBadge(dm);
+
+            elDBody.innerHTML = `
+        <div class="kv"><div class="k">ETA</div><div class="v">${fmt(row.eta_minutes)} min</div></div>
+        <div class="kv"><div class="k">Delay</div><div class="v"><span class="${b.cls}">${b.text}</span></div></div>
+        <div class="kv"><div class="k">Congestion</div><div class="v">${fmt(row.congestion, 2)}</div></div>
+        <div class="kv"><div class="k">Vehicle speed</div><div class="v">${fmt(row.vehicle_speed_kmh, 1)} km/h</div></div>
+        <div class="kv"><div class="k">Traffic speed</div><div class="v">${fmt(row.traffic_speed_kmh, 1)} km/h</div></div>
+        <div class="kv"><div class="k">GPS timestamp</div><div class="v mono">${escapeHtml(fmtLocalTs(row.gps_ts))}</div></div>
+        <div class="kv"><div class="k">ETA timestamp</div><div class="v mono">${escapeHtml(fmtLocalTs(row.eta_ts))}</div></div>
+        <div class="kv"><div class="k">Promised timestamp</div><div class="v mono">${escapeHtml(fmtLocalTs(row.promised_ts))}</div></div>
+        <div class="kv"><div class="k">Coords</div><div class="v mono">vehicle: ${fmt(row.vehicle_lat, 5)}, ${fmt(row.vehicle_lon, 5)}<br/>dest: ${fmt(row.dest_lat, 5)}, ${fmt(row.dest_lon, 5)}</div></div>
+      `;
+
+            elOverlay.classList.add("open");
+            elDrawer.classList.add("open");
+        } catch {
+            // keep silent
+        }
+    }
+
+    function closeDrawer() {
+        elDrawer.classList.remove("open");
+        elOverlay.classList.remove("open");
+    }
+
+    document.getElementById("refreshBtn").addEventListener("click", refresh);
+    document.getElementById("closeBtn").addEventListener("click", closeDrawer);
+    elOverlay.addEventListener("click", closeDrawer);
+    elQ.addEventListener("input", applyFilterAndRenderTable);
+
+    elMap.addEventListener("mousemove", (ev) => {
+        const t = ev.target;
+        if (!t || t.tagName !== "circle" || !t.dataset || !t.dataset.oid) {
+            hideTooltip();
+            return;
+        }
+        const d = {
+            order_id: t.dataset.oid,
+            vehicle_id: t.dataset.vid,
+            eta_minutes: t.dataset.eta,
+            eta_ts: t.dataset.etats,
+            delay_interval: t.dataset.delay,
+            vehicle_speed_kmh: t.dataset.vspeed,
+        };
+        showTooltipAt(tooltipHtml(d), ev.clientX, ev.clientY);
+    });
+    elMap.addEventListener("mouseleave", hideTooltip);
+
+    elTbody.addEventListener("click", (ev) => {
+        const tr = ev.target.closest("tr[data-oid]");
+        if (!tr) return;
+        openDrawer(tr.getAttribute("data-oid"));
+    });
+
+    // Polling loop
+    refresh();
+    setInterval(refresh, 1000);
+</script>
+</body>
+</html>

@@ -22,3 +22,9 @@ Here are the runnable demos so far:
 
 * [Real-time on-chain analysis](/03-solution-demos/solana_analysis): Monitor data on the Solana chain in real-time, filter out SOL Transfer and SPL-Token Transfer, and perform aggregate statistics via RisingWave.
 
+* [Healthcare Alert System](/03-solution-demos/health_care): Monitor real-time vital sign data (heart rate, blood oxygen, blood glucose) from medical devices, detect anomalies and generate graded alerts.
+
+* [Network anomaly detection](/03-solution-demos/telecommunication): Process real-time metric streams from network devices, detect anomalies like high latency, packet loss, and bandwidth saturation.
+
+* [Real-time shipment tracking and ETA intelligence](/03-solution-demos/shipment_tracking): Process streaming GPS and traffic data to continuously calculate shipment ETAs and detect delivery delays in real time.
+
