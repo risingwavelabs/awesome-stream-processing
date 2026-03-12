@@ -112,11 +112,9 @@ services:
     depends_on: [ ]
     volumes:
       - "grafana-0:/var/lib/grafana"
-      - "./grafana.ini:/etc/grafana/grafana.ini"
-      - "./grafana-risedev-datasource.yml:/etc/grafana/provisioning/datasources/grafana-risedev-datasource.yml"
-      - "./grafana-risedev-dashboard.yml:/etc/grafana/provisioning/dashboards/grafana-risedev-dashboard.yml"
       - "./dashboards:/dashboards"
-    environment: {}
+    environment:
+      GF_SERVER_HTTP_PORT: "3001"
     container_name: grafana-0
     healthcheck:
       test:
@@ -175,13 +173,31 @@ services:
 
   prometheus-0:
     image: "prom/prometheus:latest"
+    entrypoint:
+      - /bin/sh
+      - -ec
     command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
-      - "--web.console.templates=/usr/share/prometheus/consoles"
-      - "--web.listen-address=0.0.0.0:9500"
-      - "--storage.tsdb.retention.time=30d"
+      - |
+        cat >/etc/prometheus/prometheus.yml <<'EOF'
+        global:
+          scrape_interval: 15s
+
+        scrape_configs:
+          - job_name: prometheus
+            static_configs:
+              - targets: ["prometheus-0:9500"]
+
+          - job_name: risingwave
+            static_configs:
+              - targets: ["risingwave-standalone:1250"]
+        EOF
+        exec /bin/prometheus \
+          --config.file=/etc/prometheus/prometheus.yml \
+          --storage.tsdb.path=/prometheus \
+          --web.console.libraries=/usr/share/prometheus/console_libraries \
+          --web.console.templates=/usr/share/prometheus/consoles \
+          --web.listen-address=0.0.0.0:9500 \
+          --storage.tsdb.retention.time=30d
     expose:
       - "9500"
     ports:
@@ -189,7 +205,6 @@ services:
     depends_on: [ ]
     volumes:
       - "prometheus-0:/prometheus"
-      - "./prometheus.yaml:/etc/prometheus/prometheus.yml"
     environment: {}
     container_name: prometheus-0
     healthcheck:
@@ -246,6 +261,7 @@ services:
     build:
       context: .
       dockerfile: data-producers/Dockerfile
+    command: ["python", "run-producers.py", "message_queue:29092", "player_stats", "--loop"]
     depends_on:
       - message_queue
     environment:
