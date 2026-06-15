@@ -9,7 +9,6 @@ x-lakekeeper-environment: &lakekeeper-environment
   - LAKEKEEPER__PG_DATABASE_URL_READ=postgresql://postgres:postgres@lakekeeper-db:5432/postgres
   - LAKEKEEPER__PG_DATABASE_URL_WRITE=postgresql://postgres:postgres@lakekeeper-db:5432/postgres
   - LAKEKEEPER__AUTHZ_BACKEND=allowall
-  # Externally taken from environment variables if set
   - LAKEKEEPER__OPENID_PROVIDER_URI
   - LAKEKEEPER__OPENID_AUDIENCE
   - LAKEKEEPER__OPENID_ADDITIONAL_ISSUERS
@@ -17,7 +16,6 @@ x-lakekeeper-environment: &lakekeeper-environment
   - LAKEKEEPER__UI__OPENID_SCOPE
 
 services:
-  # RisingWave Services - Distributed Mode
   compactor-0:
     <<: *image
     command:
@@ -44,20 +42,7 @@ services:
       RUST_BACKTRACE: "1"
       ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
     container_name: compactor-0
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - bash -c 'printf \"GET / HTTP/1.1\n\n\" > /dev/tcp/127.0.0.1/6660; exit $$?;'
-      interval: 1s
-      timeout: 5s
-      retries: 5
     restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
     networks:
       iceberg_net:
 
@@ -80,7 +65,7 @@ services:
     expose:
       - "6661"
       - "1261"
-    ports: [ ]
+    ports: []
     depends_on:
       - meta-node-0
     volumes:
@@ -89,20 +74,7 @@ services:
       RUST_BACKTRACE: "1"
       ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
     container_name: compactor-1
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - bash -c 'printf \"GET / HTTP/1.1\n\n\" > /dev/tcp/127.0.0.1/6661; exit $$?;'
-      interval: 1s
-      timeout: 5s
-      retries: 5
     restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-        reservations:
-          memory: 8G
     networks:
       iceberg_net:
 
@@ -132,20 +104,7 @@ services:
       RUST_BACKTRACE: "1"
       ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
     container_name: compute-node-0
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - bash -c 'printf \"GET / HTTP/1.1\n\n\" > /dev/tcp/127.0.0.1/5688; exit $$?;'
-      interval: 1s
-      timeout: 5s
-      retries: 5
     restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-        reservations:
-          memory: 8G
     networks:
       iceberg_net:
 
@@ -175,20 +134,7 @@ services:
       RUST_BACKTRACE: "1"
       ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
     container_name: frontend-node-0
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - bash -c '> /dev/tcp/127.0.0.1/4566; exit $$?;'
-      interval: 1s
-      timeout: 5s
-      retries: 5
     restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
     networks:
       iceberg_net:
 
@@ -224,8 +170,8 @@ services:
       - "5690:5690"
       - "5691:5691"
     depends_on:
-      - "postgres-0"
-      - "minio-0"
+      - postgres-0
+      - minio-0
     volumes:
       - "./risingwave.toml:/risingwave.toml"
     environment:
@@ -234,26 +180,12 @@ services:
       RW_TELEMETRY_TYPE: ${RW_TELEMETRY_TYPE:-"docker-compose"}
       RW_SECRET_STORE_PRIVATE_KEY_HEX: ${RW_SECRET_STORE_PRIVATE_KEY_HEX:-0123456789abcdef0123456789abcdef}
     container_name: meta-node-0
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - bash -c 'printf \"GET / HTTP/1.1\n\n\" > /dev/tcp/127.0.0.1/5690; exit $$?;'
-      interval: 1s
-      timeout: 5s
-      retries: 5
     restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
     networks:
       iceberg_net:
 
-  
   postgres-0:
-    image: "postgres:15-alpine"
+    image: postgres:15-alpine
     environment:
       - POSTGRES_HOST_AUTH_METHOD=trust
       - POSTGRES_USER=postgres
@@ -266,7 +198,7 @@ services:
     volumes:
       - "postgres-0:/var/lib/postgresql/data"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 2s
       timeout: 5s
       retries: 5
@@ -275,7 +207,7 @@ services:
       iceberg_net:
 
   minio-0:
-    image: "quay.io/minio/minio:latest"
+    image: quay.io/minio/minio:latest
     command:
       - server
       - "--address"
@@ -291,13 +223,6 @@ services:
       - "9400:9400"
     volumes:
       - "minio-0:/data"
-    entrypoint: |
-      /bin/sh -c '
-      set -e
-      mkdir -p "/data/hummock001"
-
-      /usr/bin/docker-entrypoint.sh "$$0" "$$@"
-      '
     environment:
       MINIO_CI_CD: "1"
       MINIO_PROMETHEUS_AUTH_TYPE: public
@@ -306,29 +231,15 @@ services:
       MINIO_ROOT_USER: hummockadmin
       MINIO_DOMAIN: "minio-0"
     container_name: minio-0
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - bash -c 'printf "GET / HTTP/1.1\n\n" > /dev/tcp/127.0.0.1/9301; exit $$?;'
-      interval: 1s
-      timeout: 5s
-      retries: 5
     restart: always
     networks:
       iceberg_net:
 
-  # Lakekeeper Services
   lakekeeper:
     <<: *lakekeeper-image
     pull_policy: always
     environment: *lakekeeper-environment
-    command: [ "serve" ]
-    healthcheck:
-      test: [ "CMD", "/home/nonroot/lakekeeper", "healthcheck" ]
-      interval: 1s
-      timeout: 10s
-      retries: 3
-      start_period: 3s
+    command: ["serve"]
     depends_on:
       lakekeeper-migrate:
         condition: service_completed_successfully
@@ -338,84 +249,12 @@ services:
     networks:
       iceberg_net:
 
-  lakekeeper-bootstrap:
-    image: alpine:3.20
-    restart: "no"
-    depends_on:
-      lakekeeper:
-        condition: service_healthy
-    networks:
-      iceberg_net:
-    command: |
-      sh -lc '
-        set -e
-
-        apk add --no-cache curl >/dev/null
-
-        echo "Waiting for Lakekeeper to be ready..."
-        sleep 5
-
-        echo "Bootstrapping Lakekeeper..."
-        for attempt in 1 2 3 4 5; do
-          http=$$(curl -s -o /tmp/bootstrap.json -w "%{http_code}" -X POST \
-            -H "Content-Type: application/json" \
-            -d "{\"accept-terms-of-use\": true}" \
-            http://lakekeeper:8181/management/v1/bootstrap)
-
-          case "$$http" in
-            200|201) echo "✓ Successfully bootstrapped Lakekeeper!"; break ;;
-            400|409) echo "✓ Already bootstrapped or conflict; continuing..."; break ;;
-            *) echo "Bootstrap attempt $$attempt failed (HTTP $$http)"; \
-               [ $$attempt -eq 5 ] && { cat /tmp/bootstrap.json 2>/dev/null || true; exit 1; }; \
-               sleep $$((2 ** attempt)) ;;
-          esac
-        done
-
-        echo "Creating warehouse risingwave-warehouse..."
-        sleep 2
-        for attempt in 1 2 3 4 5; do
-          http=$$(curl -s -o /tmp/warehouse.json -w "%{http_code}" -X POST \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"warehouse-name\": \"risingwave-warehouse\",
-              \"delete-profile\": { \"type\": \"hard\" },
-              \"storage-credential\": {
-                \"type\": \"s3\",
-                \"credential-type\": \"access-key\",
-                \"aws-access-key-id\": \"hummockadmin\",
-                \"aws-secret-access-key\": \"hummockadmin\"
-              },
-              \"storage-profile\": {
-                \"type\": \"s3\",
-                \"bucket\": \"hummock001\",
-                \"region\": \"us-east-1\",
-                \"flavor\": \"s3-compat\",
-                \"endpoint\": \"http://minio-0:9301\",
-                \"path-style-access\": true,
-                \"sts-enabled\": false,
-                \"key-prefix\": \"risingwave-lakekeeper\"
-              }
-            }" \
-            http://lakekeeper:8181/management/v1/warehouse)
-
-          case "$$http" in
-            200|201) echo "✓ Successfully created warehouse!"; break ;;
-            400|409) echo "✓ Warehouse already exists/overlaps; continuing..."; break ;;
-            *) echo "Warehouse creation attempt $$attempt failed (HTTP $$http)"; \
-               [ $$attempt -eq 5 ] && { cat /tmp/warehouse.json 2>/dev/null || true; exit 1; }; \
-               sleep $$((2 ** attempt)) ;;
-          esac
-        done
-
-        echo "🎉 Lakekeeper setup completed successfully!"
-        echo "Lakekeeper is ready with warehouse: risingwave-warehouse"
-      '
   lakekeeper-migrate:
     <<: *lakekeeper-image
     pull_policy: always
     environment: *lakekeeper-environment
     restart: "no"
-    command: [ "migrate" ]
+    command: ["migrate"]
     depends_on:
       lakekeeper-db:
         condition: service_healthy
@@ -424,7 +263,7 @@ services:
       iceberg_net:
 
   lakekeeper-db:
-    image: "postgres:16-alpine"
+    image: postgres:16-alpine
     environment:
       - POSTGRES_PASSWORD=postgres
       - PGDATA=/var/lib/postgresql/data/pgdata
@@ -433,7 +272,7 @@ services:
     ports:
       - "8433:5432"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -p 5432 -d postgres" ]
+      test: ["CMD-SHELL", "pg_isready -U postgres -p 5432 -d postgres"]
       interval: 2s
       timeout: 10s
       retries: 2
@@ -445,6 +284,57 @@ services:
     networks:
       iceberg_net:
 
+  nimtable-web:
+    image: ghcr.io/nimtable/nimtable-web:nightly
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      JAVA_API_URL: http://nimtable:8182
+      DATABASE_URL: postgresql://nimtable_user:password@database:5432/nimtable
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin
+    depends_on:
+      - nimtable
+    networks:
+      - iceberg_net
+
+  nimtable:
+    image: ghcr.io/nimtable/nimtable:nightly
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "8182:8182"
+    configs:
+      - source: config.yaml
+        target: /nimtable/config.yaml
+    environment:
+      JAVA_OPTS: -Xmx32g -Xms512m
+    networks:
+      - iceberg_net
+
+  database:
+    image: postgres:17
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - nimtable-data-postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: nimtable_user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: nimtable
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nimtable_user -d nimtable"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - iceberg_net
+
 volumes:
   postgres-0:
     external: false
@@ -452,6 +342,19 @@ volumes:
     external: false
   lakekeeper-db:
     external: false
+  nimtable-data-postgres:
+    external: false
 
 networks:
   iceberg_net:
+
+configs:
+  config.yaml:
+    content: |
+      server:
+        port: 8182
+        host: 0.0.0.0
+      database:
+        url: jdbc:postgresql://database:5432/nimtable
+        username: nimtable_user
+        password: password
